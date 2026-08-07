@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 89c4b9b4900beb144947c7873c6e651f
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 317073
+  packageName: Easy Peasy First Person Controller
+  packageVersion: 1.2
+  assetPath: Assets/EasyPeasyFirstPersonController/Materials/Tile_Cube.mat
+  uploadId: 894484

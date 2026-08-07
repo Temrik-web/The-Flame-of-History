@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 865f7e608fbfb0342803cfb1a41c96b3
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 4890085278179872738
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 317073
+  packageName: Easy Peasy First Person Controller
+  packageVersion: 1.2
+  assetPath: Assets/EasyPeasyFirstPersonController/DemoScene/DemoScene.lighting
+  uploadId: 894484
