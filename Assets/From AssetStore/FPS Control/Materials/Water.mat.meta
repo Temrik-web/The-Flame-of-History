@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: bf2d9dc809394db41bb5235e07475135
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 317073
+  packageName: Easy Peasy First Person Controller
+  packageVersion: 1.2
+  assetPath: Assets/EasyPeasyFirstPersonController/Materials/Water.mat
+  uploadId: 894484

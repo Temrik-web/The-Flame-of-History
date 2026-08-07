@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 613fbde175d577b40a41eb0aa3d0ae07
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 317073
+  packageName: Easy Peasy First Person Controller
+  packageVersion: 1.2
+  assetPath: Assets/EasyPeasyFirstPersonController/Materials/Blue.mat
+  uploadId: 894484

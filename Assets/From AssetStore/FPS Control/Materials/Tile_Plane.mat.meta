@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 4f0d488fa650bb04392760c9aa3aafae
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 317073
+  packageName: Easy Peasy First Person Controller
+  packageVersion: 1.2
+  assetPath: Assets/EasyPeasyFirstPersonController/Materials/Tile_Plane.mat
+  uploadId: 894484
