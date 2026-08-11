@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 9f9c5b7c59540f34b8456cad5f91dfd3
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 317073
+  packageName: Easy Peasy First Person Controller
+  packageVersion: 1.2
+  assetPath: Assets/EasyPeasyFirstPersonController/Scripts/States/PlayerCrouchingState.cs
+  uploadId: 894484

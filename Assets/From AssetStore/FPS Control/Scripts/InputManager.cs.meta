@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 245deb3b698c6de4d80fdc6bcd905053
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 317073
+  packageName: Easy Peasy First Person Controller
+  packageVersion: 1.2
+  assetPath: Assets/EasyPeasyFirstPersonController/Scripts/InputManagerOld.cs
+  uploadId: 894484
