@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="8ca32e3b-c2c8-42b6-a053-5a2e868378da" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/DemoScene/DemoScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/DemoScene/DemoScene.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Materials/Blue.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Materials/Blue.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Materials/Tile_Cube.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Materials/Tile_Cube.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Materials/Tile_Plane.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Materials/Tile_Plane.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Materials/Tile_Wall.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Materials/Tile_Wall.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Materials/Water.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Materials/Water.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Scripts/FirstPersonController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/From AssetStore/FPS Control/Scripts/FirstPersonController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From Unity(Base)/HDRPDefaultResources.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From Unity(Base)/HDRPDefaultResources/HDRenderPipelineGlobalSettings.asset" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From Unity(Base)/HDRPDefaultResources/HDRenderPipelineGlobalSettings.asset.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From Unity(Base)/Settings/URP-HighFidelity.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/From Unity(Base)/Settings/URP-HighFidelity.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From Unity(Base)/Settings/URP-Performant-Renderer.asset" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From Unity(Base)/Settings/URP-Performant-Renderer.asset.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From Unity(Base)/Settings/URP-Performant.asset" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From Unity(Base)/Settings/URP-Performant.asset.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Materials/BulletHoleMat.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Materials/BulletHoleMat.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Materials/BulletTrailMat.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Materials/BulletTrailMat.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Materials/New Material.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Materials/New Material.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Materials/Wall.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Materials/Wall.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Models/Rgd-33/Material.001.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Models/Rgd-33/Material.001.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Models/Rgd-33/Rgd-33.fbx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Models/Rgd-33/Rgd-33.fbx.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/Bull.prefab" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/Bull.prefab.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/BulletHole.prefab" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/BulletHole.prefab.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/Bulletplane.prefab" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/Bulletplane.prefab.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/New Terrain.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/New Terrain.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Materials/Bush.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Materials/Bush.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Materials/Fern.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Materials/Fern.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Materials/Grass.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Materials/Grass.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Materials/Grass_C.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Materials/Grass_C.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Materials/Heather.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Materials/Heather.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/BushDry_A.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/BushDry_A.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/BushDry_B.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/BushDry_B.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Bush_A.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Bush_A.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Bush_B.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Bush_B.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Fern_A.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Fern_A.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Fern_B.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Fern_B.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Fern_C.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Fern_C.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Grass_A.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Grass_A.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Grass_C.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Grass_C.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Grass_D.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Grass_D.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Heather_A.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Heather_A.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Heather_B.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Models/Heather_B.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/BushDry_A.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/BushDry_A.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/BushDry_B.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/BushDry_B.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Bush_A.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Bush_A.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Bush_B.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Bush_B.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Fern_A.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Fern_A.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Fern_B.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Fern_B.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Fern_C.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Fern_C.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Grass_A.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Grass_A.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Grass_B.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Grass_B.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Grass_C.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Grass_C.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Grass_D.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Grass_D.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Heather_A.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Heather_A.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Heather_B.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Prefabs/Heather_B.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Settings/FoliageDiffusionProfile.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Settings/FoliageDiffusionProfile.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/CustomFunctions/CustomLighting.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/CustomFunctions/CustomLighting.hlsl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/CustomFunctions/CustomLighting.hlsl.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/CustomFunctions/CustomLighting.hlsl.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/Subgraphs/DistanceCutoff.shadersubgraph" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/Subgraphs/DistanceCutoff.shadersubgraph" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/Subgraphs/Wind.shadersubgraph" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/Subgraphs/Wind.shadersubgraph" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/Subgraphs/Wind.shadersubgraph.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/Subgraphs/Wind.shadersubgraph.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/TerrainGrass.shadergraph" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ShaderGraphs/TerrainGrass.shadergraph" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Noise_Soft_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Noise_Soft_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Soft_Round_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Soft_Round_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Canyon01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Canyon01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Canyon02_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Canyon02_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Canyon03_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Canyon03_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Canyon04_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Canyon04_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Canyon05_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Canyon05_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Crackedground01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Crackedground01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Crackedground02_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Crackedground02_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Erode01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Erode01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Erode02_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Erode02_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Flatmountain01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Flatmountain01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Hills01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Hills01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Hills02_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Hills02_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Hills02_Brush.brush.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Hills02_Brush.brush.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Island01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Island01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain02_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain02_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain03_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain03_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain04_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain04_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain05_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain05_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain06_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain06_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain07_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain07_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain08_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain08_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain09_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain09_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain10_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain10_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain11_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain11_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain11_Brush.brush.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Mountain11_Brush.brush.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Plateau01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Plateau01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Plateau02_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Plateau02_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Plateau03_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Plateau03_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge02_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge02_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge03_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge03_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge04_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge04_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge05_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge05_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge06_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridge06_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridgeedge01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Ridgeedge01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Rollinghills01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Rollinghills01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Slope01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Slope01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Slope02_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Slope02_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Slope03_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Slope03_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Slope04_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Slope04_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Slope04_Brush.brush.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Slope04_Brush.brush.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Softpeaks01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Softpeaks01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Volcano01_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Volcano01_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Volcano02_Brush.brush" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/TerrainBrushes/Terrainstamp_Volcano02_Brush.brush" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Bush_A_BaseColor.tif" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Bush_A_BaseColor.tif" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Bush_A_BaseColor.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Bush_A_BaseColor.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Bush_A_MaskMap.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Bush_A_MaskMap.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Bush_A_Normal.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Bush_A_Normal.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Fern_BaseColor.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Fern_BaseColor.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Fern_MaskMap.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Fern_MaskMap.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Fern_Normal.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Fern_Normal.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Fern_Thickness.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Fern_Thickness.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_A_MaskMap.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_A_MaskMap.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_A_Normal.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_A_Normal.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_A_Thickness.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_A_Thickness.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_C_BaseColor.tif" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_C_BaseColor.tif" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_C_BaseColor.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_C_BaseColor.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_C_MaskMap.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_C_MaskMap.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_C_Normal.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_C_Normal.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_C_Thickness.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Details/Grass_C_Thickness.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Terrain/Grass_A_BaseColor.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Terrain/Grass_A_BaseColor.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Terrain/Grass_B_BaseColor.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Terrain/Grass_B_BaseColor.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Terrain/Grass_B_MaskMap.tif" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Terrain/Grass_B_MaskMap.tif" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Terrain/Grass_B_MaskMap.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Terrain/Grass_B_MaskMap.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Terrain/Grass_B_Normal.tif.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/Textures/Terrain/Grass_B_Normal.tif.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ThirdPartyNotices.txt" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/TerrainSampleAssets/ThirdPartyNotices.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Timurlox.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Packages/manifest.json" beforeDir="false" afterPath="$PROJECT_DIR$/Packages/manifest.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Packages/packages-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/Packages/packages-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/GraphicsSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/GraphicsSettings.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/QualitySettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/QualitySettings.asset" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/Library/PackageCache/com.unity.render-pipelines.universal@14.0.12/Shaders/Lit.shader" root0="SKIP_HIGHLIGHTING" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 0
+}</component>
+  <component name="ProjectId" id="3HbQeScbO2q1kOD39WQ48NW963j" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="RunManager" selected="Attach to Unity Editor.Attach to Unity Editor">
+    <configuration name="Start Unity" type="RunUnityExe" factoryName="Unity Executable">
+      <option name="EXE_PATH" value="C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe" />
+      <option name="PROGRAM_PARAMETERS" value="-projectPath &quot;C:\Users\lokii\OneDrive\Рабочий стол\The Flame of History&quot; -debugCodeOptimization" />
+      <option name="WORKING_DIRECTORY" value="C:\Users\lokii\OneDrive\Рабочий стол\The Flame of History" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="ENV_FILE_PATHS" value="" />
+      <option name="REDIRECT_INPUT_PATH" value="" />
+      <option name="MIXED_MODE_DEBUG" value="0" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unit Tests (batch mode)" type="RunUnityExe" factoryName="Unity Executable">
+      <option name="EXE_PATH" value="C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe" />
+      <option name="PROGRAM_PARAMETERS" value="-runTests -batchmode -projectPath &quot;C:\Users\lokii\OneDrive\Рабочий стол\The Flame of History&quot; -testResults Logs/results.xml -logFile Logs/Editor.log -testPlatform EditMode -debugCodeOptimization" />
+      <option name="WORKING_DIRECTORY" value="C:\Users\lokii\OneDrive\Рабочий стол\The Flame of History" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="ENV_FILE_PATHS" value="" />
+      <option name="REDIRECT_INPUT_PATH" value="" />
+      <option name="MIXED_MODE_DEBUG" value="0" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Attach to Unity Editor" type="UNITY_DEBUG_RUN_CONFIGURATION" factoryName="Unity Debug" show_console_on_std_err="false" show_console_on_std_out="false" port="50000" address="localhost" useMixedMode="false">
+      <option name="allowRunningInParallel" value="false" />
+      <option name="listenPortForConnections" value="false" />
+      <option name="pid" />
+      <option name="projectPathOnTarget" />
+      <option name="runtimes">
+        <list />
+      </option>
+      <option name="selectedOptions">
+        <list />
+      </option>
+      <method v="2" />
+    </configuration>
+    <configuration name="Attach to" type="UnityDevicePlayer" factoryName="UnityAttachToDevicePlayer">
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="8ca32e3b-c2c8-42b6-a053-5a2e868378da" name="Changes" comment="" />
+      <created>1786134384476</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1786134384476</updated>
+      <workItem from="1786134385411" duration="1008000" />
+      <workItem from="1786484215769" duration="595000" />
+      <workItem from="1786590009259" duration="9000" />
+      <workItem from="1786675962983" duration="4000" />
+      <workItem from="1786676182332" duration="626000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="UnityProjectConfiguration" hasMinimizedUI="true" />
+  <component name="UnityProjectDiscoverer">
+    <option name="hasUnityReference" value="true" />
+    <option name="unityProject" value="true" />
+    <option name="unityProjectFolder" value="true" />
+  </component>
+  <component name="UnityUnitTestConfiguration" currentTestLauncher="Both" />
+  <component name="VcsManagerConfiguration">
+    <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <breakpoint enabled="true" type="DotNet_Exception_Breakpoints">
+          <properties exception="System.OperationCanceledException" breakIfHandledByOtherCode="false" displayValue="System.OperationCanceledException" />
+          <option name="timeStamp" value="1" />
+        </breakpoint>
+        <breakpoint enabled="true" type="DotNet_Exception_Breakpoints">
+          <properties exception="System.Threading.Tasks.TaskCanceledException" breakIfHandledByOtherCode="false" displayValue="System.Threading.Tasks.TaskCanceledException" />
+          <option name="timeStamp" value="2" />
+        </breakpoint>
+        <breakpoint enabled="true" type="DotNet_Exception_Breakpoints">
+          <properties exception="System.Threading.ThreadAbortException" breakIfHandledByOtherCode="false" displayValue="System.Threading.ThreadAbortException" />
+          <option name="timeStamp" value="3" />
+        </breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+</project>

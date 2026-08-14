@@ -15,10 +15,6 @@ namespace EasyPeasyFirstPersonController
         public float mouseSensitivity = 2f;
         public float strafeTiltAmount = 2f;
 
-        [Header("Aim Slowdown")]
-        public float aimSlowMultiplier = 0.5f;
-        private float baseWalkSpeed, baseSprintSpeed, baseCrouchSpeed;
-
         [Header("Movement Polish")]
         public float groundAcceleration = 50f;
         public float groundDeceleration = 60f;
@@ -103,14 +99,11 @@ namespace EasyPeasyFirstPersonController
 
         [Header("Debug")]
         public bool currentStateDebug = true;
-        public bool isAimingDebug = false;
 
         void OnGUI()
         {
             if (currentState != null && Application.isEditor && currentStateDebug)
                 GUILayout.Label("Current State: " + currentState.GetType().Name);
-            if (Application.isEditor)
-                GUILayout.Label("Aiming: " + isAimingDebug);
         }
 
         private void Awake()
@@ -131,46 +124,18 @@ namespace EasyPeasyFirstPersonController
 
             currentState = states.Grounded();
             currentState.EnterState();
-
-            baseWalkSpeed = walkSpeed;
-            baseSprintSpeed = sprintSpeed;
-            baseCrouchSpeed = crouchSpeed;
         }
 
         private void Update()
         {
-            if (characterController == null || playerCamera == null || cameraParent == null ||
-                groundCheck == null || input == null || states == null)
-            {
-                Debug.LogError("[FPS Controller] Отсутствуют ссылки! Проверь инспектор.");
-                return;
-            }
-
             if (currentLedgeCooldown > 0)
                 currentLedgeCooldown -= Time.deltaTime;
 
             isGrounded = characterController.isGrounded || Physics.CheckSphere(groundCheck.position, characterController.radius * 0.9f, groundMask, QueryTriggerInteraction.Ignore);
 
-            isAimingDebug = Input.GetMouseButton(1);
-            ApplyAimSlowdown(isAimingDebug);
-
-            if (currentState == null)
-            {
-                currentState = states.Grounded();
-                currentState.EnterState();
-            }
-
             currentState.UpdateState();
             HandleRotation();
             UpdateVisuals();
-        }
-
-        private void ApplyAimSlowdown(bool aiming)
-        {
-            float multiplier = aiming ? aimSlowMultiplier : 1f;
-            walkSpeed = baseWalkSpeed * multiplier;
-            sprintSpeed = baseSprintSpeed * multiplier;
-            crouchSpeed = baseCrouchSpeed * multiplier;
         }
 
         private void HandleRotation()
@@ -181,21 +146,13 @@ namespace EasyPeasyFirstPersonController
             transform.Rotate(Vector3.up * mouseX);
 
             xRotation -= mouseY;
-            xRotation = Mathf.Clamp(xRotation, -120f, 120f);
+            xRotation = Mathf.Clamp(xRotation, -90f, 90f);
 
             float strafeTilt = useCameraTilt ? (-input.moveInput.x * strafeTiltAmount) : 0;
             float combinedTargetTilt = (useCameraTilt ? targetTilt : 0) + strafeTilt;
 
             currentTilt = Mathf.SmoothDamp(currentTilt, combinedTargetTilt, ref tiltVelocity, 0.1f);
             playerCamera.localRotation = Quaternion.Euler(xRotation, 0, currentTilt);
-        }
-
-        // Метод для добавления отдачи извне
-        public void AddRecoil(float verticalAngle, float horizontalAngle)
-        {
-            xRotation -= verticalAngle;
-            xRotation = Mathf.Clamp(xRotation, -120f, 120f);
-            transform.Rotate(Vector3.up * horizontalAngle);
         }
 
         public void UpdateVisuals()
@@ -206,6 +163,7 @@ namespace EasyPeasyFirstPersonController
             }
             cam.fieldOfView = Mathf.SmoothDamp(cam.fieldOfView, targetFov, ref fovVelocity, 1f / fovChangeSpeed);
 
+            // Smoothly track the base camera height independent of headbob
             originalCamY = Mathf.Lerp(originalCamY, targetCameraY, Time.deltaTime * 8f);
 
             float targetBobOffset = 0f;
@@ -216,28 +174,42 @@ namespace EasyPeasyFirstPersonController
             }
             else
             {
+                // Smoothly reset timer to prevent snapping when starting to walk again
                 bobTimer = Mathf.Lerp(bobTimer, 0, Time.deltaTime * 10f);
             }
 
+            // Smoothly transition the actual camera Y to include the bob offset
             float desiredY = originalCamY + targetBobOffset;
-
+            
+            // Apply Camera Shake (Realistic Directional Impact)
             if (cameraShakeTimer > 0)
             {
                 cameraShakeTimer -= Time.deltaTime;
-                float normalizedTime = cameraShakeTimer / 0.4f;
-                float shakeFactor = normalizedTime * normalizedTime * normalizedTime;
+                
+                float normalizedTime = cameraShakeTimer / 0.4f; 
+                float shakeFactor = normalizedTime * normalizedTime * normalizedTime; 
+                
+                // 1. Sharp dip downwards based on frontal impact
                 float frontalImpact = Mathf.Abs(cameraShakeDirection.z) + 0.5f;
                 float dipY = -cameraShakeIntensity * shakeFactor * frontalImpact;
+                
+                // 2. Sharp rotational roll towards the impact side
                 float sideImpact = cameraShakeDirection.x;
                 float dipTilt = (cameraShakeIntensity * 15f) * sideImpact * shakeFactor;
-                if (Mathf.Abs(sideImpact) < 0.1f)
+                
+                // If it's purely a frontal crash with no side impact, add a slight random tilt
+                if (Mathf.Abs(sideImpact) < 0.1f) 
                     dipTilt = (cameraShakeIntensity * 5f) * shakeFactor * (Mathf.PerlinNoise(Time.time, 0) > 0.5f ? 1 : -1);
+                
+                // 3. Organic rattle (much lighter now)
                 float rattle = (Mathf.PerlinNoise(Time.time * 30f, 0f) - 0.5f) * (cameraShakeIntensity * 0.2f) * shakeFactor;
+
                 desiredY += dipY + rattle;
-                currentTilt += dipTilt + (rattle * 5f);
+                currentTilt += dipTilt + (rattle * 5f); 
             }
 
             float smoothedY = Mathf.Lerp(cameraParent.localPosition.y, desiredY, Time.deltaTime * 15f);
+
             cameraParent.localPosition = new Vector3(cameraParent.localPosition.x, smoothedY, cameraParent.localPosition.z);
         }
 
@@ -248,15 +220,22 @@ namespace EasyPeasyFirstPersonController
             cameraShakeTimer = duration;
             cameraShakeDirection = direction.normalized;
         }
+        public void AddRecoil(float verticalRecoil, float horizontalRecoil) //сделал темрик
+        {
+            // Отнимаем вертикальную отдачу, чтобы ствол подбрасывало ВВЕРХ
+            xRotation -= verticalRecoil; 
+            
+            transform.Rotate(Vector3.up * Random.Range(-horizontalRecoil, horizontalRecoil));
+        }  // дальше не я
 
         public bool HasCeiling()
         {
             float radius = characterController.radius * 0.9f;
             Vector3 origin = transform.position + Vector3.up * (characterController.height - radius);
             float checkDistance = standingCharacterControllerHeight - characterController.height + 0.1f;
+
             return Physics.SphereCast(origin, radius, Vector3.up, out _, checkDistance, groundMask, QueryTriggerInteraction.Ignore);
         }
-
         public bool CheckLedge(out Vector3 climbPosition)
         {
             climbPosition = Vector3.zero;
@@ -264,10 +243,12 @@ namespace EasyPeasyFirstPersonController
 
             RaycastHit wallHit;
             Vector3 wallOrigin = transform.position + Vector3.up * 1.5f;
+
             if (Physics.Raycast(wallOrigin, transform.forward, out wallHit, ledgeDetectionDistance, ledgeLayer, QueryTriggerInteraction.Ignore))
             {
                 Vector3 ledgeOrigin = wallOrigin + Vector3.up * 0.6f + transform.forward * 0.2f;
                 RaycastHit ledgeHit;
+
                 if (!Physics.Raycast(ledgeOrigin, transform.forward, 0.5f, groundMask))
                 {
                     if (Physics.Raycast(ledgeOrigin + transform.forward * 0.4f, Vector3.down, out ledgeHit, 1f, groundMask))
@@ -283,13 +264,18 @@ namespace EasyPeasyFirstPersonController
         private void OnTriggerEnter(Collider other)
         {
             if (((1 << other.gameObject.layer) & waterMask) != 0)
+            {
                 isInWater = true;
+            }
         }
 
         private void OnTriggerExit(Collider other)
         {
             if (((1 << other.gameObject.layer) & waterMask) != 0)
+            {
                 isInWater = false;
+            }
         }
+
     }
 }

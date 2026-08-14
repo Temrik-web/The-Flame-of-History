@@ -20,15 +20,15 @@ MonoBehaviour:
       time: 0
       value: 0
       inSlope: 0
-      outSlope: 0
+      outSlope: 1
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
       time: 1
-      value: 0.60414886
-      inSlope: 0
+      value: 1
+      inSlope: 1
       outSlope: 0
       tangentMode: 0
       weightedMode: 0
@@ -39,5 +39,5 @@ MonoBehaviour:
     m_RotationOrder: 4
   m_RadiusScale: 1.4849247
   m_BlackWhiteRemapMin: 0
-  m_BlackWhiteRemapMax: 0.45281032
+  m_BlackWhiteRemapMax: 1
   m_InvertRemapRange: 0
