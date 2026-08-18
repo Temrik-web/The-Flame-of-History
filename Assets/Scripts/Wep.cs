@@ -1,6 +1,6 @@
 using UnityEngine;
-using System.Collections;
 using EasyPeasyFirstPersonController;
+using System.Collections;
 
 public class Wep : MonoBehaviour
 {
@@ -9,35 +9,42 @@ public class Wep : MonoBehaviour
     public int currentAmmo;
     public int spareMagazines = 2;
     public float fireRate = 0.066f;
-    public float reloadTime = 4f;
+    public float reloadTime = 4.5f;
     public float damage = 25f;
 
     [Header("Разброс (динамический)")]
-    public float baseSpread = 10f;
-    public float autoSpreadPerShot = 2.5f;
-    public float maxSpread = 30f;
-    public float spreadRecoverySpeed = 0.6f;
+    public float baseSpread = 4f;
+    public float autoSpreadPerShot = 1.5f;
+    public float maxSpread = 18f;
+    public float spreadRecoverySpeed = 15f;
     private float currentSpread;
 
     [Header("Прицеливание")]
     public float normalFOV = 60f;
     public float aimFOV = 40f;
-    public float aimSpreadMultiplier = 0.6f;
-    public float aimRecoilMultiplier = 1.2f;
-    public Vector3 hipPosition = new Vector3(0.1186829f, -0.7355555f, 0.154068f);
-    public Vector3 aimPosition = new Vector3(-0.298996f, -0.526f, 0.052f);
-    public Vector3 hipRotation = new Vector3(-3.157f, -80.27f, -0.661f);
-    public Vector3 aimRotation = new Vector3(0f, -90f, -0.285f);
-    public float aimTransitionSpeed = 10f;
+    public float aimSpreadMultiplier = 0.4f;
+    public float aimRecoilMultiplier = 0.6f;
+    public Vector3 hipPosition = new Vector3(0.458f, -1.01f, 0.73f);
+    public Vector3 aimPosition = new Vector3(0.004f, -0.778f, 0.429f);
+    public Vector3 hipRotation = new Vector3(0.4f, -90f, -0.771f);
+    public Vector3 aimRotation = new Vector3(0.4f, -90.254f, -0.417f);
+
+    [Header("Настройка перехода в прицел")]
+    public float aimTransitionSpeed = 6.5f;
+    public float aimSmoothing = 0.5f;
+    public float aimSpeedWalkMultiplier = 0.6f;
+    public float aimSpeedRunMultiplier = 0.3f;
     private bool isAiming = false;
+    private float aimTransitionProgress = 0f;
+    private float aimBlend = 0f;
+    private float fovVelocity = 0f;
 
     [Header("Отдача (передаётся в контроллер)")]
     public AnimationCurve verticalRecoilCurve = new AnimationCurve(
-        new Keyframe(0, 1.2f), new Keyframe(2, 2.0f), new Keyframe(5, 3.5f), new Keyframe(10, 5.0f)
-    );
+        new Keyframe(0, 1.0f), new Keyframe(2, 1.4f), new Keyframe(4, 2.0f), new Keyframe(5, 2.8f));
     public AnimationCurve horizontalRecoilCurve = new AnimationCurve(
-        new Keyframe(0, 0.3f), new Keyframe(2, 0.5f), new Keyframe(5, 0.8f), new Keyframe(10, 1.2f)
-    );
+        new Keyframe(0, 0.25f), new Keyframe(2, 0.35f), new Keyframe(4, 0.5f), new Keyframe(5, 0.7f));
+    public float recoilStrengthMultiplier = 0.9f;
     private int consecutiveShots = 0;
     private float lastShotTime;
     private float timeOfLastShot = -10f;
@@ -59,54 +66,203 @@ public class Wep : MonoBehaviour
     public bool isRunning = false;
     public bool isGrounded = true;
 
-    [Header("Анимации оружия")]
-    public float swayAmount = 0.08f;
-    public float swaySmoothness = 5f;
-    public float moveSwayMultiplier = 3f;
+    [Header("Анимации оружия (реалистичные)")]
+    public float swayAmount = 0.04f;
+    public float swaySmoothness = 8f;
+    public float moveSwayMultiplier = 1.0f;
     public float idleSwaySpeed = 1.2f;
-    public float idleSwayAmount = 0.02f;
-    public float tremorAmount = 0.008f;
-    public float tremorSpeed = 20f;
-    public float bobAmplitudeWalk = 0.08f;
-    public float bobAmplitudeRun = 0.15f;
-    public float bobFrequencyWalk = 10f;
-    public float bobFrequencyRun = 16f;
-    public float bobSmoothTime = 0.08f;
-    public float jumpBobOffsetY = -0.1f;
-    public float jumpBobOffsetZ = 0.06f;
-    public float kickbackPositionY = 0.06f;
-    public float kickbackPositionZ = -0.08f;
-    public float kickbackRotationX = -10f;
-    public float kickbackRotationY = 1.5f;
+    public float idleSwayAmount = 0.015f;
 
-    // Анимация приседания
+    public float bobAmplitudeWalk = 0.04f;
+    public float bobAmplitudeRun = 0.07f;
+    public float bobFrequencyWalk = 1.8f;
+    public float bobFrequencyRun = 2.2f;
+    public float bobSmoothTime = 0.12f;
+    public float bobDistanceSmoothTime = 0.05f;
+
+    public float bobVerticalMultiplier = 0.8f;
+    public float bobHorizontalMultiplier = 0.6f;
+    public float bobForwardMultiplier = 0.7f;
+    public float bobRotationMultiplier = 0.5f;
+
+    public float jumpBobOffsetY = -0.08f;
+    public float jumpBobOffsetZ = 0.05f;
     public float crouchPositionOffsetY = -0.06f;
     public float crouchPositionOffsetZ = 0.03f;
     public float crouchRotationOffsetX = 5f;
 
+    public float shootShakeAmount = 0.002f;
+    public float shootShakeSpeed = 30f;
+    private float shootShakeTimer = 0f;
+
+    public float kickbackPositionY = 0.03f;
+    public float kickbackPositionZ = -0.09f;
+    public float kickbackRotationX = -6f;
+    public float kickbackRotationY = 1.0f;
+
+    public float breathAmplitude = 0.004f;
+    public float breathSpeed = 1.0f;
+    private float breathTimer = 0f;
+
+    private Vector2 mouseDelta;
+    private Vector3 inertiaPosition = Vector3.zero;
+    private Vector3 inertiaRotation = Vector3.zero;
+    public float inertiaSmoothness = 0.08f;
+    public float inertiaMultiplier = 0.02f;
+
+    private float landingSpring = 0f;
+    private float landingSpringVelocity = 0f;
+    public float landingSpringStiffness = 80f;
+    public float landingSpringDamping = 10f;
+
+    public AnimationCurve reloadCurvePositionY = new AnimationCurve(
+        new Keyframe(0, 0), new Keyframe(0.2f, -0.08f), new Keyframe(0.8f, -0.1f), new Keyframe(1, 0));
+    public AnimationCurve reloadCurveRotationX = new AnimationCurve(
+        new Keyframe(0, 0), new Keyframe(0.3f, -10f), new Keyframe(0.7f, -15f), new Keyframe(1, 0));
+    private float reloadProgress = 0f;
+    private bool isReloading = false;
+    public bool IsReloading => isReloading;
+
+    [Header("Звуки")]
+    public AudioSource audioSource;
+    public AudioClip shootSound;           // Звук выстрела
+    public AudioClip reloadSound;          // Звук начала перезарядки (опционально)
+    public AudioClip boltSound;            // Звук передёргивания затвора
+    public AudioClip magazineReleaseSound; // Звук кнопки сброса магазина
+    public AudioClip magazineDropSound;    // Звук падения магазина
+    public AudioClip magazineSlideSound;   // Звук скольжения магазина при вставке
+    public AudioClip magazineSnapSound;    // Звук фиксации магазина (щелчок)
+    public GameObject shellPrefab;
+    public Transform shellEjectPoint;
+    public float shellEjectForce = 3f;
+    public float shellLifetime = 3f;
+
     private Vector3 swayPositionOffset = Vector3.zero;
     private Vector3 swayRotationOffset = Vector3.zero;
-    private Vector3 tremorPosition = Vector3.zero;
-    private Vector3 tremorRotation = Vector3.zero;
     private Vector3 bobPosition = Vector3.zero;
     private Vector3 bobRotation = Vector3.zero;
     private Vector3 bobVelocity = Vector3.zero;
     private Vector3 bobRotVelocity = Vector3.zero;
     private float idleSwayTimer = 0f;
-    private float tremorTimer = 0f;
-    private float bobTimer = 0f;
+    private float bobTime = 0f;
+    private Vector3 lastPosition;
 
     private Vector3 recoilKickPosition = Vector3.zero;
     private Vector3 recoilKickRotation = Vector3.zero;
 
+    private Vector3 smoothMoveOffset;
+    private Vector3 smoothMoveRotation;
+    private Vector3 moveOffsetVelocity;
+    private Vector3 moveRotVelocity;
+
     [Header("Режимы огня")]
     public FireMode currentFireMode = FireMode.Auto;
-    private bool isReloading = false;
-    public bool IsReloading => isReloading;
-
     private FirstPersonController fpsController;
-    private Coroutine reloadRoutine;   // <-- ДОБАВЛЕНО
+    private Coroutine reloadRoutine;
     private bool initFailed = false;
+
+    // === КИНЕМАТОГРАФИЧНАЯ ПЕРЕЗАРЯДКА ===
+    [Header("Кинематографичная перезарядка")]
+    public bool useCinematicReload = true;
+    public Vector3 reloadStartPosition = new Vector3(0.562f, -0.826f, 1.049f);
+    public Vector3 reloadStartRotation = new Vector3(-9.881f, -131.71f, 8.691f);
+    public Vector3 reloadBoltPullPosition = new Vector3(1.03f, -0.178f, 1.142f);
+    public Vector3 reloadBoltPullRotation = new Vector3(64.73f, 31.196f, 135.383f);
+    public float closeUpTransitionTime = 0.4f;
+    public float boltPullTransitionTime = 0.5f;
+
+    [Tooltip("Старый магазин (Circle.004)")]
+    public Transform oldMagazine;
+    [Tooltip("Новый магазин (Circle.005)")]
+    public Transform newMagazine;
+
+    // Точка вставки нового магазина (локальные координаты относительно weaponModel)
+    public Vector3 newMagazineInsertLocalPos = new Vector3(0.9392396f, 1.30955f, -2.842171e-16f);
+    public Vector3 newMagazineInsertLocalRot = new Vector3(0f, 0f, 5.2f);
+
+    [Header("Вставка магазина")]
+    public Vector3 newMagazineStartOffset = new Vector3(0f, -1.2f, 0.5f);
+    public Vector3 newMagazineStartRotationOffset = new Vector3(35f, 0f, 15f);
+    public float newMagazineAppearDelay = 0.5f;
+    public float newMagazineMoveTime = 0.9f;
+    public AnimationCurve newMagazineInsertCurve = new AnimationCurve(
+        new Keyframe(0, 0, 0, 0.5f),
+        new Keyframe(0.6f, 0.7f, 1.5f, 0),
+        new Keyframe(1, 1, -0.3f, 0)
+    );
+    [Tooltip("Насколько глубоко магазин входит до паузы и финального щелчка (0..1)")]
+    public float newMagazinePreInsertAmount = 0.97f;
+    public float newMagazineSnapPause = 0.12f;
+    public float newMagazineSnapSpeed = 2.5f;
+
+    [Header("Инерция оружия при вставке")]
+    public Vector3 newMagInertiaOffsetPos = new Vector3(-0.12f, 0.07f, -0.18f);
+    public Vector3 newMagInertiaOffsetRot = new Vector3(-12f, 5f, 0f);
+    public float inertiaDuration = 0.35f;
+
+    [Header("Рычажок (затворная задержка)")]
+    public Transform lever;
+    public float leverMoveOffsetX = 0.1f;
+    public float leverMoveTime = 0.15f;
+    private Vector3 leverOriginalLocalPos;
+
+    [Header("Затвор")]
+    public Transform bolt;
+    public Vector3 boltReloadPullPosition = new Vector3(0.081f, 1.907f, 0f);
+    public Vector3 boltFireOffset = new Vector3(0f, 0f, -0.03f);
+    public float boltFireReturnTime = 0.1f;
+    private Vector3 boltOriginalLocalPos;
+    private Quaternion boltOriginalLocalRot;
+
+    [Header("Выпадение магазина")]
+    public float magazineDropHeight = 2.2f;
+    public float magazineDropTime = 0.8f;
+    public float magazineDropRotationZ = 40f;
+
+    [Header("Инерция оружия (выпадение)")]
+    public Vector3 oldMagInertiaOffsetPos = new Vector3(0.04f, 0.02f, 0.06f);
+    public Vector3 oldMagInertiaOffsetRot = new Vector3(4f, -2f, 0f);
+
+    [Header("Инерция затвора")]
+    public Vector3 boltPullInertiaOffsetPos = new Vector3(0.05f, 0.02f, 0.06f);
+    public Vector3 boltPullInertiaOffsetRot = new Vector3(3f, 0f, 0f);
+    public float boltPullInertiaDuration = 0.2f;
+
+    [Header("Эффекты камеры")]
+    public float reloadFOVReduction = 4f;
+    public float fovTransitionTime = 0.25f;
+    public float cameraShakeIntensityInsert = 0.02f;
+    public float cameraShakeIntensityBolt = 0.03f;
+    public float cameraShakeDuration = 0.15f;
+
+    [Header("Наклон оружия при вставке")]
+    public Vector3 insertTiltRotation = new Vector3(0f, 0f, 7f);
+    public float insertTiltTime = 0.2f;
+
+    [Header("Микро-паузы")]
+    public float pauseBeforeMagazineDrop = 0.15f;
+    public float pauseBeforeMagazineInsert = 0.25f;
+    public float pauseBeforeBoltPull = 0.15f;
+
+    [Header("Визуальные эффекты затвора")]
+    public ParticleSystem boltParticles;
+    public Light boltLight;
+    public bool useBoltFOVKick = true;
+    public float boltFOVKickAmount = 6f;
+    public float boltFOVKickDuration = 0.08f;
+
+    [Header("Задержки звуков")]
+    public float magazineReleaseSoundDelay = 0f; // задержка перед звуком кнопки сброса
+    public float magazineDropSoundDelay = 0.6f;  // задержка перед звуком падения магазина
+    public float magazineSlideSoundDelay = 0f;   // задержка перед звуком скольжения магазина
+    public float magazineSnapSoundDelay = 0f;    // задержка перед звуком фиксации магазина
+    public float boltSoundDelay = 0f;            // задержка перед звуком затвора
+
+    private bool isCinematicReload = false;
+    private Vector3 oldMagOriginalLocalPos;
+    private Quaternion oldMagOriginalLocalRot;
+    private Vector3 newMagOriginalLocalPos;
+    private Quaternion newMagOriginalLocalRot;
 
     public enum FireMode { Semi, Auto }
 
@@ -133,6 +289,24 @@ public class Wep : MonoBehaviour
 
         if (weaponModel == null) weaponModel = transform;
 
+        // Принудительно делаем bolt, lever, oldMagazine, newMagazine дочерними weaponModel (если они назначены)
+        if (bolt != null && bolt.parent != weaponModel)
+        {
+            bolt.SetParent(weaponModel, true);
+        }
+        if (lever != null && lever.parent != weaponModel)
+        {
+            lever.SetParent(weaponModel, true);
+        }
+        if (oldMagazine != null && oldMagazine.parent != weaponModel)
+        {
+            oldMagazine.SetParent(weaponModel, true);
+        }
+        if (newMagazine != null && newMagazine.parent != weaponModel)
+        {
+            newMagazine.SetParent(weaponModel, true);
+        }
+
         if (muzzlePoint == null)
         {
             GameObject mp = new GameObject("MuzzlePoint");
@@ -141,12 +315,58 @@ public class Wep : MonoBehaviour
             muzzlePoint = mp.transform;
         }
 
+        if (shellEjectPoint == null)
+        {
+            GameObject sp = new GameObject("ShellEjectPoint");
+            sp.transform.SetParent(weaponModel, false);
+            sp.transform.localPosition = new Vector3(0.02f, -0.02f, 0.2f);
+            shellEjectPoint = sp.transform;
+        }
+
+        if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+
         weaponModel.localPosition = hipPosition;
         weaponModel.localRotation = Quaternion.Euler(hipRotation);
+
+        lastPosition = transform.position;
+        bobTime = 0f;
 
         fpsController = FindObjectOfType<FirstPersonController>();
         if (fpsController == null)
             Debug.LogWarning("[Gun] FirstPersonController не найден. Отдача не будет работать.");
+
+        // Сохраняем исходные локальные позиции после установки родителя
+        if (oldMagazine != null)
+        {
+            oldMagOriginalLocalPos = oldMagazine.localPosition;
+            oldMagOriginalLocalRot = oldMagazine.localRotation;
+        }
+        if (newMagazine != null)
+        {
+            newMagOriginalLocalPos = newMagazine.localPosition;
+            newMagOriginalLocalRot = newMagazine.localRotation;
+
+            if (newMagazineInsertLocalPos == Vector3.zero)
+                newMagazineInsertLocalPos = newMagOriginalLocalPos;
+            if (newMagazineInsertLocalRot == Vector3.zero)
+                newMagazineInsertLocalRot = newMagOriginalLocalRot.eulerAngles;
+
+            newMagazine.gameObject.SetActive(false);
+        }
+        if (lever != null)
+        {
+            leverOriginalLocalPos = lever.localPosition;
+        }
+        if (bolt != null)
+        {
+            boltOriginalLocalPos = bolt.localPosition;
+            boltOriginalLocalRot = bolt.localRotation;
+        }
+
+        if (oldMagazine != null) oldMagazine.gameObject.SetActive(true);
+
+        if (boltLight != null) boltLight.enabled = false;
     }
 
     void Update()
@@ -160,24 +380,100 @@ public class Wep : MonoBehaviour
         if (crosshairObject != null)
             crosshairObject.SetActive(!isAiming);
 
-        playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, isAiming ? aimFOV : normalFOV, Time.deltaTime * 10f);
+        float currentAimSpeed = aimTransitionSpeed;
+        if (isRunning)
+            currentAimSpeed *= aimSpeedRunMultiplier;
+        else if (IsMoving())
+            currentAimSpeed *= aimSpeedWalkMultiplier;
 
-        if (Time.time - timeOfLastShot > 0.25f)
+        if (isAiming)
+            aimTransitionProgress = Mathf.MoveTowards(aimTransitionProgress, 1f, Time.deltaTime * currentAimSpeed);
+        else
+            aimTransitionProgress = Mathf.MoveTowards(aimTransitionProgress, 0f, Time.deltaTime * currentAimSpeed);
+
+        aimBlend = Mathf.SmoothStep(0f, 1f, aimTransitionProgress);
+
+        float targetFOV = isAiming ? aimFOV : normalFOV;
+        if (!isCinematicReload)
+            targetFOV -= 0f;
+        playerCamera.fieldOfView = Mathf.SmoothDamp(playerCamera.fieldOfView, targetFOV, ref fovVelocity, 0.12f);
+
+        if (Time.time - timeOfLastShot > 0.3f)
             consecutiveShots = 0;
 
-        UpdateTremor();
-        UpdateSway();
-        UpdateBob();
+        if (!isCinematicReload)
+        {
+            UpdateIdleSway();
+            UpdateBob();
+            UpdateSway();
+            UpdateBreathing();
+            UpdateLandingSpring();
+            UpdateShootShake();
+        }
+        else
+        {
+            swayPositionOffset = Vector3.zero;
+            swayRotationOffset = Vector3.zero;
+            bobPosition = Vector3.zero;
+            bobRotation = Vector3.zero;
+            recoilKickPosition = Vector3.Lerp(recoilKickPosition, Vector3.zero, 1 - Mathf.Exp(-25f * Time.deltaTime));
+            recoilKickRotation = Vector3.Lerp(recoilKickRotation, Vector3.zero, 1 - Mathf.Exp(-25f * Time.deltaTime));
+        }
 
-        Vector3 targetPos = (isAiming ? aimPosition : hipPosition) + swayPositionOffset + tremorPosition + bobPosition + recoilKickPosition;
-        Quaternion targetRot = Quaternion.Euler(isAiming ? aimRotation : hipRotation)
-                               * Quaternion.Euler(swayRotationOffset + tremorRotation + bobRotation + recoilKickRotation);
+        Vector3 basePos;
+        Vector3 baseRot;
+        if (!isCinematicReload)
+        {
+            basePos = Vector3.Lerp(hipPosition, aimPosition, aimBlend);
+            baseRot = Vector3.Lerp(hipRotation, aimRotation, aimBlend);
+        }
+        else
+        {
+            basePos = reloadStartPosition;
+            baseRot = reloadStartRotation;
+        }
 
-        weaponModel.localPosition = Vector3.Lerp(weaponModel.localPosition, targetPos, Time.deltaTime * aimTransitionSpeed);
-        weaponModel.localRotation = Quaternion.Slerp(weaponModel.localRotation, targetRot, Time.deltaTime * aimTransitionSpeed);
+        bool isMovingNow = IsMoving();
+        float stabilityFactor = 1f - aimBlend * (isMovingNow ? 0.75f : 0.85f);
 
-        recoilKickPosition = Vector3.Lerp(recoilKickPosition, Vector3.zero, Time.deltaTime * 15f);
-        recoilKickRotation = Vector3.Lerp(recoilKickRotation, Vector3.zero, Time.deltaTime * 15f);
+        Vector3 offsetPos = (swayPositionOffset + bobPosition + recoilKickPosition) * stabilityFactor;
+        Vector3 offsetRot = (swayRotationOffset + bobRotation + recoilKickRotation) * stabilityFactor;
+
+        offsetPos += new Vector3(0, reloadCurvePositionY.Evaluate(reloadProgress), 0);
+        offsetRot += new Vector3(reloadCurveRotationX.Evaluate(reloadProgress), 0, 0);
+
+        if (!isCinematicReload)
+        {
+            offsetPos += new Vector3(0, breathAmplitude * Mathf.Sin(breathTimer), 0);
+            offsetPos += new Vector3(0, -landingSpring * 0.08f, landingSpring * 0.04f);
+            offsetRot += new Vector3(-landingSpring * 6f, 0, 0);
+
+            if (shootShakeTimer > 0)
+            {
+                float shakeAmount = shootShakeAmount * (shootShakeTimer / 0.08f);
+                offsetPos += new Vector3(
+                    Mathf.Sin(Time.time * shootShakeSpeed) * shakeAmount,
+                    Mathf.Cos(Time.time * shootShakeSpeed * 1.3f) * shakeAmount,
+                    0);
+                offsetRot += new Vector3(
+                    Mathf.Cos(Time.time * shootShakeSpeed * 0.9f) * shakeAmount * 10f,
+                    Mathf.Sin(Time.time * shootShakeSpeed * 1.1f) * shakeAmount * 10f,
+                    0);
+            }
+        }
+
+        Vector3 targetPos = basePos + offsetPos;
+        Quaternion targetRot = Quaternion.Euler(baseRot) * Quaternion.Euler(offsetRot);
+
+        if (!isCinematicReload)
+        {
+            float lerpFactor = 1f - Mathf.Exp(-12f * Time.deltaTime);
+            weaponModel.localPosition = Vector3.Lerp(weaponModel.localPosition, targetPos, lerpFactor);
+            weaponModel.localRotation = Quaternion.Slerp(weaponModel.localRotation, targetRot, lerpFactor);
+        }
+
+        recoilKickPosition = Vector3.Lerp(recoilKickPosition, Vector3.zero, 1 - Mathf.Exp(-25f * Time.deltaTime));
+        recoilKickRotation = Vector3.Lerp(recoilKickRotation, Vector3.zero, 1 - Mathf.Exp(-25f * Time.deltaTime));
 
         bool fireHeld = Input.GetMouseButton(0);
         bool fireDown = Input.GetMouseButtonDown(0);
@@ -191,18 +487,24 @@ public class Wep : MonoBehaviour
         }
 
         if (Input.GetKeyDown(KeyCode.R) && !isReloading && currentAmmo < maxAmmo && spareMagazines > 0)
-            reloadRoutine = StartCoroutine(Reload());
+        {
+            StartCoroutine(ReloadSequence());
+        }
 
         if (Input.GetKeyDown(KeyCode.V))
             currentFireMode = (currentFireMode == FireMode.Auto) ? FireMode.Semi : FireMode.Auto;
 
         if (Time.time - lastShotTime > fireRate * 2f)
-            currentSpread = Mathf.MoveTowards(currentSpread, baseSpread, spreadRecoverySpeed * Time.deltaTime);
+            currentSpread = Mathf.Lerp(currentSpread, baseSpread, 1 - Mathf.Exp(-spreadRecoverySpeed * Time.deltaTime));
     }
 
-    void LateUpdate()
+    // Вспомогательные методы
+    bool IsMoving()
     {
-        // Ничего
+        if (fpsController != null && fpsController.characterController != null)
+            return fpsController.characterController.velocity.magnitude > 0.5f;
+        else
+            return Mathf.Abs(Input.GetAxis("Horizontal")) > 0.1f || Mathf.Abs(Input.GetAxis("Vertical")) > 0.1f;
     }
 
     void SyncFromController()
@@ -219,29 +521,45 @@ public class Wep : MonoBehaviour
         currentAmmo--;
         timeOfLastShot = Time.time;
         lastShotTime = Time.time;
-        consecutiveShots++;
+        consecutiveShots = Mathf.Clamp(consecutiveShots + 1, 0, 5);
 
         if (muzzleFlash != null) muzzleFlash.Play();
+        if (audioSource != null && shootSound != null) audioSource.PlayOneShot(shootSound);
+
+        if (shellPrefab != null && shellEjectPoint != null)
+        {
+            GameObject shell = Instantiate(shellPrefab, shellEjectPoint.position, shellEjectPoint.rotation);
+            Rigidbody rb = shell.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.AddForce(shellEjectPoint.right * Random.Range(1f, 2f) * shellEjectForce + shellEjectPoint.up * Random.Range(2f, 4f), ForceMode.Impulse);
+                rb.AddTorque(Random.insideUnitSphere * 5f, ForceMode.Impulse);
+            }
+            Destroy(shell, shellLifetime);
+        }
+
+        shootShakeTimer = 0.08f;
+
+        // Анимация затвора при выстреле отключена
+        // if (bolt != null) StartCoroutine(BoltFireAnimation());
 
         float recoilMultiplier = 1f;
         float spreadMultiplier = 1f;
 
         if (isCrouching) { recoilMultiplier *= 0.7f; spreadMultiplier *= 0.7f; }
-        if (isRunning) { recoilMultiplier *= 1.5f; spreadMultiplier *= 1.6f; }
-        if (!isGrounded) { recoilMultiplier *= 1.8f; spreadMultiplier *= 2.0f; }
+        if (isRunning) { recoilMultiplier *= 1.6f; spreadMultiplier *= 1.8f; }
+        if (!isGrounded) { recoilMultiplier *= 2.0f; spreadMultiplier *= 2.5f; }
         if (isAiming) { recoilMultiplier *= aimRecoilMultiplier; spreadMultiplier *= aimSpreadMultiplier; }
 
-        float vertStrength = verticalRecoilCurve.Evaluate(consecutiveShots) * recoilMultiplier;
-        float horizStrength = horizontalRecoilCurve.Evaluate(consecutiveShots) * recoilMultiplier;
+        float vertStrength = verticalRecoilCurve.Evaluate(consecutiveShots) * recoilMultiplier * recoilStrengthMultiplier;
+        float horizStrength = horizontalRecoilCurve.Evaluate(consecutiveShots) * recoilMultiplier * recoilStrengthMultiplier;
 
         float vert = Random.Range(vertStrength * 0.9f, vertStrength * 1.1f);
         float horiz = Random.Range(-horizStrength, horizStrength);
 
-        // Добавляем отдачу в контроллер
         if (fpsController != null)
             fpsController.AddRecoil(vert, horiz);
 
-        // Толчок модели оружия
         float kickY = kickbackPositionY * recoilMultiplier;
         float kickZ = kickbackPositionZ * recoilMultiplier;
         float kickRotX = kickbackRotationX * recoilMultiplier;
@@ -250,11 +568,8 @@ public class Wep : MonoBehaviour
         recoilKickPosition += new Vector3(0, Random.Range(kickY * 0.7f, kickY), Random.Range(kickZ * 0.7f, kickZ));
         recoilKickRotation += new Vector3(Random.Range(kickRotX * 0.8f, kickRotX), kickRotY, 0);
 
-        // Разброс
         float effectiveSpread = currentSpread * spreadMultiplier;
         Vector3 direction = GetSpreadDirection(effectiveSpread);
-
-        Debug.DrawRay(playerCamera.transform.position, direction * 100f, Color.red, 0.05f);
 
         if (Physics.Raycast(playerCamera.transform.position, direction, out RaycastHit hit, 500f))
         {
@@ -265,8 +580,7 @@ public class Wep : MonoBehaviour
             {
                 if (preventOverlappingHoles && !CanPlaceHole(hit.point)) return;
 
-                Quaternion holeRot = Quaternion.FromToRotation(Vector3.up, hit.normal)
-                                     * Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                Quaternion holeRot = Quaternion.FromToRotation(Vector3.forward, hit.normal) * Quaternion.Euler(0, 180, 0);
                 GameObject hole = Instantiate(bulletHolePrefabs[Random.Range(0, bulletHolePrefabs.Length)],
                                               hit.point + hit.normal * 0.02f, holeRot);
                 hole.tag = "BulletHole";
@@ -290,74 +604,137 @@ public class Wep : MonoBehaviour
         }
 
         if (currentFireMode == FireMode.Auto)
-            currentSpread = Mathf.Min(currentSpread + autoSpreadPerShot, maxSpread);
+            currentSpread = Mathf.Min(currentSpread + autoSpreadPerShot * (1 - currentSpread / maxSpread), maxSpread);
         else
             currentSpread = baseSpread;
     }
 
-    void UpdateTremor()
+    IEnumerator CameraShake(float duration, float intensity)
     {
-        tremorTimer += Time.deltaTime * tremorSpeed;
-        float amp = tremorAmount;
-        if (currentFireMode == FireMode.Auto && Input.GetMouseButton(0) && !isReloading)
-            amp *= 1.5f;
-
-        tremorPosition.x = Mathf.Sin(tremorTimer * 1.7f) * amp;
-        tremorPosition.y = Mathf.Cos(tremorTimer * 1.9f) * amp;
-        tremorPosition.z = Mathf.Sin(tremorTimer * 1.3f) * amp * 0.5f;
-
-        tremorRotation.x = Mathf.Cos(tremorTimer * 2.1f) * amp * 10f;
-        tremorRotation.y = Mathf.Sin(tremorTimer * 1.5f) * amp * 8f;
-        tremorRotation.z = 0f;
+        Vector3 originalPos = playerCamera.transform.localPosition;
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float x = Random.Range(-1f, 1f) * intensity;
+            float y = Random.Range(-1f, 1f) * intensity;
+            playerCamera.transform.localPosition = originalPos + new Vector3(x, y, 0);
+            yield return null;
+        }
+        playerCamera.transform.localPosition = originalPos;
     }
 
-    void UpdateSway()
+    IEnumerator FOVChange(float targetFOV, float duration)
     {
-        float mouseX = Input.GetAxis("Mouse X") * swayAmount;
-        float mouseY = Input.GetAxis("Mouse Y") * swayAmount;
-        float moveX = Input.GetAxis("Horizontal") * swayAmount * moveSwayMultiplier;
-        float moveY = Input.GetAxis("Vertical") * swayAmount * moveSwayMultiplier;
+        float startFOV = playerCamera.fieldOfView;
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            playerCamera.fieldOfView = Mathf.Lerp(startFOV, targetFOV, t / duration);
+            yield return null;
+        }
+    }
 
-        Vector3 targetPos = new Vector3(-mouseX - moveX, -mouseY, moveY);
-        Vector3 targetRot = new Vector3(mouseY, mouseX, moveX) * 15f;
+    IEnumerator FOVKick(float amount, float duration)
+    {
+        float startFOV = playerCamera.fieldOfView;
+        float targetFOV = startFOV + amount;
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            playerCamera.fieldOfView = Mathf.Lerp(startFOV, targetFOV, t / duration);
+            yield return null;
+        }
+        t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            playerCamera.fieldOfView = Mathf.Lerp(targetFOV, startFOV, t / duration);
+            yield return null;
+        }
+    }
 
+    IEnumerator DisableLightAfterDelay(Light light, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (light != null) light.enabled = false;
+    }
+
+    IEnumerator PlayDelayedSound(AudioClip clip, float delay)
+    {
+        if (delay > 0)
+            yield return new WaitForSeconds(delay);
+        if (audioSource != null && clip != null)
+            audioSource.PlayOneShot(clip);
+    }
+
+    void UpdateIdleSway()
+    {
         idleSwayTimer += Time.deltaTime * idleSwaySpeed;
-        targetPos += new Vector3(Mathf.Sin(idleSwayTimer * 1.3f), Mathf.Cos(idleSwayTimer * 1.7f), 0) * idleSwayAmount;
-
-        float aimFactor = isAiming ? 0.4f : 1f;
-        swayPositionOffset = Vector3.Lerp(swayPositionOffset, targetPos * aimFactor, Time.deltaTime * swaySmoothness);
-        swayRotationOffset = Vector3.Lerp(swayRotationOffset, targetRot * aimFactor, Time.deltaTime * swaySmoothness);
+        Vector3 idlePos = new Vector3(
+            Mathf.Sin(idleSwayTimer * 1.3f) * idleSwayAmount,
+            Mathf.Cos(idleSwayTimer * 1.7f) * idleSwayAmount,
+            Mathf.Sin(idleSwayTimer * 0.9f) * idleSwayAmount * 0.3f
+        );
+        Vector3 idleRot = new Vector3(
+            Mathf.Cos(idleSwayTimer * 1.5f) * idleSwayAmount * 4f,
+            Mathf.Sin(idleSwayTimer * 1.1f) * idleSwayAmount * 3f,
+            0
+        );
+        swayPositionOffset = idlePos;
+        swayRotationOffset = idleRot;
     }
 
     void UpdateBob()
     {
-        float inputX = Input.GetAxis("Horizontal");
-        float inputY = Input.GetAxis("Vertical");
-        bool isMoving = (Mathf.Abs(inputX) > 0.1f || Mathf.Abs(inputY) > 0.1f);
+        float speed = 0f;
+        if (fpsController != null && fpsController.characterController != null)
+        {
+            Vector3 horizontalVelocity = fpsController.characterController.velocity;
+            horizontalVelocity.y = 0f;
+            speed = horizontalVelocity.magnitude;
+        }
+        else
+        {
+            float inputX = Input.GetAxis("Horizontal");
+            float inputY = Input.GetAxis("Vertical");
+            speed = new Vector2(inputX, inputY).magnitude * (isRunning ? 6f : 3f);
+        }
+
+        bool isMoving = speed > 0.5f;
+
+        if (isMoving && isGrounded)
+        {
+            float freq = isRunning ? bobFrequencyRun : bobFrequencyWalk;
+            bobTime += Time.deltaTime * freq;
+        }
 
         Vector3 targetBobPos = Vector3.zero;
         Vector3 targetBobRot = Vector3.zero;
 
         if (isMoving && isGrounded)
         {
-            bobTimer += Time.deltaTime * (isRunning ? bobFrequencyRun : bobFrequencyWalk);
             float amp = isRunning ? bobAmplitudeRun : bobAmplitudeWalk;
 
-            targetBobPos = new Vector3(
-                Mathf.Sin(bobTimer * 2f) * amp * 0.7f,
-                -Mathf.Abs(Mathf.Sin(bobTimer)) * amp,
-                Mathf.Sin(bobTimer) * amp * 0.5f
-            );
-            targetBobRot = new Vector3(
-                Mathf.Sin(bobTimer) * amp * 8f,
-                0f,
-                Mathf.Sin(bobTimer * 2f) * amp * 5f
-            );
+            float t = bobTime * Mathf.PI * 2f;
+            float vertical = Mathf.Sin(t) * amp * bobVerticalMultiplier;
+            float horizontal = Mathf.Sin(t * 2f) * amp * bobHorizontalMultiplier;
+            float forward = Mathf.Cos(t) * amp * bobForwardMultiplier;
+
+            targetBobPos = new Vector3(horizontal, vertical, forward);
+
+            float rotX = Mathf.Sin(t) * amp * 5f * bobRotationMultiplier;
+            float rotZ = Mathf.Sin(t * 2f) * amp * 3f * bobRotationMultiplier;
+            float rotY = Mathf.Sin(t) * amp * 2f * bobRotationMultiplier;
+
+            targetBobRot = new Vector3(rotX, rotY, rotZ);
         }
         else if (!isGrounded)
         {
             targetBobPos = new Vector3(0f, jumpBobOffsetY, jumpBobOffsetZ);
-            targetBobRot = new Vector3(-10f, 0f, 0f);
+            targetBobRot = new Vector3(-5f, 0f, 0f);
         }
 
         if (isCrouching)
@@ -370,6 +747,90 @@ public class Wep : MonoBehaviour
         bobRotation = Vector3.SmoothDamp(bobRotation, targetBobRot, ref bobRotVelocity, bobSmoothTime);
     }
 
+    void UpdateSway()
+    {
+        float mouseX = Input.GetAxis("Mouse X") * swayAmount;
+        float mouseY = Input.GetAxis("Mouse Y") * swayAmount;
+        mouseDelta = Vector2.Lerp(mouseDelta, new Vector2(mouseX, mouseY), inertiaSmoothness);
+        inertiaPosition = Vector3.Lerp(inertiaPosition, new Vector3(-mouseDelta.x, -mouseDelta.y, 0), Time.deltaTime * swaySmoothness) * inertiaMultiplier;
+        inertiaRotation = Vector3.Lerp(inertiaRotation, new Vector3(mouseDelta.y, mouseDelta.x, 0), Time.deltaTime * swaySmoothness) * inertiaMultiplier * 15f;
+
+        Vector3 targetMoveOffsetPos = Vector3.zero;
+        Vector3 targetMoveOffsetRot = Vector3.zero;
+
+        if (fpsController != null && fpsController.characterController != null)
+        {
+            Vector3 vel = fpsController.characterController.velocity;
+            Vector3 localVel = fpsController.transform.InverseTransformDirection(vel);
+
+            float moveX = Mathf.Clamp(localVel.x / fpsController.walkSpeed, -1f, 1f);
+            float moveZ = Mathf.Clamp(localVel.z / fpsController.walkSpeed, -1f, 1f);
+
+            targetMoveOffsetPos = new Vector3(
+                -moveX * swayAmount * moveSwayMultiplier,
+                -moveZ * swayAmount * moveSwayMultiplier * 0.5f,
+                moveZ * swayAmount * moveSwayMultiplier * 0.5f
+            );
+
+            targetMoveOffsetRot = new Vector3(
+                moveZ * swayAmount * moveSwayMultiplier * 5f,
+                moveX * swayAmount * moveSwayMultiplier * 5f,
+                moveX * swayAmount * moveSwayMultiplier * 3f
+            );
+        }
+        else
+        {
+            float moveX = Input.GetAxis("Horizontal");
+            float moveY = Input.GetAxis("Vertical");
+            targetMoveOffsetPos = new Vector3(
+                -moveX * swayAmount * moveSwayMultiplier * 0.2f,
+                -moveY * swayAmount * moveSwayMultiplier * 0.15f,
+                moveY * swayAmount * moveSwayMultiplier * 0.2f
+            );
+            targetMoveOffsetRot = new Vector3(
+                moveY * swayAmount * moveSwayMultiplier * 0.4f,
+                moveX * swayAmount * moveSwayMultiplier * 0.4f,
+                moveX * swayAmount * moveSwayMultiplier * 0.4f
+            ) * 3f;
+        }
+
+        smoothMoveOffset = Vector3.SmoothDamp(smoothMoveOffset, targetMoveOffsetPos, ref moveOffsetVelocity, 0.1f);
+        smoothMoveRotation = Vector3.SmoothDamp(smoothMoveRotation, targetMoveOffsetRot, ref moveRotVelocity, 0.1f);
+
+        swayPositionOffset += inertiaPosition + smoothMoveOffset;
+        swayRotationOffset += inertiaRotation + smoothMoveRotation;
+    }
+
+    void UpdateBreathing()
+    {
+        breathTimer += Time.deltaTime * breathSpeed;
+    }
+
+    void UpdateLandingSpring()
+    {
+        if (!isGrounded)
+        {
+            landingSpring = 1f;
+        }
+        else if (landingSpring > 0.01f)
+        {
+            landingSpringVelocity += (-landingSpringStiffness * landingSpring - landingSpringDamping * landingSpringVelocity) * Time.deltaTime;
+            landingSpring += landingSpringVelocity * Time.deltaTime;
+            if (landingSpring < 0.01f) landingSpring = 0f;
+        }
+        else
+        {
+            landingSpringVelocity = 0f;
+            landingSpring = 0f;
+        }
+    }
+
+    void UpdateShootShake()
+    {
+        if (shootShakeTimer > 0)
+            shootShakeTimer -= Time.deltaTime;
+    }
+
     bool CanPlaceHole(Vector3 point)
     {
         foreach (Collider col in Physics.OverlapSphere(point, holeMinDistance, holeCheckMask))
@@ -380,20 +841,10 @@ public class Wep : MonoBehaviour
     Vector3 GetSpreadDirection(float spreadDegrees)
     {
         Vector3 baseDir = playerCamera.transform.forward;
-        float half = spreadDegrees * Mathf.Deg2Rad / 2f;
+        float half = spreadDegrees * Mathf.Deg2Rad * 0.5f;
         Vector2 circle = Random.insideUnitCircle * Mathf.Tan(half);
-        return Quaternion.Euler(circle.y, circle.x, 0) * baseDir;
-    }
-
-    IEnumerator Reload()
-    {
-        isReloading = true;
-        yield return new WaitForSeconds(reloadTime);
-        spareMagazines--;
-        currentAmmo = maxAmmo;
-        currentSpread = baseSpread;
-        isReloading = false;
-        reloadRoutine = null;
+        Vector2 angleDeg = circle * Mathf.Rad2Deg;
+        return Quaternion.Euler(angleDeg.y, angleDeg.x, 0f) * baseDir;
     }
 
     void OnGUI()
@@ -413,5 +864,315 @@ public class Wep : MonoBehaviour
             reloadRoutine = null;
         }
         isReloading = false;
+        isCinematicReload = false;
+    }
+
+    // === КИНЕМАТОГРАФИЧНАЯ ПЕРЕЗАРЯДКА (исправленная) ===
+    IEnumerator ReloadSequence()
+    {
+        isReloading = true;
+        reloadProgress = 0f;
+        isCinematicReload = true;
+
+        // Звук начала перезарядки (опционально)
+        if (reloadSound != null && audioSource != null)
+            audioSource.PlayOneShot(reloadSound);
+
+        // Сброс состояний
+        if (oldMagazine != null)
+        {
+            oldMagazine.gameObject.SetActive(true);
+            oldMagazine.localPosition = oldMagOriginalLocalPos;
+            oldMagazine.localRotation = oldMagOriginalLocalRot;
+        }
+        if (newMagazine != null)
+        {
+            if (newMagazine.parent != weaponModel)
+                newMagazine.SetParent(weaponModel, false);
+            newMagazine.gameObject.SetActive(false);
+            newMagazine.localPosition = newMagOriginalLocalPos;
+            newMagazine.localRotation = newMagOriginalLocalRot;
+        }
+        if (lever != null)
+        {
+            lever.localPosition = leverOriginalLocalPos;
+        }
+        if (bolt != null)
+        {
+            bolt.localPosition = boltOriginalLocalPos;
+            bolt.localRotation = boltOriginalLocalRot;
+        }
+
+        // Уменьшаем FOV
+        float reloadFOV = normalFOV - reloadFOVReduction;
+        yield return StartCoroutine(FOVChange(reloadFOV, fovTransitionTime));
+
+        // 1. Приближение оружия
+        float t = 0f;
+        Vector3 startWeaponPos = weaponModel.localPosition;
+        Quaternion startWeaponRot = weaponModel.localRotation;
+        while (t < closeUpTransitionTime)
+        {
+            t += Time.deltaTime;
+            float progress = Mathf.SmoothStep(0f, 1f, t / closeUpTransitionTime);
+            weaponModel.localPosition = Vector3.Lerp(startWeaponPos, reloadStartPosition, progress);
+            weaponModel.localRotation = Quaternion.Slerp(startWeaponRot, Quaternion.Euler(reloadStartRotation), progress);
+            reloadProgress = Mathf.Clamp01(t / reloadTime);
+            yield return null;
+        }
+        weaponModel.localPosition = reloadStartPosition;
+        weaponModel.localRotation = Quaternion.Euler(reloadStartRotation);
+
+        // Микро-пауза
+        yield return new WaitForSeconds(pauseBeforeMagazineDrop);
+
+        // 2. Сдвиг рычажка + звук кнопки сброса
+        if (lever != null)
+        {
+            if (magazineReleaseSound != null && audioSource != null)
+                StartCoroutine(PlayDelayedSound(magazineReleaseSound, magazineReleaseSoundDelay));
+            Vector3 leverTargetPos = leverOriginalLocalPos + new Vector3(leverMoveOffsetX, 0, 0);
+            t = 0f;
+            while (t < leverMoveTime)
+            {
+                t += Time.deltaTime;
+                float progress = Mathf.SmoothStep(0f, 1f, t / leverMoveTime);
+                lever.localPosition = Vector3.Lerp(leverOriginalLocalPos, leverTargetPos, progress);
+                reloadProgress = Mathf.Clamp01((closeUpTransitionTime + pauseBeforeMagazineDrop + t) / reloadTime);
+                yield return null;
+            }
+            lever.localPosition = leverTargetPos;
+        }
+
+        yield return new WaitForSeconds(0.1f);
+
+        // 3. Выпадение старого магазина
+        if (oldMagazine != null)
+        {
+            Vector3 dropStartLocalPos = oldMagazine.localPosition;
+            Quaternion dropStartLocalRot = oldMagazine.localRotation;
+
+            if (magazineDropSound != null && audioSource != null)
+                StartCoroutine(PlayDelayedSound(magazineDropSound, magazineDropSoundDelay));
+
+            float dropTimer = 0f;
+            while (dropTimer < magazineDropTime)
+            {
+                dropTimer += Time.deltaTime;
+                float k = dropTimer / magazineDropTime;
+                float dropOffset = magazineDropHeight * k * k;
+                float rotOffset = magazineDropRotationZ * k;
+                oldMagazine.localPosition = dropStartLocalPos + Vector3.down * dropOffset;
+                oldMagazine.localRotation = dropStartLocalRot * Quaternion.Euler(0, 0, rotOffset);
+                reloadProgress = Mathf.Clamp01((closeUpTransitionTime + pauseBeforeMagazineDrop + leverMoveTime + 0.1f + dropTimer) / reloadTime);
+                yield return null;
+            }
+            oldMagazine.gameObject.SetActive(false);
+        }
+
+        // Микро-пауза перед вставкой
+        yield return new WaitForSeconds(pauseBeforeMagazineInsert);
+
+        // 4. Вставка нового магазина
+        if (newMagazine != null)
+        {
+            yield return new WaitForSeconds(newMagazineAppearDelay);
+
+            Vector3 targetLocalPos = newMagazineInsertLocalPos;
+            Quaternion targetLocalRot = Quaternion.Euler(newMagazineInsertLocalRot);
+
+            Vector3 startLocalPos = targetLocalPos + newMagazineStartOffset;
+            Quaternion startLocalRot = targetLocalRot * Quaternion.Euler(newMagazineStartRotationOffset);
+
+            newMagazine.gameObject.SetActive(true);
+            newMagazine.localPosition = startLocalPos;
+            newMagazine.localRotation = startLocalRot;
+
+            if (magazineSlideSound != null && audioSource != null)
+                StartCoroutine(PlayDelayedSound(magazineSlideSound, magazineSlideSoundDelay));
+
+            StartCoroutine(CameraShake(cameraShakeDuration, cameraShakeIntensityInsert));
+
+            // Основное движение до preInsertAmount (0.97)
+            Vector3 preInsertPos = Vector3.Lerp(startLocalPos, targetLocalPos, newMagazinePreInsertAmount);
+            Quaternion preInsertRot = Quaternion.Slerp(startLocalRot, targetLocalRot, newMagazinePreInsertAmount);
+
+            float insertTimer = 0f;
+            while (insertTimer < newMagazineMoveTime)
+            {
+                insertTimer += Time.deltaTime;
+                float progress = Mathf.Clamp01(insertTimer / newMagazineMoveTime);
+                float curveValue = newMagazineInsertCurve != null ? newMagazineInsertCurve.Evaluate(progress) : Mathf.SmoothStep(0f, 1f, progress);
+
+                newMagazine.localPosition = Vector3.Lerp(startLocalPos, preInsertPos, curveValue);
+                newMagazine.localRotation = Quaternion.Slerp(startLocalRot, preInsertRot, curveValue);
+
+                reloadProgress = Mathf.Clamp01((closeUpTransitionTime + pauseBeforeMagazineDrop + leverMoveTime + 0.1f + magazineDropTime + pauseBeforeMagazineInsert + newMagazineAppearDelay + insertTimer) / reloadTime);
+                yield return null;
+            }
+
+            newMagazine.localPosition = preInsertPos;
+            newMagazine.localRotation = preInsertRot;
+
+            // Пауза перед щелчком
+            yield return new WaitForSeconds(newMagazineSnapPause);
+
+            // Финальный щелчок: от preInsertPos к targetLocalPos
+            float snapTimer = 0f;
+            Vector3 snapStartPos = newMagazine.localPosition;
+            Quaternion snapStartRot = newMagazine.localRotation;
+            while (snapTimer < 0.1f)
+            {
+                snapTimer += Time.deltaTime * newMagazineSnapSpeed;
+                float k = Mathf.Clamp01(snapTimer);
+                newMagazine.localPosition = Vector3.Lerp(snapStartPos, targetLocalPos, k);
+                newMagazine.localRotation = Quaternion.Slerp(snapStartRot, targetLocalRot, k);
+
+                // Применяем инерцию и наклон оружия
+                float endFactor = k;
+                Vector3 tiltRot = insertTiltRotation * endFactor;
+                Vector3 inertiaPos = newMagInertiaOffsetPos * endFactor;
+                Vector3 inertiaRot = newMagInertiaOffsetRot * endFactor;
+                weaponModel.localPosition = reloadStartPosition + inertiaPos;
+                weaponModel.localRotation = Quaternion.Euler(reloadStartRotation) * Quaternion.Euler(inertiaRot + tiltRot);
+
+                reloadProgress = Mathf.Clamp01((closeUpTransitionTime + pauseBeforeMagazineDrop + leverMoveTime + 0.1f + magazineDropTime + pauseBeforeMagazineInsert + newMagazineAppearDelay + newMagazineMoveTime + newMagazineSnapPause + snapTimer) / reloadTime);
+                yield return null;
+            }
+
+            // Точная установка
+            newMagazine.localPosition = targetLocalPos;
+            newMagazine.localRotation = targetLocalRot;
+
+            // Звук фиксации (гарантированно)
+            if (magazineSnapSound != null && audioSource != null)
+                StartCoroutine(PlayDelayedSound(magazineSnapSound, magazineSnapSoundDelay));
+
+            // Плавный возврат оружия
+            float returnT2 = 0f;
+            Vector3 currentWeaponPos2 = weaponModel.localPosition;
+            Quaternion currentWeaponRot2 = weaponModel.localRotation;
+            while (returnT2 < inertiaDuration)
+            {
+                returnT2 += Time.deltaTime;
+                float k = Mathf.SmoothStep(0f, 1f, returnT2 / inertiaDuration);
+                weaponModel.localPosition = Vector3.Lerp(currentWeaponPos2, reloadStartPosition, k);
+                weaponModel.localRotation = Quaternion.Slerp(currentWeaponRot2, Quaternion.Euler(reloadStartRotation), k);
+                reloadProgress = Mathf.Clamp01((closeUpTransitionTime + pauseBeforeMagazineDrop + leverMoveTime + 0.1f + magazineDropTime + pauseBeforeMagazineInsert + newMagazineAppearDelay + newMagazineMoveTime + newMagazineSnapPause + 0.1f + returnT2) / reloadTime);
+                yield return null;
+            }
+            weaponModel.localPosition = reloadStartPosition;
+            weaponModel.localRotation = Quaternion.Euler(reloadStartRotation);
+        }
+
+        // Микро-пауза перед затвором
+        yield return new WaitForSeconds(pauseBeforeBoltPull);
+
+        // 5. Переход ко второй позиции (для затвора)
+        t = 0f;
+        Vector3 boltPullStartPos = weaponModel.localPosition;
+        Quaternion boltPullStartRot = weaponModel.localRotation;
+        while (t < boltPullTransitionTime)
+        {
+            t += Time.deltaTime;
+            float progress = Mathf.SmoothStep(0f, 1f, t / boltPullTransitionTime);
+            weaponModel.localPosition = Vector3.Lerp(boltPullStartPos, reloadBoltPullPosition, progress);
+            weaponModel.localRotation = Quaternion.Slerp(boltPullStartRot, Quaternion.Euler(reloadBoltPullRotation), progress);
+            reloadProgress = Mathf.Clamp01((closeUpTransitionTime + pauseBeforeMagazineDrop + leverMoveTime + 0.1f + magazineDropTime + pauseBeforeMagazineInsert + newMagazineAppearDelay + newMagazineMoveTime + newMagazineSnapPause + 0.1f + inertiaDuration + pauseBeforeBoltPull + t) / reloadTime);
+            yield return null;
+        }
+        weaponModel.localPosition = reloadBoltPullPosition;
+        weaponModel.localRotation = Quaternion.Euler(reloadBoltPullRotation);
+
+        // 6. Передёргивание затвора
+        if (bolt != null)
+        {
+            if (boltSound != null && audioSource != null)
+                StartCoroutine(PlayDelayedSound(boltSound, boltSoundDelay));
+
+            if (boltParticles != null) boltParticles.Play();
+            if (boltLight != null)
+            {
+                boltLight.enabled = true;
+                StartCoroutine(DisableLightAfterDelay(boltLight, 0.1f));
+            }
+            if (useBoltFOVKick)
+                StartCoroutine(FOVKick(boltFOVKickAmount, boltFOVKickDuration));
+
+            StartCoroutine(CameraShake(cameraShakeDuration, cameraShakeIntensityBolt));
+
+            Vector3 boltPullTarget = boltOriginalLocalPos + new Vector3(-0.49f, 0f, 0f); // относительное смещение
+            t = 0f;
+            while (t < leverMoveTime)
+            {
+                t += Time.deltaTime;
+                float progress = Mathf.SmoothStep(0f, 1f, t / leverMoveTime);
+                bolt.localPosition = Vector3.Lerp(boltOriginalLocalPos, boltPullTarget, progress);
+
+                float boltInertiaFactor = Mathf.Sin(progress * Mathf.PI);
+                weaponModel.localPosition = reloadBoltPullPosition + boltPullInertiaOffsetPos * boltInertiaFactor;
+                weaponModel.localRotation = Quaternion.Euler(reloadBoltPullRotation) * Quaternion.Euler(boltPullInertiaOffsetRot * boltInertiaFactor);
+
+                reloadProgress = Mathf.Clamp01((closeUpTransitionTime + pauseBeforeMagazineDrop + leverMoveTime + 0.1f + magazineDropTime + pauseBeforeMagazineInsert + newMagazineAppearDelay + newMagazineMoveTime + newMagazineSnapPause + 0.1f + inertiaDuration + pauseBeforeBoltPull + boltPullTransitionTime + t) / reloadTime);
+                yield return null;
+            }
+            bolt.localPosition = boltPullTarget;
+
+            yield return new WaitForSeconds(0.08f);
+
+            t = 0f;
+            while (t < leverMoveTime)
+            {
+                t += Time.deltaTime;
+                float progress = Mathf.SmoothStep(0f, 1f, t / leverMoveTime);
+                bolt.localPosition = Vector3.Lerp(boltPullTarget, boltOriginalLocalPos, progress);
+
+                float returnFactor = Mathf.Sin(progress * Mathf.PI) * 0.6f;
+                weaponModel.localPosition = reloadBoltPullPosition + boltPullInertiaOffsetPos * returnFactor;
+                weaponModel.localRotation = Quaternion.Euler(reloadBoltPullRotation) * Quaternion.Euler(boltPullInertiaOffsetRot * returnFactor);
+
+                reloadProgress = Mathf.Clamp01((closeUpTransitionTime + pauseBeforeMagazineDrop + leverMoveTime + 0.1f + magazineDropTime + pauseBeforeMagazineInsert + newMagazineAppearDelay + newMagazineMoveTime + newMagazineSnapPause + 0.1f + inertiaDuration + pauseBeforeBoltPull + boltPullTransitionTime + leverMoveTime + 0.08f + t) / reloadTime);
+                yield return null;
+            }
+            bolt.localPosition = boltOriginalLocalPos;
+            weaponModel.localPosition = reloadBoltPullPosition;
+            weaponModel.localRotation = Quaternion.Euler(reloadBoltPullRotation);
+        }
+
+        // 7. Ожидание до конца reloadTime
+        float elapsed = closeUpTransitionTime + pauseBeforeMagazineDrop + leverMoveTime + 0.1f + magazineDropTime + pauseBeforeMagazineInsert + newMagazineAppearDelay + newMagazineMoveTime + newMagazineSnapPause + 0.1f + inertiaDuration + pauseBeforeBoltPull + boltPullTransitionTime + leverMoveTime + 0.08f + leverMoveTime;
+        while (elapsed < reloadTime)
+        {
+            elapsed += Time.deltaTime;
+            reloadProgress = Mathf.Clamp01(elapsed / reloadTime);
+            yield return null;
+        }
+
+        // Восстанавливаем FOV
+        float targetFOV = isAiming ? aimFOV : normalFOV;
+        yield return StartCoroutine(FOVChange(targetFOV, fovTransitionTime));
+
+        // 8. Возврат оружия на место
+        t = 0f;
+        Vector3 returnPos = Vector3.Lerp(hipPosition, aimPosition, aimBlend);
+        Vector3 returnRot = Vector3.Lerp(hipRotation, aimRotation, aimBlend);
+        while (t < closeUpTransitionTime)
+        {
+            t += Time.deltaTime;
+            float progress = Mathf.SmoothStep(0f, 1f, t / closeUpTransitionTime);
+            weaponModel.localPosition = Vector3.Lerp(reloadBoltPullPosition, returnPos, progress);
+            weaponModel.localRotation = Quaternion.Slerp(Quaternion.Euler(reloadBoltPullRotation), Quaternion.Euler(returnRot), progress);
+            reloadProgress = Mathf.Clamp01((elapsed + t) / reloadTime);
+            yield return null;
+        }
+
+        // 9. Завершение
+        currentAmmo = maxAmmo;
+        spareMagazines--;
+        currentSpread = baseSpread;
+        isReloading = false;
+        isCinematicReload = false;
+        reloadProgress = 0f;
+        reloadRoutine = null;
     }
 }
