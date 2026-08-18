@@ -1,29 +1,9 @@
 fileFormatVersion: 2
-guid: 398ddec8f4d4c84449ef0f40ecffcf8a
+guid: b8eeee4c126cfb2469dc93565819d49f
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects:
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: Material
-    second: {fileID: 2100000, guid: 55a2c51bd455ce7418867e54218d6128, type: 2}
-  - first:
-      type: UnityEngine:Texture2D
-      assembly: UnityEngine.CoreModule
-      name: nedladdning (3)
-    second: {fileID: 2800000, guid: d67684da42c551d44b4ee443b65e40a5, type: 3}
-  - first:
-      type: UnityEngine:Texture2D
-      assembly: UnityEngine.CoreModule
-      name: old fence roughness
-    second: {fileID: 2800000, guid: 692f3841ea8eae942a4bc75c3079faab, type: 3}
-  - first:
-      type: UnityEngine:Texture2D
-      assembly: UnityEngine.CoreModule
-      name: old wood fence texture done 2
-    second: {fileID: 2800000, guid: 9ba0ed65840a8d44a8c8db0f05a4771f, type: 3}
+  externalObjects: {}
   materials:
     materialImportMode: 2
     materialName: 0
