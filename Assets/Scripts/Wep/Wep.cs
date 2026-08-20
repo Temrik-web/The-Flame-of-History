@@ -125,13 +125,13 @@ public class Wep : MonoBehaviour
 
     [Header("Звуки")]
     public AudioSource audioSource;
-    public AudioClip shootSound;           // Звук выстрела
-    public AudioClip reloadSound;          // Звук начала перезарядки (опционально)
-    public AudioClip boltSound;            // Звук передёргивания затвора
-    public AudioClip magazineReleaseSound; // Звук кнопки сброса магазина
-    public AudioClip magazineDropSound;    // Звук падения магазина
-    public AudioClip magazineSlideSound;   // Звук скольжения магазина при вставке
-    public AudioClip magazineSnapSound;    // Звук фиксации магазина (щелчок)
+    public AudioClip shootSound;
+    public AudioClip reloadSound;
+    public AudioClip boltSound;
+    public AudioClip magazineReleaseSound;
+    public AudioClip magazineDropSound;
+    public AudioClip magazineSlideSound;
+    public AudioClip magazineSnapSound;
     public GameObject shellPrefab;
     public Transform shellEjectPoint;
     public float shellEjectForce = 3f;
@@ -176,7 +176,6 @@ public class Wep : MonoBehaviour
     [Tooltip("Новый магазин (Circle.005)")]
     public Transform newMagazine;
 
-    // Точка вставки нового магазина (локальные координаты относительно weaponModel)
     public Vector3 newMagazineInsertLocalPos = new Vector3(0.9392396f, 1.30955f, -2.842171e-16f);
     public Vector3 newMagazineInsertLocalRot = new Vector3(0f, 0f, 5.2f);
 
@@ -190,7 +189,6 @@ public class Wep : MonoBehaviour
         new Keyframe(0.6f, 0.7f, 1.5f, 0),
         new Keyframe(1, 1, -0.3f, 0)
     );
-    [Tooltip("Насколько глубоко магазин входит до паузы и финального щелчка (0..1)")]
     public float newMagazinePreInsertAmount = 0.97f;
     public float newMagazineSnapPause = 0.12f;
     public float newMagazineSnapSpeed = 2.5f;
@@ -252,12 +250,46 @@ public class Wep : MonoBehaviour
     public float boltFOVKickDuration = 0.08f;
 
     [Header("Задержки звуков")]
-    public float magazineReleaseSoundDelay = 0f; // задержка перед звуком кнопки сброса
-    public float magazineDropSoundDelay = 0.6f;  // задержка перед звуком падения магазина
-    public float magazineSlideSoundDelay = 0f;   // задержка перед звуком скольжения магазина
-    public float magazineSnapSoundDelay = 0f;    // задержка перед звуком фиксации магазина
-    public float boltSoundDelay = 0f;            // задержка перед звуком затвора
+    public float magazineReleaseSoundDelay = 0f;
+    public float magazineDropSoundDelay = 0.6f;
+    public float magazineSlideSoundDelay = 0f;
+    public float magazineSnapSoundDelay = 0f;
+    public float boltSoundDelay = 0f;
 
+    // === СИСТЕМА ОСМОТРА ОРУЖИЯ ===
+    [Header("Осмотр оружия (Weapon Inspect)")]
+    public KeyCode inspectKey = KeyCode.B;
+    public bool enableInspect = true;
+    public Vector3 inspectStage1Position = new Vector3(0.562f, -0.826f, 1.049f);
+    public Vector3 inspectStage1Rotation = new Vector3(-9.881f, -131.71f, 8.691f);
+    public float stage1TransitionTime = 0.6f;
+    public float stage1HoldTime = 1.5f;
+    public Vector3 inspectStage2Position = new Vector3(0.5f, -0.8f, 1.0f);
+    public Vector3 inspectStage2Rotation = new Vector3(-5f, -110f, 10f);
+    public float stage2TransitionTime = 0.8f;
+    public float stage2HoldTime = 1.2f;
+    public Vector3 inspectStage3Position = new Vector3(0.55f, -0.78f, 0.95f);
+    public Vector3 inspectStage3Rotation = new Vector3(-10f, -150f, -5f);
+    public float stage3TransitionTime = 0.8f;
+    public float stage3HoldTime = 1.2f;
+    public Vector3 inspectStage4Position = new Vector3(0.53f, -0.85f, 1.02f);
+    public Vector3 inspectStage4Rotation = new Vector3(-20f, -130f, 0f);
+    public float stage4TransitionTime = 0.7f;
+    public float stage4HoldTime = 1.5f;
+    public float returnTransitionTime = 0.9f;
+    public float inspectFOVChange = -5f;
+    public float inspectFOVSpeed = 3f;
+    public AudioClip inspectSound1;
+    public AudioClip inspectSound2;
+    public AudioClip inspectSound3;
+    [Range(0f, 1f)]
+    public float inspectSoundVolume = 0.7f;
+    public bool interruptOnShoot = true;
+    public bool interruptOnReload = true;
+    public bool interruptOnRun = true;
+
+    private bool isInspecting = false;
+    private Coroutine inspectRoutine;
     private bool isCinematicReload = false;
     private Vector3 oldMagOriginalLocalPos;
     private Quaternion oldMagOriginalLocalRot;
@@ -289,23 +321,10 @@ public class Wep : MonoBehaviour
 
         if (weaponModel == null) weaponModel = transform;
 
-        // Принудительно делаем bolt, lever, oldMagazine, newMagazine дочерними weaponModel (если они назначены)
-        if (bolt != null && bolt.parent != weaponModel)
-        {
-            bolt.SetParent(weaponModel, true);
-        }
-        if (lever != null && lever.parent != weaponModel)
-        {
-            lever.SetParent(weaponModel, true);
-        }
-        if (oldMagazine != null && oldMagazine.parent != weaponModel)
-        {
-            oldMagazine.SetParent(weaponModel, true);
-        }
-        if (newMagazine != null && newMagazine.parent != weaponModel)
-        {
-            newMagazine.SetParent(weaponModel, true);
-        }
+        if (bolt != null && bolt.parent != weaponModel) bolt.SetParent(weaponModel, true);
+        if (lever != null && lever.parent != weaponModel) lever.SetParent(weaponModel, true);
+        if (oldMagazine != null && oldMagazine.parent != weaponModel) oldMagazine.SetParent(weaponModel, true);
+        if (newMagazine != null && newMagazine.parent != weaponModel) newMagazine.SetParent(weaponModel, true);
 
         if (muzzlePoint == null)
         {
@@ -336,7 +355,6 @@ public class Wep : MonoBehaviour
         if (fpsController == null)
             Debug.LogWarning("[Gun] FirstPersonController не найден. Отдача не будет работать.");
 
-        // Сохраняем исходные локальные позиции после установки родителя
         if (oldMagazine != null)
         {
             oldMagOriginalLocalPos = oldMagazine.localPosition;
@@ -346,18 +364,14 @@ public class Wep : MonoBehaviour
         {
             newMagOriginalLocalPos = newMagazine.localPosition;
             newMagOriginalLocalRot = newMagazine.localRotation;
-
             if (newMagazineInsertLocalPos == Vector3.zero)
                 newMagazineInsertLocalPos = newMagOriginalLocalPos;
             if (newMagazineInsertLocalRot == Vector3.zero)
                 newMagazineInsertLocalRot = newMagOriginalLocalRot.eulerAngles;
-
             newMagazine.gameObject.SetActive(false);
         }
         if (lever != null)
-        {
             leverOriginalLocalPos = lever.localPosition;
-        }
         if (bolt != null)
         {
             boltOriginalLocalPos = bolt.localPosition;
@@ -365,7 +379,6 @@ public class Wep : MonoBehaviour
         }
 
         if (oldMagazine != null) oldMagazine.gameObject.SetActive(true);
-
         if (boltLight != null) boltLight.enabled = false;
     }
 
@@ -373,35 +386,50 @@ public class Wep : MonoBehaviour
     {
         if (initFailed || playerCamera == null || weaponModel == null) return;
 
+        // БЛОКИРОВКА ОРУЖИЯ ВО ВРЕМЯ ДИАЛОГА
+        if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
+            return;
+
         if (fpsController != null)
             SyncFromController();
 
+        if (isInspecting)
+        {
+            if (interruptOnShoot && Input.GetMouseButtonDown(0)) StopInspect();
+            else if (interruptOnReload && Input.GetKeyDown(KeyCode.R)) StopInspect();
+            else if (interruptOnRun && isRunning) StopInspect();
+        }
+
+        if (enableInspect && Input.GetKeyDown(inspectKey) && !isReloading && !isCinematicReload)
+        {
+            if (!isInspecting) StartInspect();
+            else StopInspect();
+        }
+
         isAiming = Input.GetMouseButton(1);
         if (crosshairObject != null)
-            crosshairObject.SetActive(!isAiming);
+            crosshairObject.SetActive(!isAiming && !isInspecting);
 
-        float currentAimSpeed = aimTransitionSpeed;
-        if (isRunning)
-            currentAimSpeed *= aimSpeedRunMultiplier;
-        else if (IsMoving())
-            currentAimSpeed *= aimSpeedWalkMultiplier;
+        if (!isInspecting && !isCinematicReload)
+        {
+            float currentAimSpeed = aimTransitionSpeed;
+            if (isRunning) currentAimSpeed *= aimSpeedRunMultiplier;
+            else if (IsMoving()) currentAimSpeed *= aimSpeedWalkMultiplier;
 
-        if (isAiming)
-            aimTransitionProgress = Mathf.MoveTowards(aimTransitionProgress, 1f, Time.deltaTime * currentAimSpeed);
-        else
-            aimTransitionProgress = Mathf.MoveTowards(aimTransitionProgress, 0f, Time.deltaTime * currentAimSpeed);
+            if (isAiming) aimTransitionProgress = Mathf.MoveTowards(aimTransitionProgress, 1f, Time.deltaTime * currentAimSpeed);
+            else aimTransitionProgress = Mathf.MoveTowards(aimTransitionProgress, 0f, Time.deltaTime * currentAimSpeed);
 
-        aimBlend = Mathf.SmoothStep(0f, 1f, aimTransitionProgress);
+            aimBlend = Mathf.SmoothStep(0f, 1f, aimTransitionProgress);
+        }
 
         float targetFOV = isAiming ? aimFOV : normalFOV;
-        if (!isCinematicReload)
-            targetFOV -= 0f;
+        if (isInspecting) targetFOV += inspectFOVChange;
         playerCamera.fieldOfView = Mathf.SmoothDamp(playerCamera.fieldOfView, targetFOV, ref fovVelocity, 0.12f);
 
         if (Time.time - timeOfLastShot > 0.3f)
             consecutiveShots = 0;
 
-        if (!isCinematicReload)
+        if (!isCinematicReload && !isInspecting)
         {
             UpdateIdleSway();
             UpdateBob();
@@ -409,6 +437,15 @@ public class Wep : MonoBehaviour
             UpdateBreathing();
             UpdateLandingSpring();
             UpdateShootShake();
+        }
+        else if (isInspecting)
+        {
+            swayPositionOffset = Vector3.zero;
+            swayRotationOffset = Vector3.zero;
+            bobPosition = Vector3.zero;
+            bobRotation = Vector3.zero;
+            recoilKickPosition = Vector3.Lerp(recoilKickPosition, Vector3.zero, 1 - Mathf.Exp(-25f * Time.deltaTime));
+            recoilKickRotation = Vector3.Lerp(recoilKickRotation, Vector3.zero, 1 - Mathf.Exp(-25f * Time.deltaTime));
         }
         else
         {
@@ -420,103 +457,92 @@ public class Wep : MonoBehaviour
             recoilKickRotation = Vector3.Lerp(recoilKickRotation, Vector3.zero, 1 - Mathf.Exp(-25f * Time.deltaTime));
         }
 
-        Vector3 basePos;
-        Vector3 baseRot;
-        if (!isCinematicReload)
+        if (!isInspecting)
         {
-            basePos = Vector3.Lerp(hipPosition, aimPosition, aimBlend);
-            baseRot = Vector3.Lerp(hipRotation, aimRotation, aimBlend);
-        }
-        else
-        {
-            basePos = reloadStartPosition;
-            baseRot = reloadStartRotation;
-        }
-
-        bool isMovingNow = IsMoving();
-        float stabilityFactor = 1f - aimBlend * (isMovingNow ? 0.75f : 0.85f);
-
-        Vector3 offsetPos = (swayPositionOffset + bobPosition + recoilKickPosition) * stabilityFactor;
-        Vector3 offsetRot = (swayRotationOffset + bobRotation + recoilKickRotation) * stabilityFactor;
-
-        offsetPos += new Vector3(0, reloadCurvePositionY.Evaluate(reloadProgress), 0);
-        offsetRot += new Vector3(reloadCurveRotationX.Evaluate(reloadProgress), 0, 0);
-
-        if (!isCinematicReload)
-        {
-            offsetPos += new Vector3(0, breathAmplitude * Mathf.Sin(breathTimer), 0);
-            offsetPos += new Vector3(0, -landingSpring * 0.08f, landingSpring * 0.04f);
-            offsetRot += new Vector3(-landingSpring * 6f, 0, 0);
-
-            if (shootShakeTimer > 0)
+            Vector3 basePos;
+            Vector3 baseRot;
+            if (!isCinematicReload)
             {
-                float shakeAmount = shootShakeAmount * (shootShakeTimer / 0.08f);
-                offsetPos += new Vector3(
-                    Mathf.Sin(Time.time * shootShakeSpeed) * shakeAmount,
-                    Mathf.Cos(Time.time * shootShakeSpeed * 1.3f) * shakeAmount,
-                    0);
-                offsetRot += new Vector3(
-                    Mathf.Cos(Time.time * shootShakeSpeed * 0.9f) * shakeAmount * 10f,
-                    Mathf.Sin(Time.time * shootShakeSpeed * 1.1f) * shakeAmount * 10f,
-                    0);
+                basePos = Vector3.Lerp(hipPosition, aimPosition, aimBlend);
+                baseRot = Vector3.Lerp(hipRotation, aimRotation, aimBlend);
             }
+            else
+            {
+                basePos = reloadStartPosition;
+                baseRot = reloadStartRotation;
+            }
+
+            bool isMovingNow = IsMoving();
+            float stabilityFactor = 1f - aimBlend * (isMovingNow ? 0.75f : 0.85f);
+
+            Vector3 offsetPos = (swayPositionOffset + bobPosition + recoilKickPosition) * stabilityFactor;
+            Vector3 offsetRot = (swayRotationOffset + bobRotation + recoilKickRotation) * stabilityFactor;
+
+            offsetPos += new Vector3(0, reloadCurvePositionY.Evaluate(reloadProgress), 0);
+            offsetRot += new Vector3(reloadCurveRotationX.Evaluate(reloadProgress), 0, 0);
+
+            if (!isCinematicReload)
+            {
+                offsetPos += new Vector3(0, breathAmplitude * Mathf.Sin(breathTimer), 0);
+                offsetPos += new Vector3(0, -landingSpring * 0.08f, landingSpring * 0.04f);
+                offsetRot += new Vector3(-landingSpring * 6f, 0, 0);
+
+                if (shootShakeTimer > 0)
+                {
+                    float shakeAmount = shootShakeAmount * (shootShakeTimer / 0.08f);
+                    offsetPos += new Vector3(
+                        Mathf.Sin(Time.time * shootShakeSpeed) * shakeAmount,
+                        Mathf.Cos(Time.time * shootShakeSpeed * 1.3f) * shakeAmount,
+                        0);
+                    offsetRot += new Vector3(
+                        Mathf.Cos(Time.time * shootShakeSpeed * 0.9f) * shakeAmount * 10f,
+                        Mathf.Sin(Time.time * shootShakeSpeed * 1.1f) * shakeAmount * 10f,
+                        0);
+                }
+            }
+
+            Vector3 targetPos = basePos + offsetPos;
+            Quaternion targetRot = Quaternion.Euler(baseRot) * Quaternion.Euler(offsetRot);
+
+            if (!isCinematicReload)
+            {
+                float lerpFactor = 1f - Mathf.Exp(-12f * Time.deltaTime);
+                weaponModel.localPosition = Vector3.Lerp(weaponModel.localPosition, targetPos, lerpFactor);
+                weaponModel.localRotation = Quaternion.Slerp(weaponModel.localRotation, targetRot, lerpFactor);
+            }
+
+            recoilKickPosition = Vector3.Lerp(recoilKickPosition, Vector3.zero, 1 - Mathf.Exp(-25f * Time.deltaTime));
+            recoilKickRotation = Vector3.Lerp(recoilKickRotation, Vector3.zero, 1 - Mathf.Exp(-25f * Time.deltaTime));
+
+            bool fireHeld = Input.GetMouseButton(0);
+            bool fireDown = Input.GetMouseButtonDown(0);
+
+            if (!isReloading && Time.time - lastShotTime >= fireRate)
+            {
+                if (currentFireMode == FireMode.Auto && fireHeld) Shoot();
+                else if (currentFireMode == FireMode.Semi && fireDown) Shoot();
+            }
+
+            if (Input.GetKeyDown(KeyCode.R) && !isReloading && currentAmmo < maxAmmo && spareMagazines > 0)
+            {
+                StartCoroutine(ReloadSequence());
+            }
+
+            if (Input.GetKeyDown(KeyCode.V))
+                currentFireMode = (currentFireMode == FireMode.Auto) ? FireMode.Semi : FireMode.Auto;
+
+            if (Time.time - lastShotTime > fireRate * 2f)
+                currentSpread = Mathf.Lerp(currentSpread, baseSpread, 1 - Mathf.Exp(-spreadRecoverySpeed * Time.deltaTime));
         }
-
-        Vector3 targetPos = basePos + offsetPos;
-        Quaternion targetRot = Quaternion.Euler(baseRot) * Quaternion.Euler(offsetRot);
-
-        if (!isCinematicReload)
-        {
-            float lerpFactor = 1f - Mathf.Exp(-12f * Time.deltaTime);
-            weaponModel.localPosition = Vector3.Lerp(weaponModel.localPosition, targetPos, lerpFactor);
-            weaponModel.localRotation = Quaternion.Slerp(weaponModel.localRotation, targetRot, lerpFactor);
-        }
-
-        recoilKickPosition = Vector3.Lerp(recoilKickPosition, Vector3.zero, 1 - Mathf.Exp(-25f * Time.deltaTime));
-        recoilKickRotation = Vector3.Lerp(recoilKickRotation, Vector3.zero, 1 - Mathf.Exp(-25f * Time.deltaTime));
-
-        bool fireHeld = Input.GetMouseButton(0);
-        bool fireDown = Input.GetMouseButtonDown(0);
-
-        if (!isReloading && Time.time - lastShotTime >= fireRate)
-        {
-            if (currentFireMode == FireMode.Auto && fireHeld)
-                Shoot();
-            else if (currentFireMode == FireMode.Semi && fireDown)
-                Shoot();
-        }
-
-        if (Input.GetKeyDown(KeyCode.R) && !isReloading && currentAmmo < maxAmmo && spareMagazines > 0)
-        {
-            StartCoroutine(ReloadSequence());
-        }
-
-        if (Input.GetKeyDown(KeyCode.V))
-            currentFireMode = (currentFireMode == FireMode.Auto) ? FireMode.Semi : FireMode.Auto;
-
-        if (Time.time - lastShotTime > fireRate * 2f)
-            currentSpread = Mathf.Lerp(currentSpread, baseSpread, 1 - Mathf.Exp(-spreadRecoverySpeed * Time.deltaTime));
-    }
-
-    // Вспомогательные методы
-    bool IsMoving()
-    {
-        if (fpsController != null && fpsController.characterController != null)
-            return fpsController.characterController.velocity.magnitude > 0.5f;
-        else
-            return Mathf.Abs(Input.GetAxis("Horizontal")) > 0.1f || Mathf.Abs(Input.GetAxis("Vertical")) > 0.1f;
-    }
-
-    void SyncFromController()
-    {
-        isGrounded = fpsController.isGrounded;
-        isCrouching = fpsController.targetCameraY < fpsController.standingCameraHeight - 0.05f;
-        isRunning = isGrounded && fpsController.characterController.velocity.magnitude > fpsController.walkSpeed + 0.5f;
     }
 
     void Shoot()
     {
-        if (currentAmmo <= 0 || muzzlePoint == null || playerCamera == null) return;
+        // Дополнительная защита от выстрела во время диалога
+        if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
+            return;
+
+        if (currentAmmo <= 0 || muzzlePoint == null || playerCamera == null || isInspecting) return;
 
         currentAmmo--;
         timeOfLastShot = Time.time;
@@ -539,9 +565,6 @@ public class Wep : MonoBehaviour
         }
 
         shootShakeTimer = 0.08f;
-
-        // Анимация затвора при выстреле отключена
-        // if (bolt != null) StartCoroutine(BoltFireAnimation());
 
         float recoilMultiplier = 1f;
         float spreadMultiplier = 1f;
@@ -609,6 +632,114 @@ public class Wep : MonoBehaviour
             currentSpread = baseSpread;
     }
 
+    // === МЕТОДЫ ОСМОТРА (ИСПРАВЛЕННЫЕ) ===
+    public void StartInspect()
+    {
+        if (isInspecting || isReloading || isCinematicReload) return;
+        if (inspectRoutine != null) StopCoroutine(inspectRoutine);
+        inspectRoutine = StartCoroutine(InspectWeapon());
+    }
+
+    public void StopInspect()
+    {
+        if (inspectRoutine != null)
+        {
+            StopCoroutine(inspectRoutine);
+            inspectRoutine = null;
+        }
+        StartCoroutine(ReturnToOriginalPosition());
+        float targetFOV = isAiming ? aimFOV : normalFOV;
+        playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFOV, Time.deltaTime * inspectFOVSpeed);
+    }
+
+    private IEnumerator InspectWeapon()
+    {
+        isInspecting = true;
+        Vector3 originalPos = weaponModel.localPosition;
+        Quaternion originalRot = weaponModel.localRotation;
+
+        if (inspectSound1 != null && audioSource != null)
+            audioSource.PlayOneShot(inspectSound1, inspectSoundVolume);
+
+        yield return StartCoroutine(SmoothTransition(inspectStage1Position, Quaternion.Euler(inspectStage1Rotation), stage1TransitionTime));
+        yield return new WaitForSeconds(stage1HoldTime);
+
+        if (inspectSound2 != null && audioSource != null)
+            audioSource.PlayOneShot(inspectSound2, inspectSoundVolume);
+
+        yield return StartCoroutine(SmoothTransition(inspectStage2Position, Quaternion.Euler(inspectStage2Rotation), stage2TransitionTime));
+        yield return new WaitForSeconds(stage2HoldTime);
+
+        yield return StartCoroutine(SmoothTransition(inspectStage3Position, Quaternion.Euler(inspectStage3Rotation), stage3TransitionTime));
+        yield return new WaitForSeconds(stage3HoldTime);
+
+        yield return StartCoroutine(SmoothTransition(inspectStage4Position, Quaternion.Euler(inspectStage4Rotation), stage4TransitionTime));
+        yield return new WaitForSeconds(stage4HoldTime);
+
+        if (inspectSound3 != null && audioSource != null)
+            audioSource.PlayOneShot(inspectSound3, inspectSoundVolume);
+
+        yield return StartCoroutine(SmoothTransition(originalPos, originalRot, returnTransitionTime));
+
+        weaponModel.localPosition = originalPos;
+        weaponModel.localRotation = originalRot;
+        isInspecting = false;
+        inspectRoutine = null;
+    }
+
+    private IEnumerator SmoothTransition(Vector3 targetPos, Quaternion targetRot, float duration)
+    {
+        float elapsed = 0f;
+        Vector3 startPos = weaponModel.localPosition;
+        Quaternion startRot = weaponModel.localRotation;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float smoothT = t * t * (3f - 2f * t);
+            weaponModel.localPosition = Vector3.Lerp(startPos, targetPos, smoothT);
+            weaponModel.localRotation = Quaternion.Slerp(startRot, targetRot, smoothT);
+            yield return null;
+        }
+        weaponModel.localPosition = targetPos;
+        weaponModel.localRotation = targetRot;
+    }
+
+    private IEnumerator ReturnToOriginalPosition()
+    {
+        Vector3 targetPos;
+        Quaternion targetRot;
+        if (isCinematicReload)
+        {
+            targetPos = reloadStartPosition;
+            targetRot = Quaternion.Euler(reloadStartRotation);
+        }
+        else
+        {
+            targetPos = Vector3.Lerp(hipPosition, aimPosition, aimBlend);
+            targetRot = Quaternion.Euler(Vector3.Lerp(hipRotation, aimRotation, aimBlend));
+        }
+        yield return StartCoroutine(SmoothTransition(targetPos, targetRot, 0.3f));
+        isInspecting = false;
+    }
+
+    // === ОСТАЛЬНЫЕ МЕТОДЫ ===
+    bool IsMoving()
+    {
+        if (fpsController != null && fpsController.characterController != null)
+            return fpsController.characterController.velocity.magnitude > 0.5f;
+        else
+            return Mathf.Abs(Input.GetAxis("Horizontal")) > 0.1f || Mathf.Abs(Input.GetAxis("Vertical")) > 0.1f;
+    }
+
+    void SyncFromController()
+    {
+        isGrounded = fpsController.isGrounded;
+        isCrouching = fpsController.targetCameraY < fpsController.standingCameraHeight - 0.05f;
+        isRunning = isGrounded && fpsController.characterController.velocity.magnitude > fpsController.walkSpeed + 0.5f;
+    }
+
     IEnumerator CameraShake(float duration, float intensity)
     {
         Vector3 originalPos = playerCamera.transform.localPosition;
@@ -664,10 +795,8 @@ public class Wep : MonoBehaviour
 
     IEnumerator PlayDelayedSound(AudioClip clip, float delay)
     {
-        if (delay > 0)
-            yield return new WaitForSeconds(delay);
-        if (audioSource != null && clip != null)
-            audioSource.PlayOneShot(clip);
+        if (delay > 0) yield return new WaitForSeconds(delay);
+        if (audioSource != null && clip != null) audioSource.PlayOneShot(clip);
     }
 
     void UpdateIdleSway()
@@ -717,18 +846,14 @@ public class Wep : MonoBehaviour
         if (isMoving && isGrounded)
         {
             float amp = isRunning ? bobAmplitudeRun : bobAmplitudeWalk;
-
             float t = bobTime * Mathf.PI * 2f;
             float vertical = Mathf.Sin(t) * amp * bobVerticalMultiplier;
             float horizontal = Mathf.Sin(t * 2f) * amp * bobHorizontalMultiplier;
             float forward = Mathf.Cos(t) * amp * bobForwardMultiplier;
-
             targetBobPos = new Vector3(horizontal, vertical, forward);
-
             float rotX = Mathf.Sin(t) * amp * 5f * bobRotationMultiplier;
             float rotZ = Mathf.Sin(t * 2f) * amp * 3f * bobRotationMultiplier;
             float rotY = Mathf.Sin(t) * amp * 2f * bobRotationMultiplier;
-
             targetBobRot = new Vector3(rotX, rotY, rotZ);
         }
         else if (!isGrounded)
@@ -771,7 +896,6 @@ public class Wep : MonoBehaviour
                 -moveZ * swayAmount * moveSwayMultiplier * 0.5f,
                 moveZ * swayAmount * moveSwayMultiplier * 0.5f
             );
-
             targetMoveOffsetRot = new Vector3(
                 moveZ * swayAmount * moveSwayMultiplier * 5f,
                 moveX * swayAmount * moveSwayMultiplier * 5f,
@@ -853,7 +977,7 @@ public class Wep : MonoBehaviour
         GUIStyle style = new GUIStyle(GUI.skin.label) { fontSize = 22, normal = { textColor = Color.white }, fontStyle = FontStyle.Bold };
         GUI.Label(new Rect(15, 15, 400, 30), $"Патроны: {currentAmmo}/{maxAmmo}" + (isReloading ? " (перезарядка...)" : ""));
         GUI.Label(new Rect(15, 45, 400, 30), "Режим: " + (currentFireMode == FireMode.Auto ? "Авто" : "Одиночный"));
-        GUI.Label(new Rect(15, Screen.height - 40, 400, 30), "R - перезарядка | V - режим огня");
+        GUI.Label(new Rect(15, Screen.height - 40, 400, 30), "R - перезарядка | V - режим огня | B - осмотр");
     }
 
     void OnDisable()
@@ -863,22 +987,25 @@ public class Wep : MonoBehaviour
             StopCoroutine(reloadRoutine);
             reloadRoutine = null;
         }
+        if (inspectRoutine != null)
+        {
+            StopCoroutine(inspectRoutine);
+            inspectRoutine = null;
+        }
         isReloading = false;
         isCinematicReload = false;
+        isInspecting = false;
     }
 
-    // === КИНЕМАТОГРАФИЧНАЯ ПЕРЕЗАРЯДКА (исправленная) ===
+    // === КИНЕМАТОГРАФИЧНАЯ ПЕРЕЗАРЯДКА (без изменений) ===
     IEnumerator ReloadSequence()
     {
         isReloading = true;
         reloadProgress = 0f;
         isCinematicReload = true;
 
-        // Звук начала перезарядки (опционально)
-        if (reloadSound != null && audioSource != null)
-            audioSource.PlayOneShot(reloadSound);
+        if (reloadSound != null && audioSource != null) audioSource.PlayOneShot(reloadSound);
 
-        // Сброс состояний
         if (oldMagazine != null)
         {
             oldMagazine.gameObject.SetActive(true);
@@ -887,27 +1014,21 @@ public class Wep : MonoBehaviour
         }
         if (newMagazine != null)
         {
-            if (newMagazine.parent != weaponModel)
-                newMagazine.SetParent(weaponModel, false);
+            if (newMagazine.parent != weaponModel) newMagazine.SetParent(weaponModel, false);
             newMagazine.gameObject.SetActive(false);
             newMagazine.localPosition = newMagOriginalLocalPos;
             newMagazine.localRotation = newMagOriginalLocalRot;
         }
-        if (lever != null)
-        {
-            lever.localPosition = leverOriginalLocalPos;
-        }
+        if (lever != null) lever.localPosition = leverOriginalLocalPos;
         if (bolt != null)
         {
             bolt.localPosition = boltOriginalLocalPos;
             bolt.localRotation = boltOriginalLocalRot;
         }
 
-        // Уменьшаем FOV
         float reloadFOV = normalFOV - reloadFOVReduction;
         yield return StartCoroutine(FOVChange(reloadFOV, fovTransitionTime));
 
-        // 1. Приближение оружия
         float t = 0f;
         Vector3 startWeaponPos = weaponModel.localPosition;
         Quaternion startWeaponRot = weaponModel.localRotation;
@@ -923,14 +1044,11 @@ public class Wep : MonoBehaviour
         weaponModel.localPosition = reloadStartPosition;
         weaponModel.localRotation = Quaternion.Euler(reloadStartRotation);
 
-        // Микро-пауза
         yield return new WaitForSeconds(pauseBeforeMagazineDrop);
 
-        // 2. Сдвиг рычажка + звук кнопки сброса
         if (lever != null)
         {
-            if (magazineReleaseSound != null && audioSource != null)
-                StartCoroutine(PlayDelayedSound(magazineReleaseSound, magazineReleaseSoundDelay));
+            if (magazineReleaseSound != null && audioSource != null) StartCoroutine(PlayDelayedSound(magazineReleaseSound, magazineReleaseSoundDelay));
             Vector3 leverTargetPos = leverOriginalLocalPos + new Vector3(leverMoveOffsetX, 0, 0);
             t = 0f;
             while (t < leverMoveTime)
@@ -946,14 +1064,12 @@ public class Wep : MonoBehaviour
 
         yield return new WaitForSeconds(0.1f);
 
-        // 3. Выпадение старого магазина
         if (oldMagazine != null)
         {
             Vector3 dropStartLocalPos = oldMagazine.localPosition;
             Quaternion dropStartLocalRot = oldMagazine.localRotation;
 
-            if (magazineDropSound != null && audioSource != null)
-                StartCoroutine(PlayDelayedSound(magazineDropSound, magazineDropSoundDelay));
+            if (magazineDropSound != null && audioSource != null) StartCoroutine(PlayDelayedSound(magazineDropSound, magazineDropSoundDelay));
 
             float dropTimer = 0f;
             while (dropTimer < magazineDropTime)
@@ -970,10 +1086,8 @@ public class Wep : MonoBehaviour
             oldMagazine.gameObject.SetActive(false);
         }
 
-        // Микро-пауза перед вставкой
         yield return new WaitForSeconds(pauseBeforeMagazineInsert);
 
-        // 4. Вставка нового магазина
         if (newMagazine != null)
         {
             yield return new WaitForSeconds(newMagazineAppearDelay);
@@ -988,12 +1102,10 @@ public class Wep : MonoBehaviour
             newMagazine.localPosition = startLocalPos;
             newMagazine.localRotation = startLocalRot;
 
-            if (magazineSlideSound != null && audioSource != null)
-                StartCoroutine(PlayDelayedSound(magazineSlideSound, magazineSlideSoundDelay));
+            if (magazineSlideSound != null && audioSource != null) StartCoroutine(PlayDelayedSound(magazineSlideSound, magazineSlideSoundDelay));
 
             StartCoroutine(CameraShake(cameraShakeDuration, cameraShakeIntensityInsert));
 
-            // Основное движение до preInsertAmount (0.97)
             Vector3 preInsertPos = Vector3.Lerp(startLocalPos, targetLocalPos, newMagazinePreInsertAmount);
             Quaternion preInsertRot = Quaternion.Slerp(startLocalRot, targetLocalRot, newMagazinePreInsertAmount);
 
@@ -1014,10 +1126,8 @@ public class Wep : MonoBehaviour
             newMagazine.localPosition = preInsertPos;
             newMagazine.localRotation = preInsertRot;
 
-            // Пауза перед щелчком
             yield return new WaitForSeconds(newMagazineSnapPause);
 
-            // Финальный щелчок: от preInsertPos к targetLocalPos
             float snapTimer = 0f;
             Vector3 snapStartPos = newMagazine.localPosition;
             Quaternion snapStartRot = newMagazine.localRotation;
@@ -1028,7 +1138,6 @@ public class Wep : MonoBehaviour
                 newMagazine.localPosition = Vector3.Lerp(snapStartPos, targetLocalPos, k);
                 newMagazine.localRotation = Quaternion.Slerp(snapStartRot, targetLocalRot, k);
 
-                // Применяем инерцию и наклон оружия
                 float endFactor = k;
                 Vector3 tiltRot = insertTiltRotation * endFactor;
                 Vector3 inertiaPos = newMagInertiaOffsetPos * endFactor;
@@ -1040,15 +1149,11 @@ public class Wep : MonoBehaviour
                 yield return null;
             }
 
-            // Точная установка
             newMagazine.localPosition = targetLocalPos;
             newMagazine.localRotation = targetLocalRot;
 
-            // Звук фиксации (гарантированно)
-            if (magazineSnapSound != null && audioSource != null)
-                StartCoroutine(PlayDelayedSound(magazineSnapSound, magazineSnapSoundDelay));
+            if (magazineSnapSound != null && audioSource != null) StartCoroutine(PlayDelayedSound(magazineSnapSound, magazineSnapSoundDelay));
 
-            // Плавный возврат оружия
             float returnT2 = 0f;
             Vector3 currentWeaponPos2 = weaponModel.localPosition;
             Quaternion currentWeaponRot2 = weaponModel.localRotation;
@@ -1065,10 +1170,8 @@ public class Wep : MonoBehaviour
             weaponModel.localRotation = Quaternion.Euler(reloadStartRotation);
         }
 
-        // Микро-пауза перед затвором
         yield return new WaitForSeconds(pauseBeforeBoltPull);
 
-        // 5. Переход ко второй позиции (для затвора)
         t = 0f;
         Vector3 boltPullStartPos = weaponModel.localPosition;
         Quaternion boltPullStartRot = weaponModel.localRotation;
@@ -1084,11 +1187,9 @@ public class Wep : MonoBehaviour
         weaponModel.localPosition = reloadBoltPullPosition;
         weaponModel.localRotation = Quaternion.Euler(reloadBoltPullRotation);
 
-        // 6. Передёргивание затвора
         if (bolt != null)
         {
-            if (boltSound != null && audioSource != null)
-                StartCoroutine(PlayDelayedSound(boltSound, boltSoundDelay));
+            if (boltSound != null && audioSource != null) StartCoroutine(PlayDelayedSound(boltSound, boltSoundDelay));
 
             if (boltParticles != null) boltParticles.Play();
             if (boltLight != null)
@@ -1096,12 +1197,11 @@ public class Wep : MonoBehaviour
                 boltLight.enabled = true;
                 StartCoroutine(DisableLightAfterDelay(boltLight, 0.1f));
             }
-            if (useBoltFOVKick)
-                StartCoroutine(FOVKick(boltFOVKickAmount, boltFOVKickDuration));
+            if (useBoltFOVKick) StartCoroutine(FOVKick(boltFOVKickAmount, boltFOVKickDuration));
 
             StartCoroutine(CameraShake(cameraShakeDuration, cameraShakeIntensityBolt));
 
-            Vector3 boltPullTarget = boltOriginalLocalPos + new Vector3(-0.49f, 0f, 0f); // относительное смещение
+            Vector3 boltPullTarget = boltOriginalLocalPos + new Vector3(-0.49f, 0f, 0f);
             t = 0f;
             while (t < leverMoveTime)
             {
@@ -1139,7 +1239,6 @@ public class Wep : MonoBehaviour
             weaponModel.localRotation = Quaternion.Euler(reloadBoltPullRotation);
         }
 
-        // 7. Ожидание до конца reloadTime
         float elapsed = closeUpTransitionTime + pauseBeforeMagazineDrop + leverMoveTime + 0.1f + magazineDropTime + pauseBeforeMagazineInsert + newMagazineAppearDelay + newMagazineMoveTime + newMagazineSnapPause + 0.1f + inertiaDuration + pauseBeforeBoltPull + boltPullTransitionTime + leverMoveTime + 0.08f + leverMoveTime;
         while (elapsed < reloadTime)
         {
@@ -1148,11 +1247,9 @@ public class Wep : MonoBehaviour
             yield return null;
         }
 
-        // Восстанавливаем FOV
         float targetFOV = isAiming ? aimFOV : normalFOV;
         yield return StartCoroutine(FOVChange(targetFOV, fovTransitionTime));
 
-        // 8. Возврат оружия на место
         t = 0f;
         Vector3 returnPos = Vector3.Lerp(hipPosition, aimPosition, aimBlend);
         Vector3 returnRot = Vector3.Lerp(hipRotation, aimRotation, aimBlend);
@@ -1166,7 +1263,6 @@ public class Wep : MonoBehaviour
             yield return null;
         }
 
-        // 9. Завершение
         currentAmmo = maxAmmo;
         spareMagazines--;
         currentSpread = baseSpread;
