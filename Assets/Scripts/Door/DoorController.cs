@@ -1,135 +1,100 @@
 using UnityEngine;
-using UnityEngine.Events;
 using System.Collections;
 
 public class DoorController : MonoBehaviour
 {
-    [Header("Основные настройки")]
-    public float openAngle = 90f;
-    public Vector3 rotationAxis = Vector3.up;
+    [Header("Настройки двери")]
+    public float openAngle = 90f;        // Угол открытия (знак определяет сторону)
+    public float openSpeed = 2f;         // Скорость открывания
+    public float closeSpeed = 2f;        // Скорость закрывания
 
-    [Tooltip("Скорость открывания в градусах в секунду. Рекомендуется 90–120.")]
-    public float openSpeed = 120f;
-
-    [Tooltip("Скорость закрывания в градусах в секунду. Если 0, используется скорость открывания.")]
-    public float closeSpeed = 100f;
-
-    [Tooltip("Кривая скорости: 0 = закрыто, 1 = открыто. По умолчанию EaseInOut.")]
-    public AnimationCurve movementCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
-
-    [Header("Направление открывания")]
-    public OpenDirection directionMode = OpenDirection.Fixed;
-    public enum OpenDirection { Fixed, AwayFromPlayer }
+    [Header("Взаимодействие")]
+    public float interactDistance = 3f;       // Дистанция, с которой можно открыть дверь
+    public LayerMask interactMask = 1 << 8;    // Слой, на котором находится триггер двери (по умолчанию слой 8)
+    public bool showHint = true;               // Показывать подсказку "Нажмите E"
 
     [Header("Блокировка")]
     public bool isLocked = false;
-
-    [Header("Физическая дверь")]
-    [Tooltip("Если включено, дверь всегда имеет коллайдер и толкает Rigidbody игрока. Если выключено, коллайдер отключается при открытии.")]
-    public bool physicalDoor = true;
 
     [Header("Звуки")]
     public AudioClip openSound;
     public AudioClip closeSound;
     public AudioClip lockedSound;
-    [Range(0f, 1f)]
-    public float soundVolume = 1f;
-    public AudioSource oneShotAudioSource;
+    public AudioSource audioSource;
 
-    [Header("Коллайдер двери")]
-    [Tooltip("Коллайдер, который взаимодействует с игроком.")]
-    public Collider doorCollider;
-
-    [Header("События")]
-    public UnityEvent onDoorStartOpen;
-    public UnityEvent onDoorStartClose;
-    public UnityEvent onDoorHalfway;
-    public UnityEvent onDoorOpened;
-    public UnityEvent onDoorClosed;
+    [Header("Физический коллайдер проёма")]
+    public Collider physicalCollider;    // Коллайдер, блокирующий проход (не триггер)
 
     private Quaternion closedRotation;
     private Quaternion targetRotation;
     private bool isOpen = false;
-    private bool playerInTrigger = false;
     private bool isAnimating = false;
-    private Coroutine soundRoutine;
-    private bool hasInvokedHalfway = false;
-    private Rigidbody rb;
-
-    void Reset()
-    {
-        openAngle = 90f;
-        rotationAxis = Vector3.up;
-        openSpeed = 120f;
-        closeSpeed = 100f;
-        movementCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
-        directionMode = OpenDirection.Fixed;
-        isLocked = false;
-        physicalDoor = true;
-        openSound = null;
-        closeSound = null;
-        lockedSound = null;
-        soundVolume = 1f;
-        oneShotAudioSource = null;
-        doorCollider = null;
-        onDoorStartOpen = new UnityEvent();
-        onDoorStartClose = new UnityEvent();
-        onDoorHalfway = new UnityEvent();
-        onDoorOpened = new UnityEvent();
-        onDoorClosed = new UnityEvent();
-    }
+    private bool isLookingAtDoor = false;
 
     void Start()
     {
         closedRotation = transform.rotation;
         targetRotation = closedRotation;
 
-        if (closeSpeed <= 0f)
-            closeSpeed = openSpeed;
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
 
-        // Настройка аудио
-        if (oneShotAudioSource == null)
+        // Если физический коллайдер не назначен, попытаемся найти его среди дочерних (не триггер)
+        if (physicalCollider == null)
         {
-            oneShotAudioSource = gameObject.AddComponent<AudioSource>();
-        }
-        oneShotAudioSource.playOnAwake = false;
-        oneShotAudioSource.loop = false;
-        oneShotAudioSource.volume = soundVolume;
-
-        // Настройка физической двери
-        if (physicalDoor)
-        {
-            rb = GetComponent<Rigidbody>();
-            if (rb == null)
+            Collider[] cols = GetComponentsInChildren<Collider>();
+            foreach (Collider col in cols)
             {
-                rb = gameObject.AddComponent<Rigidbody>();
+                if (!col.isTrigger)
+                {
+                    physicalCollider = col;
+                    break;
+                }
             }
-            rb.isKinematic = true;
-            rb.useGravity = false;
-            rb.interpolation = RigidbodyInterpolation.Interpolate;
-            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+        }
 
-            // Коллайдер всегда включён
-            if (doorCollider != null)
-                doorCollider.enabled = true;
-        }
-        else
-        {
-            // Старое поведение: коллайдер включается/выключается в зависимости от состояния
-            if (doorCollider != null)
-                doorCollider.enabled = !isOpen;
-        }
+        // Устанавливаем начальное состояние физического коллайдера
+        if (physicalCollider != null)
+            physicalCollider.enabled = !isOpen;
     }
 
     void Update()
     {
-        if (playerInTrigger && Input.GetKeyDown(KeyCode.E))
+        // Проверяем, смотрит ли игрок на дверь (рейкаст)
+        isLookingAtDoor = false;
+        if (Camera.main != null)
+        {
+            Ray ray = Camera.main.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0));
+            RaycastHit hit;
+            if (Physics.Raycast(ray, out hit, interactDistance, interactMask))
+            {
+                // Попадание в триггер двери? (коллайдер принадлежит этой двери)
+                if (hit.collider.transform.IsChildOf(transform) || hit.collider.transform == transform)
+                {
+                    isLookingAtDoor = true;
+                }
+            }
+        }
+
+        // Плавное вращение, только если не идёт анимация
+        if (!isAnimating)
+        {
+            float speed = isOpen ? openSpeed : closeSpeed;
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * speed);
+            if (Quaternion.Angle(transform.rotation, targetRotation) < 0.01f)
+                transform.rotation = targetRotation;
+        }
+
+        // Обработка нажатия E
+        if (isLookingAtDoor && Input.GetKeyDown(KeyCode.E))
         {
             if (isAnimating) return;
 
             if (isLocked)
             {
-                PlayOneShot(lockedSound);
+                PlaySound(lockedSound);
                 return;
             }
 
@@ -156,226 +121,78 @@ public class DoorController : MonoBehaviour
         StartCoroutine(MoveDoor(false));
     }
 
-    public void SetLocked(bool locked)
-    {
-        isLocked = locked;
-    }
-
     private IEnumerator MoveDoor(bool opening)
     {
         isAnimating = true;
-        hasInvokedHalfway = false;
+        isOpen = opening; // временно для расчёта targetRotation
+        SetTargetRotation();
 
-        SetTargetRotation(opening);
+        PlaySound(opening ? openSound : closeSound);
+
+        // Отключаем физический коллайдер при открытии, включаем при закрытии
+        if (physicalCollider != null)
+            physicalCollider.enabled = !opening;
+
         Quaternion startRot = transform.rotation;
         Quaternion endRot = targetRotation;
-
+        float speed = opening ? openSpeed : closeSpeed;
         float distance = Quaternion.Angle(startRot, endRot);
+
         if (distance < 0.01f)
         {
-            isOpen = opening;
             isAnimating = false;
-            UpdateColliderState();
+            isOpen = opening;
             yield break;
         }
 
-        if (opening)
-        {
-            PlayOneShot(openSound);
-            onDoorStartOpen.Invoke();
-        }
-        else
-        {
-            PlayOneShot(closeSound);
-            onDoorStartClose.Invoke();
-        }
-
-        float speed = opening ? openSpeed : closeSpeed;
-        float duration = distance / speed;
         float progress = 0f;
-
         while (progress < 1f)
         {
-            progress += Time.deltaTime / duration;
-            progress = Mathf.Clamp01(progress);
-
-            float curveValue = movementCurve.Evaluate(progress);
-            Quaternion desiredRot = Quaternion.Slerp(startRot, endRot, curveValue);
-            SetDoorRotation(desiredRot);
-
-            if (!hasInvokedHalfway && progress >= 0.5f)
-            {
-                hasInvokedHalfway = true;
-                onDoorHalfway.Invoke();
-            }
-
+            progress += Time.deltaTime * speed / distance;
+            transform.rotation = Quaternion.Slerp(startRot, endRot, Mathf.Clamp01(progress));
             yield return null;
         }
 
-        // Финальная установка
-        SetDoorRotation(endRot);
-
+        transform.rotation = endRot;
         isOpen = opening;
         isAnimating = false;
-        UpdateColliderState();
-
-        if (opening)
-            onDoorOpened.Invoke();
-        else
-            onDoorClosed.Invoke();
     }
 
-    /// <summary>
-    /// Устанавливает вращение двери, используя физику при наличии Rigidbody.
-    /// </summary>
-    private void SetDoorRotation(Quaternion rot)
+    private void SetTargetRotation()
     {
-        if (rb != null)
-            rb.MoveRotation(rot);
-        else
-            transform.rotation = rot;
+        targetRotation = isOpen ? closedRotation * Quaternion.AngleAxis(openAngle, Vector3.up) : closedRotation;
     }
 
-    /// <summary>
-    /// Обновляет состояние коллайдера в зависимости от режима physicalDoor.
-    /// </summary>
-    private void UpdateColliderState()
+    private void PlaySound(AudioClip clip)
     {
-        if (doorCollider == null) return;
-
-        if (physicalDoor)
-            doorCollider.enabled = true;   // всегда включён
-        else
-            doorCollider.enabled = !isOpen;
+        if (clip != null && audioSource != null)
+            audioSource.PlayOneShot(clip);
     }
 
-    private void SetTargetRotation(bool opening)
+    // Подсказка на экране
+    void OnGUI()
     {
-        if (opening)
+        if (showHint && isLookingAtDoor && !isAnimating)
         {
-            if (directionMode == OpenDirection.AwayFromPlayer && playerInTrigger)
-            {
-                GameObject player = GameObject.FindGameObjectWithTag("Player");
-                if (player != null)
-                {
-                    float signedAngle = GetSignedAngleForPlayer(player.transform);
-                    targetRotation = closedRotation * Quaternion.AngleAxis(signedAngle, rotationAxis);
-                }
-                else
-                {
-                    targetRotation = closedRotation * Quaternion.AngleAxis(openAngle, rotationAxis);
-                }
-            }
-            else
-            {
-                targetRotation = closedRotation * Quaternion.AngleAxis(openAngle, rotationAxis);
-            }
-        }
-        else
-        {
-            targetRotation = closedRotation;
+            GUIStyle style = new GUIStyle(GUI.skin.label);
+            style.fontSize = 20;
+            style.alignment = TextAnchor.MiddleCenter;
+            GUI.Label(new Rect(Screen.width / 2 - 100, Screen.height / 2 + 50, 200, 30), "Нажмите E", style);
         }
     }
 
-    private float GetSignedAngleForPlayer(Transform player)
-    {
-        Vector3 toPlayer = player.position - transform.position;
-        Vector3 doorForward = transform.forward;
-
-        if (rotationAxis.normalized == Vector3.up)
-        {
-            toPlayer.y = 0f;
-            doorForward.y = 0f;
-        }
-
-        float dot = Vector3.Dot(doorForward, toPlayer.normalized);
-        return dot > 0 ? Mathf.Abs(openAngle) : -Mathf.Abs(openAngle);
-    }
-
-    private void PlayOneShot(AudioClip clip)
-    {
-        if (clip == null || oneShotAudioSource == null) return;
-
-        if (soundRoutine != null)
-        {
-            StopCoroutine(soundRoutine);
-            soundRoutine = null;
-        }
-
-        oneShotAudioSource.Stop();
-        oneShotAudioSource.volume = soundVolume;
-        oneShotAudioSource.clip = clip;
-        oneShotAudioSource.Play();
-        soundRoutine = StartCoroutine(FadeOutOneShot(clip.length));
-    }
-
-    private IEnumerator FadeOutOneShot(float clipLength)
-    {
-        float fadeDuration = 0.3f;
-        float fadeStart = Mathf.Max(0f, clipLength - fadeDuration);
-        if (fadeStart > 0f)
-            yield return new WaitForSeconds(fadeStart);
-
-        float elapsed = 0f;
-        float startVol = oneShotAudioSource.volume;
-        while (elapsed < fadeDuration)
-        {
-            if (oneShotAudioSource == null) yield break;
-            elapsed += Time.deltaTime;
-            oneShotAudioSource.volume = Mathf.Lerp(startVol, 0f, elapsed / fadeDuration);
-            yield return null;
-        }
-
-        if (oneShotAudioSource != null)
-            oneShotAudioSource.Stop();
-
-        soundRoutine = null;
-    }
-
-    void OnTriggerEnter(Collider other)
-    {
-        if (other.CompareTag("Player"))
-        {
-            playerInTrigger = true;
-            if (isOpen && directionMode == OpenDirection.AwayFromPlayer && !isAnimating)
-                SetTargetRotation(true);
-        }
-    }
-
-    void OnTriggerExit(Collider other)
-    {
-        if (other.CompareTag("Player"))
-        {
-            playerInTrigger = false;
-        }
-    }
-
-    void OnDisable()
-    {
-        if (soundRoutine != null) StopCoroutine(soundRoutine);
-        if (oneShotAudioSource != null) oneShotAudioSource.Stop();
-        isAnimating = false;
-    }
-
+    // Визуализация в редакторе
     void OnDrawGizmosSelected()
     {
-        if (Application.isPlaying) return;
-
-        Gizmos.color = Color.cyan;
-        Gizmos.DrawRay(transform.position, rotationAxis * 1.5f);
-
-        if (directionMode == OpenDirection.Fixed)
+        if (Camera.main != null)
         {
-            Gizmos.color = Color.green;
-            Quaternion openRot = transform.rotation * Quaternion.AngleAxis(openAngle, rotationAxis);
-            Vector3 direction = openRot * Vector3.forward;
-            Gizmos.DrawRay(transform.position + Vector3.up * 0.2f, direction * 1.5f);
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawRay(Camera.main.transform.position, Camera.main.transform.forward * interactDistance);
         }
-        else
+        if (physicalCollider != null)
         {
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawRay(transform.position + Vector3.up * 0.2f, transform.forward * 1.5f);
-            Gizmos.DrawRay(transform.position + Vector3.up * 0.2f, -transform.forward * 1.5f);
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireCube(physicalCollider.bounds.center, physicalCollider.bounds.size);
         }
     }
 }
