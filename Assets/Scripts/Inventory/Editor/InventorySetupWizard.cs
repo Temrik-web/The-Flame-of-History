@@ -1,0 +1,352 @@
+using System.Collections.Generic;
+using TMPro;
+using UnityEditor;
+using UnityEngine;
+
+/// <summary>
+/// Мастер быстрой настройки инвентаря.
+/// Меню: Tools -> Инвентарь -> Настроить всё автоматически.
+///
+/// Что делает:
+/// 1) Создаёт папки Assets/Resources и Assets/GameData/Items.
+/// 2) Создаёт три тестовых ItemData (Аптечка, Патроны, Ключ).
+/// 3) Создаёт Assets/Resources/ItemDatabase.asset и наполняет его.
+/// 4) Создаёт префаб GenericPickup (куб + коллайдер + Rigidbody + Pickup).
+/// 5) Вешает InventorySystem / InventoryUI / InventoryInputBlocker на игрока.
+/// 6) Раскладывает тестовые предметы перед игроком в сцене.
+/// </summary>
+public static class InventorySetupWizard
+{
+    private const string ResourcesFolder = "Assets/Resources";
+    private const string GameDataFolder = "Assets/GameData";
+    private const string ItemsFolder = "Assets/GameData/Items";
+    private const string PrefabsFolder = "Assets/GameData/Prefabs";
+
+    [MenuItem("Tools/Инвентарь/Настроить всё автоматически", false, 0)]
+    public static void SetupAll()
+    {
+        EnsureFolders();
+
+        ItemData medkit = CreateOrUpdateItem(
+            id: "medkit",
+            fileName: "Item_Medkit",
+            itemName: "Аптечка",
+            description: "Восстанавливает 40 единиц здоровья.",
+            type: ItemType.Consumable,
+            useValue: 40f,
+            stackable: true,
+            maxStack: 5,
+            consumeOnUse: true);
+
+        ItemData ammo = CreateOrUpdateItem(
+            id: "ammo_545",
+            fileName: "Item_Ammo545",
+            itemName: "Магазин 5.45",
+            description: "Пополняет запасные магазины оружия.",
+            type: ItemType.Ammo,
+            useValue: 1f,
+            stackable: true,
+            maxStack: 10,
+            consumeOnUse: true);
+
+        ItemData key = CreateOrUpdateItem(
+            id: "key_cellar",
+            fileName: "Item_KeyCellar",
+            itemName: "Ключ от подвала",
+            description: "Ржавый ключ. Похоже, от подвальной двери.",
+            type: ItemType.Key,
+            useValue: 0f,
+            stackable: false,
+            maxStack: 1,
+            consumeOnUse: false,
+            keyId: "cellar");
+
+        GameObject pickupPrefab = CreateGenericPickupPrefab();
+        ItemDatabase db = CreateDatabase(new List<ItemData> { medkit, ammo, key });
+        TMP_FontAsset font = CreateCyrillicFont();
+
+        GameObject player = FindPlayer();
+        if (player == null)
+        {
+            EditorUtility.DisplayDialog(
+                "Инвентарь",
+                "Ассеты созданы, но игрок на сцене не найден.\n\n" +
+                "Открой сцену с игроком (объект с FirstPersonController или CharacterController) " +
+                "и запусти пункт меню снова.",
+                "Ок");
+            AssetDatabase.SaveAssets();
+            return;
+        }
+
+        InventorySystem inv = SetupPlayer(player, pickupPrefab, font);
+        SpawnTestPickups(player, pickupPrefab, new[] { medkit, ammo, key });
+
+        AssetDatabase.SaveAssets();
+        EditorUtility.SetDirty(inv);
+
+        Debug.Log("[InventorySetup] Готово. Нажми Play: смотри на предмет и жми E, инвентарь — Tab.");
+        EditorUtility.DisplayDialog(
+            "Инвентарь настроен",
+            $"Игрок: {player.name}\n\n" +
+            "Управление:\n" +
+            "  E — подобрать предмет (наведись на него)\n" +
+            "  Tab — открыть/закрыть инвентарь\n" +
+            "  ЛКМ по ячейке — использовать\n" +
+            "  ПКМ по ячейке — выбросить 1, Shift+ПКМ — всё\n" +
+            "  1..9 — использовать слот, G+цифра — выбросить\n\n" +
+            "Перед игроком разложены 3 тестовых предмета.\n" +
+            "Не забудь сохранить сцену (Ctrl+S).",
+            "Ок");
+    }
+
+    [MenuItem("Tools/Инвентарь/Разложить тестовые предметы перед игроком", false, 20)]
+    public static void SpawnTestItemsOnly()
+    {
+        GameObject player = FindPlayer();
+        if (player == null)
+        {
+            Debug.LogError("[InventorySetup] Игрок на сцене не найден.");
+            return;
+        }
+
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsFolder}/GenericPickup.prefab");
+        if (prefab == null)
+        {
+            Debug.LogError("[InventorySetup] Префаб GenericPickup не найден. Запусти «Настроить всё автоматически».");
+            return;
+        }
+
+        var items = new List<ItemData>();
+        foreach (string guid in AssetDatabase.FindAssets("t:ItemData"))
+        {
+            var item = AssetDatabase.LoadAssetAtPath<ItemData>(AssetDatabase.GUIDToAssetPath(guid));
+            if (item != null) items.Add(item);
+        }
+
+        if (items.Count == 0)
+        {
+            Debug.LogError("[InventorySetup] Не найдено ни одного ItemData.");
+            return;
+        }
+
+        SpawnTestPickups(player, prefab, items.ToArray());
+    }
+
+    [MenuItem("Tools/Инвентарь/Удалить сохранение инвентаря", false, 40)]
+    public static void DeleteSave()
+    {
+        PlayerPrefs.DeleteKey("inventory_v1");
+        PlayerPrefs.Save();
+        Debug.Log("[InventorySetup] Сохранение инвентаря удалено.");
+    }
+
+    // =====================================================================
+    private static void EnsureFolders()
+    {
+        if (!AssetDatabase.IsValidFolder(ResourcesFolder))
+            AssetDatabase.CreateFolder("Assets", "Resources");
+        if (!AssetDatabase.IsValidFolder(GameDataFolder))
+            AssetDatabase.CreateFolder("Assets", "GameData");
+        if (!AssetDatabase.IsValidFolder(ItemsFolder))
+            AssetDatabase.CreateFolder(GameDataFolder, "Items");
+        if (!AssetDatabase.IsValidFolder(PrefabsFolder))
+            AssetDatabase.CreateFolder(GameDataFolder, "Prefabs");
+    }
+
+    private static ItemData CreateOrUpdateItem(
+        string id, string fileName, string itemName, string description,
+        ItemType type, float useValue, bool stackable, int maxStack,
+        bool consumeOnUse, string keyId = "")
+    {
+        string path = $"{ItemsFolder}/{fileName}.asset";
+        ItemData item = AssetDatabase.LoadAssetAtPath<ItemData>(path);
+        bool isNew = item == null;
+
+        if (isNew) item = ScriptableObject.CreateInstance<ItemData>();
+
+        item.itemId = id;
+        item.itemName = itemName;
+        item.description = description;
+        item.itemType = type;
+        item.useValue = useValue;
+        item.stackable = stackable;
+        item.maxStack = maxStack;
+        item.consumeOnUse = consumeOnUse;
+        item.keyId = keyId;
+
+        if (isNew) AssetDatabase.CreateAsset(item, path);
+        EditorUtility.SetDirty(item);
+        return item;
+    }
+
+    private static ItemDatabase CreateDatabase(List<ItemData> items)
+    {
+        string path = $"{ResourcesFolder}/ItemDatabase.asset";
+        ItemDatabase db = AssetDatabase.LoadAssetAtPath<ItemDatabase>(path);
+        bool isNew = db == null;
+
+        if (isNew) db = ScriptableObject.CreateInstance<ItemDatabase>();
+
+        foreach (ItemData item in items)
+            if (!db.items.Contains(item)) db.items.Add(item);
+
+        db.RebuildCache();
+
+        if (isNew) AssetDatabase.CreateAsset(db, path);
+        EditorUtility.SetDirty(db);
+        return db;
+    }
+
+    /// <summary>
+    /// Создаёт TMP-шрифт с динамическим атласом из LiberationSans.ttf.
+    /// Нужен потому, что штатный "LiberationSans SDF" в проекте статический (только ASCII)
+    /// и русский текст в нём отображается пустыми квадратами.
+    /// </summary>
+    private static TMP_FontAsset CreateCyrillicFont()
+    {
+        string path = $"{ResourcesFolder}/InventoryFont SDF.asset";
+        TMP_FontAsset existing = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(path);
+        if (existing != null) return existing;
+
+        Font source = AssetDatabase.LoadAssetAtPath<Font>("Assets/TextMesh Pro/Fonts/LiberationSans.ttf");
+        if (source == null)
+        {
+            Debug.LogWarning("[InventorySetup] LiberationSans.ttf не найден — русский текст в UI может " +
+                             "не отображаться. Задай свой TMP-шрифт в поле Font Asset у InventoryUI.");
+            return null;
+        }
+
+        TMP_FontAsset font = TMP_FontAsset.CreateFontAsset(source);
+        if (font == null) return null;
+
+        // Dynamic — символы добавляются в атлас по мере надобности, включая кириллицу
+        font.atlasPopulationMode = AtlasPopulationMode.Dynamic;
+        font.name = "InventoryFont SDF";
+
+        AssetDatabase.CreateAsset(font, path);
+
+        // Материал и атлас — подобъекты ассета шрифта
+        if (font.material != null) AssetDatabase.AddObjectToAsset(font.material, font);
+        if (font.atlasTextures != null)
+            foreach (Texture2D tex in font.atlasTextures)
+                if (tex != null) AssetDatabase.AddObjectToAsset(tex, font);
+
+        EditorUtility.SetDirty(font);
+        AssetDatabase.SaveAssets();
+        return font;
+    }
+
+    private static GameObject CreateGenericPickupPrefab()
+    {
+        string path = $"{PrefabsFolder}/GenericPickup.prefab";
+        GameObject existing = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        if (existing != null) return existing;
+
+        GameObject temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        temp.name = "GenericPickup";
+        temp.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
+
+        Rigidbody rb = temp.AddComponent<Rigidbody>();
+        rb.mass = 1f;
+        rb.isKinematic = true; // чтобы предмет не улетал; выключи, если хочешь физику
+
+        Pickup pickup = temp.AddComponent<Pickup>();
+        pickup.amount = 1;
+        pickup.spin = true;
+        pickup.bob = true;
+
+        GameObject prefab = PrefabUtility.SaveAsPrefabAsset(temp, path);
+        Object.DestroyImmediate(temp);
+        return prefab;
+    }
+
+    private static GameObject FindPlayer()
+    {
+        var fps = Object.FindObjectOfType<EasyPeasyFirstPersonController.FirstPersonController>();
+        if (fps != null) return fps.gameObject;
+
+        var cc = Object.FindObjectOfType<CharacterController>();
+        if (cc != null) return cc.gameObject;
+
+        var health = Object.FindObjectOfType<PlayerHealth>();
+        if (health != null) return health.gameObject;
+
+        GameObject tagged = GameObject.FindGameObjectWithTag("Player");
+        return tagged;
+    }
+
+    private static InventorySystem SetupPlayer(GameObject player, GameObject pickupPrefab, TMP_FontAsset font)
+    {
+        InventorySystem inv = player.GetComponent<InventorySystem>();
+        if (inv == null) inv = Undo.AddComponent<InventorySystem>(player);
+
+        inv.genericPickupPrefab = pickupPrefab;
+        inv.maxSlots = 20;
+        inv.pickupRange = 3.5f;
+        inv.pickupCastRadius = 0.2f;
+        inv.autoLoadOnStart = false;
+        inv.drawDebugGUI = true;
+
+        if (inv.playerCamera == null)
+        {
+            var fps = player.GetComponent<EasyPeasyFirstPersonController.FirstPersonController>();
+            if (fps != null && fps.playerCamera != null)
+                inv.playerCamera = fps.playerCamera.GetComponent<Camera>();
+
+            if (inv.playerCamera == null) inv.playerCamera = player.GetComponentInChildren<Camera>();
+            if (inv.playerCamera == null) inv.playerCamera = Camera.main;
+        }
+
+        if (player.GetComponent<InventoryUI>() == null)
+        {
+            InventoryUI ui = Undo.AddComponent<InventoryUI>(player);
+            ui.inventory = inv;
+            ui.autoBuild = true;
+            ui.columns = 5;
+            ui.fontAsset = font;
+        }
+
+        if (player.GetComponent<InventoryInputBlocker>() == null)
+        {
+            InventoryInputBlocker blocker = Undo.AddComponent<InventoryInputBlocker>(player);
+            blocker.inventory = inv;
+            blocker.blockWeapons = true;
+            blocker.blockMovement = true;
+        }
+
+        return inv;
+    }
+
+    private static void SpawnTestPickups(GameObject player, GameObject prefab, ItemData[] items)
+    {
+        Transform root = GameObject.Find("--- Test Pickups ---")?.transform;
+        if (root == null)
+        {
+            var holder = new GameObject("--- Test Pickups ---");
+            Undo.RegisterCreatedObjectUndo(holder, "Create pickups holder");
+            root = holder.transform;
+        }
+
+        Vector3 basePos = player.transform.position
+                          + player.transform.forward * 2.5f
+                          + Vector3.up * 0.5f;
+
+        for (int i = 0; i < items.Length; i++)
+        {
+            Vector3 pos = basePos + player.transform.right * ((i - (items.Length - 1) * 0.5f) * 1.2f);
+
+            GameObject obj = (GameObject)PrefabUtility.InstantiatePrefab(prefab, root);
+            obj.transform.position = pos;
+            obj.name = $"Pickup_{items[i].itemName}";
+
+            Pickup p = obj.GetComponent<Pickup>();
+            p.item = items[i];
+            p.amount = items[i].stackable ? 2 : 1;
+
+            Undo.RegisterCreatedObjectUndo(obj, "Create pickup");
+            EditorUtility.SetDirty(obj);
+        }
+
+        Debug.Log($"[InventorySetup] Разложено предметов: {items.Length} перед {player.name}.");
+    }
+}
