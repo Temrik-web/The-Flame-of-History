@@ -2,14 +2,30 @@ using UnityEngine;
 
 /// <summary>
 /// Категория предмета. Определяет, что произойдёт при использовании.
+///
+/// ВАЖНО: числовые значения зафиксированы явно. Unity сохраняет enum в ассетах
+/// как int, поэтому менять порядок нельзя — уже созданные ItemData сломаются.
+/// Порядок отображения в инвентаре задаётся через CategoryOrder, а не через enum.
 /// </summary>
 public enum ItemType
 {
-    Misc,        // хлам / квестовое / просто лежит в инвентаре
-    Weapon,      // оружие
-    Consumable,  // аптечка, еда — лечит
-    Ammo,        // патроны / магазины
-    Key          // ключ для двери
+    Misc = 0,        // хлам / квестовое / просто лежит в инвентаре
+    Weapon = 1,      // оружие
+    Consumable = 2,  // аптечка, еда — лечит
+    Ammo = 3,        // патроны / магазины
+    Key = 4          // ключ для двери
+}
+
+/// <summary>
+/// Редкость предмета. Влияет только на визуал: цвет рамки и названия.
+/// </summary>
+public enum ItemRarity
+{
+    Common = 0,     // обычный — серый
+    Uncommon = 1,   // необычный — зелёный
+    Rare = 2,       // редкий — синий
+    Epic = 3,       // эпический — фиолетовый
+    Legendary = 4   // легендарный — золотой
 }
 
 /// <summary>
@@ -35,6 +51,10 @@ public class ItemData : ScriptableObject
 
     [Header("Тип и поведение")]
     public ItemType itemType = ItemType.Misc;
+    public ItemRarity rarity = ItemRarity.Common;
+
+    [Tooltip("Порядок внутри своей категории при сортировке. Меньше — выше.")]
+    public int sortOrder = 0;
 
     [Tooltip("Consumable: сколько HP восстанавливает. Ammo: сколько магазинов даёт.")]
     public float useValue = 25f;
@@ -57,6 +77,78 @@ public class ItemData : ScriptableObject
 
     /// <summary>Безопасный id: если поле пустое — имя ассета.</summary>
     public string Id => string.IsNullOrEmpty(itemId) ? name : itemId;
+
+    /// <summary>Порядок категории при сортировке: оружие, патроны, медицина, ключи, прочее.</summary>
+    public int CategoryOrder => GetCategoryOrder(itemType);
+
+    /// <summary>Человеческое название категории для заголовков и вкладок.</summary>
+    public string CategoryName => GetCategoryName(itemType);
+
+    /// <summary>Цвет редкости для рамки ячейки и названия.</summary>
+    public Color RarityColor => GetRarityColor(rarity);
+
+    /// <summary>
+    /// Порядок категорий в отсортированном инвентаре. Отделён от значений enum,
+    /// чтобы порядок можно было менять без порчи существующих ассетов.
+    /// </summary>
+    public static int GetCategoryOrder(ItemType type)
+    {
+        switch (type)
+        {
+            case ItemType.Weapon:     return 0;
+            case ItemType.Ammo:       return 1;
+            case ItemType.Consumable: return 2;
+            case ItemType.Key:        return 3;
+            default:                  return 4;
+        }
+    }
+
+    /// <summary>Категории в порядке отображения.</summary>
+    public static readonly ItemType[] DisplayOrder =
+    {
+        ItemType.Weapon,
+        ItemType.Ammo,
+        ItemType.Consumable,
+        ItemType.Key,
+        ItemType.Misc
+    };
+
+    public static string GetCategoryName(ItemType type)
+    {
+        switch (type)
+        {
+            case ItemType.Weapon:     return "Оружие";
+            case ItemType.Ammo:       return "Патроны";
+            case ItemType.Consumable: return "Медикаменты";
+            case ItemType.Key:        return "Ключи";
+            default:                  return "Прочее";
+        }
+    }
+
+    public static Color GetRarityColor(ItemRarity rarity)
+    {
+        switch (rarity)
+        {
+            case ItemRarity.Uncommon:  return new Color(0.45f, 0.85f, 0.40f);
+            case ItemRarity.Rare:      return new Color(0.35f, 0.65f, 1.00f);
+            case ItemRarity.Epic:      return new Color(0.72f, 0.45f, 0.95f);
+            case ItemRarity.Legendary: return new Color(1.00f, 0.78f, 0.28f);
+            default:                   return new Color(0.72f, 0.74f, 0.78f);
+        }
+    }
+
+    /// <summary>Цвет-акцент категории — для вкладок и подписей.</summary>
+    public static Color GetCategoryColor(ItemType type)
+    {
+        switch (type)
+        {
+            case ItemType.Weapon:     return new Color(0.95f, 0.55f, 0.40f);
+            case ItemType.Ammo:       return new Color(0.95f, 0.82f, 0.45f);
+            case ItemType.Consumable: return new Color(0.50f, 0.90f, 0.65f);
+            case ItemType.Key:        return new Color(0.85f, 0.75f, 0.45f);
+            default:                  return new Color(0.70f, 0.75f, 0.85f);
+        }
+    }
 
     /// <summary>
     /// Применить предмет. Возвращает true, если использование сработало

@@ -55,6 +55,10 @@ public class InventorySystem : MonoBehaviour
     [Min(1)] public int maxSlots = 20;
     [Tooltip("Использовать предмет по цифрам 1..9.")]
     public bool useHotkeys = true;
+    [Tooltip("Клавиша сортировки по категориям.")]
+    public KeyCode sortKey = KeyCode.R;
+    [Tooltip("Автоматически сортировать после каждого подбора.")]
+    public bool autoSortOnPickup = false;
 
     // ---------- Выбрасывание ----------
     [Header("Выбрасывание")]
@@ -76,6 +80,10 @@ public class InventorySystem : MonoBehaviour
     [Tooltip("Рисовать подсказку и список через OnGUI. Выключи, когда сделаешь нормальный UI.")]
     public bool drawDebugGUI = true;
 
+    [Header("Всплывающие подписи")]
+    [Tooltip("Показывать «+2 Аптечка» в мире при подборе.")]
+    public bool showFloatingText = true;
+
     // ---------- Сохранение ----------
     [Header("Сохранение")]
     public bool autoSaveOnQuit = true;
@@ -87,6 +95,7 @@ public class InventorySystem : MonoBehaviour
 
     private bool isOpen;
     private Pickup currentTarget;
+    private float lastSortTime = -1f;
 
     /// <summary>Открыт ли инвентарь. Другие скрипты читают это, чтобы блокировать ввод.</summary>
     public bool IsOpen => isOpen;
@@ -106,6 +115,8 @@ public class InventorySystem : MonoBehaviour
     public event Action<Pickup> OnTargetChanged;
     /// <summary>Предмет подобран: (предмет, количество).</summary>
     public event Action<ItemData, int> OnItemPickedUp;
+    /// <summary>Инвентарь отсортирован — для анимации перестроения UI.</summary>
+    public event Action OnSorted;
 
     // =====================================================================
     // Жизненный цикл
@@ -163,6 +174,10 @@ public class InventorySystem : MonoBehaviour
         if (isOpen)
         {
             SetTarget(null);
+
+            // Сортировка работает только при открытом инвентаре —
+            // иначе R конфликтовал бы с перезарядкой оружия.
+            if (Input.GetKeyDown(sortKey)) SortAndStack();
 
             if (useHotkeys) HandleHotkeys();
             return;
@@ -259,8 +274,19 @@ public class InventorySystem : MonoBehaviour
         Debug.Log($"[Inventory] Подобрано: {pickup.item.itemName} x{taken}");
         OnItemPickedUp?.Invoke(pickup.item, taken);
 
+        if (showFloatingText)
+        {
+            string label = taken > 1
+                ? $"+{taken}  {pickup.item.itemName}"
+                : $"+ {pickup.item.itemName}";
+            FloatingText.Show(label, pickup.transform.position + Vector3.up * 0.35f,
+                              pickup.item.RarityColor);
+        }
+
         if (pickup == currentTarget && taken >= pickup.amount) SetTarget(null);
         pickup.OnPickedUp(taken);
+
+        if (autoSortOnPickup) SortAndStack();
     }
 
     /// <summary>
@@ -472,7 +498,7 @@ public class InventorySystem : MonoBehaviour
         OnInventoryChanged?.Invoke();
     }
 
-    /// <summary>Собрать одинаковые предметы в минимум стаков.</summary>
+    /// <summary>Собрать одинаковые предметы в минимум стаков и разложить по категориям.</summary>
     public void SortAndStack()
     {
         var merged = new List<Slot>();
@@ -501,14 +527,69 @@ public class InventorySystem : MonoBehaviour
             }
         }
 
-        merged.Sort((x, y) =>
-        {
-            int byType = x.item.itemType.CompareTo(y.item.itemType);
-            return byType != 0 ? byType : string.Compare(x.item.itemName, y.item.itemName, StringComparison.Ordinal);
-        });
+        merged.Sort(CompareSlots);
 
         slots = merged;
+        lastSortTime = Time.unscaledTime;
         OnInventoryChanged?.Invoke();
+        OnSorted?.Invoke();
+        Debug.Log("[Inventory] Отсортировано по категориям.");
+    }
+
+    /// <summary>
+    /// Порядок: категория (оружие → патроны → медикаменты → ключи → прочее),
+    /// затем редкость (сначала ценное), затем ручной sortOrder, затем имя,
+    /// затем крупные стаки выше.
+    /// </summary>
+    static int CompareSlots(Slot a, Slot b)
+    {
+        int byCategory = a.item.CategoryOrder.CompareTo(b.item.CategoryOrder);
+        if (byCategory != 0) return byCategory;
+
+        int byRarity = ((int)b.item.rarity).CompareTo((int)a.item.rarity);
+        if (byRarity != 0) return byRarity;
+
+        int byManual = a.item.sortOrder.CompareTo(b.item.sortOrder);
+        if (byManual != 0) return byManual;
+
+        int byName = string.Compare(a.item.itemName, b.item.itemName, StringComparison.CurrentCulture);
+        if (byName != 0) return byName;
+
+        return b.amount.CompareTo(a.amount);
+    }
+
+    /// <summary>Категории, реально присутствующие в инвентаре, в порядке отображения.</summary>
+    public List<ItemType> GetPresentCategories()
+    {
+        var result = new List<ItemType>();
+        foreach (ItemType type in ItemData.DisplayOrder)
+        {
+            foreach (Slot s in slots)
+            {
+                if (s.IsEmpty || s.item.itemType != type) continue;
+                result.Add(type);
+                break;
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Индексы слотов данной категории (для фильтра по вкладкам).</summary>
+    public List<int> GetSlotIndicesOfCategory(ItemType type)
+    {
+        var result = new List<int>();
+        for (int i = 0; i < slots.Count; i++)
+            if (!slots[i].IsEmpty && slots[i].item.itemType == type) result.Add(i);
+        return result;
+    }
+
+    /// <summary>Сколько слотов занято предметами данной категории.</summary>
+    public int CountCategory(ItemType type)
+    {
+        int total = 0;
+        foreach (Slot s in slots)
+            if (!s.IsEmpty && s.item.itemType == type) total += s.amount;
+        return total;
     }
 
     public void Clear()

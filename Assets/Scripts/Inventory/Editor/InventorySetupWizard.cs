@@ -4,16 +4,18 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Мастер быстрой настройки инвентаря.
+/// Мастер быстрой настройки инвентаря и интерфейса.
 /// Меню: Tools -> Инвентарь -> Настроить всё автоматически.
 ///
 /// Что делает:
-/// 1) Создаёт папки Assets/Resources и Assets/GameData/Items.
-/// 2) Создаёт три тестовых ItemData (Аптечка, Патроны, Ключ).
+/// 1) Создаёт папки Assets/Resources и Assets/GameData/{Items,Prefabs}.
+/// 2) Создаёт набор тестовых ItemData всех категорий и редкостей.
 /// 3) Создаёт Assets/Resources/ItemDatabase.asset и наполняет его.
-/// 4) Создаёт префаб GenericPickup (куб + коллайдер + Rigidbody + Pickup).
-/// 5) Вешает InventorySystem / InventoryUI / InventoryInputBlocker на игрока.
-/// 6) Раскладывает тестовые предметы перед игроком в сцене.
+/// 4) Создаёт TMP-шрифт с кириллицей (штатный LiberationSans SDF — только ASCII).
+/// 5) Создаёт префаб GenericPickup (куб + коллайдер + Rigidbody + Pickup).
+/// 6) Вешает InventorySystem / InventoryUI / InventoryInputBlocker на игрока.
+/// 7) Вешает DialogueUI на DialogueManager и FloatingText в сцену.
+/// 8) Раскладывает тестовые предметы перед игроком.
 /// </summary>
 public static class InventorySetupWizard
 {
@@ -27,42 +29,75 @@ public static class InventorySetupWizard
     {
         EnsureFolders();
 
-        ItemData medkit = CreateOrUpdateItem(
-            id: "medkit",
-            fileName: "Item_Medkit",
-            itemName: "Аптечка",
-            description: "Восстанавливает 40 единиц здоровья.",
-            type: ItemType.Consumable,
-            useValue: 40f,
-            stackable: true,
-            maxStack: 5,
-            consumeOnUse: true);
+        var items = new List<ItemData>
+        {
+            CreateOrUpdateItem(
+                id: "rifle_ak", fileName: "Item_Rifle",
+                itemName: "Автомат",
+                description: "Надёжный автомат. Разбирается вслепую, стреляет в грязи.",
+                type: ItemType.Weapon, rarity: ItemRarity.Rare,
+                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false),
 
-        ItemData ammo = CreateOrUpdateItem(
-            id: "ammo_545",
-            fileName: "Item_Ammo545",
-            itemName: "Магазин 5.45",
-            description: "Пополняет запасные магазины оружия.",
-            type: ItemType.Ammo,
-            useValue: 1f,
-            stackable: true,
-            maxStack: 10,
-            consumeOnUse: true);
+            CreateOrUpdateItem(
+                id: "pistol_tt", fileName: "Item_Pistol",
+                itemName: "Пистолет ТТ",
+                description: "Компактный, но злой. Последний довод.",
+                type: ItemType.Weapon, rarity: ItemRarity.Uncommon,
+                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false),
 
-        ItemData key = CreateOrUpdateItem(
-            id: "key_cellar",
-            fileName: "Item_KeyCellar",
-            itemName: "Ключ от подвала",
-            description: "Ржавый ключ. Похоже, от подвальной двери.",
-            type: ItemType.Key,
-            useValue: 0f,
-            stackable: false,
-            maxStack: 1,
-            consumeOnUse: false,
-            keyId: "cellar");
+            CreateOrUpdateItem(
+                id: "ammo_545", fileName: "Item_Ammo545",
+                itemName: "Магазин 5.45",
+                description: "Полный магазин под автомат.",
+                type: ItemType.Ammo, rarity: ItemRarity.Common,
+                useValue: 1f, stackable: true, maxStack: 10, consumeOnUse: true),
+
+            CreateOrUpdateItem(
+                id: "ammo_762", fileName: "Item_Ammo762",
+                itemName: "Патроны 7.62",
+                description: "Россыпь винтовочных патронов.",
+                type: ItemType.Ammo, rarity: ItemRarity.Common,
+                useValue: 1f, stackable: true, maxStack: 60, consumeOnUse: true),
+
+            CreateOrUpdateItem(
+                id: "medkit", fileName: "Item_Medkit",
+                itemName: "Аптечка",
+                description: "Бинты, жгут, ампула. Хватит, чтобы дойти до укрытия.",
+                type: ItemType.Consumable, rarity: ItemRarity.Uncommon,
+                useValue: 40f, stackable: true, maxStack: 5, consumeOnUse: true),
+
+            CreateOrUpdateItem(
+                id: "bandage", fileName: "Item_Bandage",
+                itemName: "Бинт",
+                description: "Останавливает кровь. Немного, но лучше, чем ничего.",
+                type: ItemType.Consumable, rarity: ItemRarity.Common,
+                useValue: 15f, stackable: true, maxStack: 12, consumeOnUse: true),
+
+            CreateOrUpdateItem(
+                id: "key_cellar", fileName: "Item_KeyCellar",
+                itemName: "Ключ от подвала",
+                description: "Ржавый ключ. Похоже, от подвальной двери.",
+                type: ItemType.Key, rarity: ItemRarity.Rare,
+                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false,
+                keyId: "cellar"),
+
+            CreateOrUpdateItem(
+                id: "letter_old", fileName: "Item_Letter",
+                itemName: "Обгоревшее письмо",
+                description: "Половина строк выцвела. Читается только дата — и она не сходится.",
+                type: ItemType.Misc, rarity: ItemRarity.Legendary,
+                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false),
+
+            CreateOrUpdateItem(
+                id: "scrap", fileName: "Item_Scrap",
+                itemName: "Металлолом",
+                description: "Пригодится. Когда-нибудь.",
+                type: ItemType.Misc, rarity: ItemRarity.Common,
+                useValue: 0f, stackable: true, maxStack: 30, consumeOnUse: false)
+        };
 
         GameObject pickupPrefab = CreateGenericPickupPrefab();
-        ItemDatabase db = CreateDatabase(new List<ItemData> { medkit, ammo, key });
+        CreateDatabase(items);
         TMP_FontAsset font = CreateCyrillicFont();
 
         GameObject player = FindPlayer();
@@ -79,7 +114,9 @@ public static class InventorySetupWizard
         }
 
         InventorySystem inv = SetupPlayer(player, pickupPrefab, font);
-        SpawnTestPickups(player, pickupPrefab, new[] { medkit, ammo, key });
+        SetupDialogueUI(font);
+        SetupFloatingText(font);
+        SpawnTestPickups(player, pickupPrefab, items.ToArray());
 
         AssetDatabase.SaveAssets();
         EditorUtility.SetDirty(inv);
@@ -91,10 +128,12 @@ public static class InventorySetupWizard
             "Управление:\n" +
             "  E — подобрать предмет (наведись на него)\n" +
             "  Tab — открыть/закрыть инвентарь\n" +
+            "  R — сортировать по категориям (в инвентаре)\n" +
+            "  Q / E — переключать вкладки категорий\n" +
             "  ЛКМ по ячейке — использовать\n" +
             "  ПКМ по ячейке — выбросить 1, Shift+ПКМ — всё\n" +
             "  1..9 — использовать слот, G+цифра — выбросить\n\n" +
-            "Перед игроком разложены 3 тестовых предмета.\n" +
+            $"Перед игроком разложено предметов: {items.Count}.\n" +
             "Не забудь сохранить сцену (Ctrl+S).",
             "Ок");
     }
@@ -140,6 +179,26 @@ public static class InventorySetupWizard
         Debug.Log("[InventorySetup] Сохранение инвентаря удалено.");
     }
 
+    [MenuItem("Tools/Инвентарь/Настроить только интерфейс диалогов", false, 21)]
+    public static void SetupDialogueOnly()
+    {
+        EnsureFolders();
+        TMP_FontAsset font = CreateCyrillicFont();
+
+        if (Object.FindObjectOfType<DialogueManager>() == null)
+        {
+            EditorUtility.DisplayDialog(
+                "Диалоги",
+                "На сцене нет DialogueManager. Добавь его на объект и запусти пункт меню снова.",
+                "Ок");
+            return;
+        }
+
+        SetupDialogueUI(font);
+        AssetDatabase.SaveAssets();
+        Debug.Log("[InventorySetup] Интерфейс диалогов настроен. Сохрани сцену (Ctrl+S).");
+    }
+
     // =====================================================================
     private static void EnsureFolders()
     {
@@ -155,7 +214,7 @@ public static class InventorySetupWizard
 
     private static ItemData CreateOrUpdateItem(
         string id, string fileName, string itemName, string description,
-        ItemType type, float useValue, bool stackable, int maxStack,
+        ItemType type, ItemRarity rarity, float useValue, bool stackable, int maxStack,
         bool consumeOnUse, string keyId = "")
     {
         string path = $"{ItemsFolder}/{fileName}.asset";
@@ -168,6 +227,7 @@ public static class InventorySetupWizard
         item.itemName = itemName;
         item.description = description;
         item.itemType = type;
+        item.rarity = rarity;
         item.useValue = useValue;
         item.stackable = stackable;
         item.maxStack = maxStack;
@@ -317,6 +377,41 @@ public static class InventorySetupWizard
         return inv;
     }
 
+    /// <summary>Повесить красивый интерфейс диалогов на существующий DialogueManager.</summary>
+    private static void SetupDialogueUI(TMP_FontAsset font)
+    {
+        DialogueManager dm = Object.FindObjectOfType<DialogueManager>();
+        if (dm == null)
+        {
+            Debug.Log("[InventorySetup] DialogueManager на сцене не найден — интерфейс диалогов пропущен.");
+            return;
+        }
+
+        DialogueUI ui = dm.GetComponent<DialogueUI>();
+        if (ui == null) ui = Undo.AddComponent<DialogueUI>(dm.gameObject);
+
+        ui.manager = dm;
+        ui.fontAsset = font;
+        EditorUtility.SetDirty(ui);
+
+        Debug.Log($"[InventorySetup] DialogueUI подключён к {dm.name}.");
+    }
+
+    /// <summary>Менеджер всплывающих подписей «+2 Аптечка» в мире.</summary>
+    private static void SetupFloatingText(TMP_FontAsset font)
+    {
+        FloatingText ft = Object.FindObjectOfType<FloatingText>();
+        if (ft == null)
+        {
+            var holder = new GameObject("FloatingTextManager");
+            Undo.RegisterCreatedObjectUndo(holder, "Create floating text manager");
+            ft = holder.AddComponent<FloatingText>();
+        }
+
+        ft.fontAsset = font;
+        EditorUtility.SetDirty(ft);
+    }
+
     private static void SpawnTestPickups(GameObject player, GameObject prefab, ItemData[] items)
     {
         Transform root = GameObject.Find("--- Test Pickups ---")?.transform;
@@ -327,13 +422,21 @@ public static class InventorySetupWizard
             root = holder.transform;
         }
 
-        Vector3 basePos = player.transform.position
-                          + player.transform.forward * 2.5f
-                          + Vector3.up * 0.5f;
+        // Раскладываем в два ряда, чтобы 9 предметов не растянулись в длинную линию
+        const int perRow = 5;
+        Vector3 forward = player.transform.forward;
+        Vector3 right = player.transform.right;
 
         for (int i = 0; i < items.Length; i++)
         {
-            Vector3 pos = basePos + player.transform.right * ((i - (items.Length - 1) * 0.5f) * 1.2f);
+            int row = i / perRow;
+            int col = i % perRow;
+            int inThisRow = Mathf.Min(perRow, items.Length - row * perRow);
+
+            Vector3 pos = player.transform.position
+                          + forward * (2.5f + row * 1.3f)
+                          + right * ((col - (inThisRow - 1) * 0.5f) * 1.2f)
+                          + Vector3.up * 0.5f;
 
             GameObject obj = (GameObject)PrefabUtility.InstantiatePrefab(prefab, root);
             obj.transform.position = pos;
@@ -341,7 +444,8 @@ public static class InventorySetupWizard
 
             Pickup p = obj.GetComponent<Pickup>();
             p.item = items[i];
-            p.amount = items[i].stackable ? 2 : 1;
+            p.amount = items[i].stackable ? Random.Range(2, 6) : 1;
+            p.highlightColor = items[i].RarityColor;
 
             Undo.RegisterCreatedObjectUndo(obj, "Create pickup");
             EditorUtility.SetDirty(obj);
