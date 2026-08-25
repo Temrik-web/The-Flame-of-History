@@ -66,6 +66,11 @@ public class ItemData : ScriptableObject
     [Tooltip("Идентификатор двери/замка, который открывает этот ключ.")]
     public string keyId = "";
 
+    [Header("Экипировка (только для ItemType.Weapon)")]
+    [Tooltip("Id оружия в сцене, которое даёт этот предмет. Должен совпадать с " +
+             "полем Weapon Id у компонента EquippableWeapon. Например: ppsh41, rgd33, knife.")]
+    public string equipWeaponId = "";
+
     [Header("Мир")]
     [Tooltip("Префаб для выбрасывания именно этого предмета. " +
              "Если пусто — инвентарь возьмёт универсальный префаб.")]
@@ -150,6 +155,10 @@ public class ItemData : ScriptableObject
         }
     }
 
+    /// <summary>Можно ли этот предмет экипировать в руки.</summary>
+    public bool IsEquippable =>
+        itemType == ItemType.Weapon && !string.IsNullOrEmpty(equipWeaponId);
+
     /// <summary>
     /// Применить предмет. Возвращает true, если использование сработало
     /// (и предмет нужно потратить, если consumeOnUse).
@@ -180,14 +189,12 @@ public class ItemData : ScriptableObject
 
             case ItemType.Ammo:
             {
-                Wep weapon = Object.FindObjectOfType<Wep>();
-                if (weapon == null)
-                {
-                    Debug.LogWarning($"[ItemData] {itemName}: оружие (Wep) не найдено.");
-                    return false;
-                }
-                weapon.spareMagazines += Mathf.Max(1, Mathf.RoundToInt(useValue));
-                return true;
+                // Магазины не «используются» вручную: они расходуются сами
+                // при перезарядке. За синхронизацию отвечает WeaponAmmoLink,
+                // для которого инвентарь — единственный источник правды.
+                // Прибавлять spareMagazines здесь нельзя: счётчики разойдутся.
+                Debug.Log($"[ItemData] {itemName}: расходуется автоматически при перезарядке (R).");
+                return false;
             }
 
             case ItemType.Key:
@@ -202,6 +209,18 @@ public class ItemData : ScriptableObject
             }
 
             case ItemType.Weapon:
+            {
+                // Оружие не «используется», а экипируется — этим занимается
+                // WeaponSlotManager. Возврат false означает «предмет не потратился».
+                if (IsEquippable)
+                {
+                    WeaponSlotManager.EquipById(equipWeaponId);
+                    return false;
+                }
+                Debug.Log($"[ItemData] {itemName}: не задан Equip Weapon Id.");
+                return false;
+            }
+
             case ItemType.Misc:
             default:
                 Debug.Log($"[ItemData] {itemName}: нет действия при использовании.");

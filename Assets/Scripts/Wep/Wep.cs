@@ -123,6 +123,46 @@ public class Wep : MonoBehaviour
     private bool isReloading = false;
     public bool IsReloading => isReloading;
 
+    [Header("Отладочный HUD")]
+    [Tooltip("Старый вывод патронов через OnGUI. IMGUI рисуется поверх любого Canvas, " +
+             "поэтому при включённом WeaponHudUI его надо выключить — иначе тексты наложатся.")]
+    public bool drawDebugGUI = true;
+
+    // === Синхронизация запаса магазинов с инвентарём ===
+    /// <summary>Число запасных магазинов изменилось. Параметр — новое значение.</summary>
+    public event System.Action<int> OnMagazinesChanged;
+
+    /// <summary>Патроны в магазине изменились: (в магазине, всего в магазине).</summary>
+    public event System.Action<int, int> OnAmmoChanged;
+
+    /// <summary>
+    /// Израсходовать один запасной магазин. Вызывается при перезарядке.
+    /// Через событие инвентарь убирает соответствующий предмет.
+    /// </summary>
+    public void ConsumeMagazine()
+    {
+        spareMagazines = Mathf.Max(0, spareMagazines - 1);
+        OnMagazinesChanged?.Invoke(spareMagazines);
+    }
+
+    /// <summary>Выставить запас магазинов напрямую (используется при синхронизации с инвентарём).</summary>
+    public void SetSpareMagazines(int count)
+    {
+        int clamped = Mathf.Max(0, count);
+        if (clamped == spareMagazines) return;
+
+        spareMagazines = clamped;
+        OnMagazinesChanged?.Invoke(spareMagazines);
+    }
+
+    /// <summary>Добавить магазины (подбор патронов).</summary>
+    public void AddMagazines(int count)
+    {
+        if (count <= 0) return;
+        spareMagazines += count;
+        OnMagazinesChanged?.Invoke(spareMagazines);
+    }
+
     [Header("Звуки")]
     public AudioSource audioSource;
     public AudioClip shootSound;
@@ -545,6 +585,7 @@ public class Wep : MonoBehaviour
         if (currentAmmo <= 0 || muzzlePoint == null || playerCamera == null || isInspecting) return;
 
         currentAmmo--;
+        OnAmmoChanged?.Invoke(currentAmmo, maxAmmo);
         timeOfLastShot = Time.time;
         lastShotTime = Time.time;
         consecutiveShots = Mathf.Clamp(consecutiveShots + 1, 0, 5);
@@ -973,9 +1014,9 @@ public class Wep : MonoBehaviour
 
     void OnGUI()
     {
-        if (initFailed) return;
+        if (initFailed || !drawDebugGUI) return;
         GUIStyle style = new GUIStyle(GUI.skin.label) { fontSize = 22, normal = { textColor = Color.white }, fontStyle = FontStyle.Bold };
-        GUI.Label(new Rect(15, 15, 400, 30), $"Патроны: {currentAmmo}/{maxAmmo}" + (isReloading ? " (перезарядка...)" : ""));
+        GUI.Label(new Rect(15, 15, 400, 30), $"Патроны: {currentAmmo}/{maxAmmo}  (магазинов: {spareMagazines})" + (isReloading ? " (перезарядка...)" : ""));
         GUI.Label(new Rect(15, 45, 400, 30), "Режим: " + (currentFireMode == FireMode.Auto ? "Авто" : "Одиночный"));
         GUI.Label(new Rect(15, Screen.height - 40, 400, 30), "R - перезарядка | V - режим огня | B - осмотр");
     }
@@ -1264,7 +1305,8 @@ public class Wep : MonoBehaviour
         }
 
         currentAmmo = maxAmmo;
-        spareMagazines--;
+        ConsumeMagazine();
+        OnAmmoChanged?.Invoke(currentAmmo, maxAmmo);
         currentSpread = baseSpread;
         isReloading = false;
         isCinematicReload = false;

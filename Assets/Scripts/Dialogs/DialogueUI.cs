@@ -55,12 +55,22 @@ public class DialogueUI : MonoBehaviour
     [Header("Ответы")]
     [Tooltip("Выбирать вариант ответа цифрами 1..9.")]
     public bool numberKeysSelectChoices = true;
-    public float choiceHeight = 52f;
+    [Tooltip("Минимальная высота кнопки. Длинный текст увеличит её сам.")]
+    public float choiceMinHeight = 56f;
+    public float choiceFontSize = 20f;
     public float choiceSpacing = 8f;
+    [Tooltip("Ширина блока вариантов ответа (при разрешении 1920x1080).")]
+    public float choicesWidth = 1240f;
 
     [Header("Индикатор продолжения")]
     public bool showContinuePrompt = true;
     public string continueText = "Пробел";
+
+    [Header("Старый UI в сцене")]
+    [Tooltip("Выключить объекты старого интерфейса диалогов (DialoguePanel, ChoicesPanel и т.д.), " +
+             "на которые ссылался DialogueManager до подключения этого скрипта. " +
+             "Иначе они останутся видимыми и наложатся на новый UI.")]
+    public bool disableLegacyUI = true;
 
     [Header("Шрифт")]
     [Tooltip("TMP-шрифт с кириллицей. Если пусто — Resources/InventoryFont SDF.")]
@@ -178,6 +188,9 @@ public class DialogueUI : MonoBehaviour
     // =====================================================================
     void WireToManager()
     {
+        // Сначала прячем старый UI — ссылки на него ещё в менеджере
+        if (disableLegacyUI) DisableLegacyUI();
+
         manager.dialoguePanel = dialogueRoot;
         manager.dialogueCanvasGroup = rootGroup;
         manager.speakerNameText = speakerLabel;
@@ -194,6 +207,33 @@ public class DialogueUI : MonoBehaviour
         // Свою анимацию появления делаем сами — у менеджера отключаем масштабирование
         manager.panelStartScale = Vector3.one;
         manager.fadeInDuration = 0.01f;
+    }
+
+    /// <summary>
+    /// Выключить объекты старого интерфейса, собранного руками в сцене.
+    /// Без этого две панели диалога рисуются одновременно.
+    /// </summary>
+    void DisableLegacyUI()
+    {
+        HideLegacy(manager.dialoguePanel, "DialoguePanel");
+        HideLegacy(manager.choicesPanel, "ChoicesPanel");
+        HideLegacy(manager.interactHint, "InteractHint");
+
+        // Тексты могли лежать вне панелей
+        if (manager.dialogueText != null) HideLegacy(manager.dialogueText.gameObject, "DialogueText");
+        if (manager.speakerNameText != null) HideLegacy(manager.speakerNameText.gameObject, "SpeakerNameText");
+        if (manager.interactHintText != null) HideLegacy(manager.interactHintText.gameObject, "InteractHintText");
+    }
+
+    void HideLegacy(GameObject obj, string label)
+    {
+        // Наши собственные объекты трогать нельзя
+        if (obj == null) return;
+        if (obj == dialogueRoot || obj == choicesRoot || obj == interactHintRoot) return;
+        if (obj.transform.IsChildOf(canvas.transform)) return;
+
+        obj.SetActive(false);
+        Debug.Log($"[DialogueUI] Старый элемент «{obj.name}» ({label}) выключен — его заменил новый UI.");
     }
 
     void HandleDialogueStarted()
@@ -559,22 +599,23 @@ public class DialogueUI : MonoBehaviour
         // --- Варианты ответа ---
         choicesRoot = NewUI("ChoicesPanel", dialogueRoot.transform);
         RectTransform choicesRect = (RectTransform)choicesRoot.transform;
-        choicesRect.anchorMin = new Vector2(0f, 0f);
-        choicesRect.anchorMax = new Vector2(1f, 0f);
+        // Якоря в одной точке (низ-центр): растягивание по родителю конфликтовало бы
+        // с ContentSizeFitter, который управляет высотой панели
+        choicesRect.anchorMin = choicesRect.anchorMax = new Vector2(0.5f, 0f);
         choicesRect.pivot = new Vector2(0.5f, 0f);
-        choicesRect.offsetMin = new Vector2(panelSideMargin + 40f, 0f);
-        choicesRect.offsetMax = new Vector2(-panelSideMargin - 40f, 0f);
-        choicesRect.sizeDelta = new Vector2(-(panelSideMargin + 40f) * 2f, 300f);
+        choicesRect.sizeDelta = new Vector2(choicesWidth, 300f);
         choicesRect.anchoredPosition = new Vector2(0f, panelBottomMargin + panelHeight + 16f);
 
         VerticalLayoutGroup choicesLayout = choicesRoot.AddComponent<VerticalLayoutGroup>();
         choicesLayout.spacing = choiceSpacing;
         choicesLayout.childForceExpandWidth = true;
         choicesLayout.childForceExpandHeight = false;
+        choicesLayout.childControlWidth = true;
         choicesLayout.childControlHeight = true;
         choicesLayout.childAlignment = TextAnchor.LowerCenter;
         choicesLayout.reverseArrangement = true;
 
+        // Панель растёт вверх по числу и высоте вариантов
         ContentSizeFitter fitter = choicesRoot.AddComponent<ContentSizeFitter>();
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
@@ -649,11 +690,7 @@ public class DialogueUI : MonoBehaviour
 
         GameObject choice = NewUI("ChoiceTemplate", holder.transform);
         RectTransform rect = (RectTransform)choice.transform;
-        rect.sizeDelta = new Vector2(600f, choiceHeight);
-
-        LayoutElement le = choice.AddComponent<LayoutElement>();
-        le.minHeight = choiceHeight;
-        le.preferredHeight = choiceHeight;
+        rect.sizeDelta = new Vector2(600f, choiceMinHeight);
 
         Image bg = choice.AddComponent<Image>();
         bg.sprite = roundSprite;
@@ -664,6 +701,20 @@ public class DialogueUI : MonoBehaviour
         button.targetGraphic = bg;
         button.transition = Selectable.Transition.None; // анимацию делает DialogueChoiceButton
 
+        // Высота кнопки считается по длине текста: длинные варианты
+        // переносятся на несколько строк и видны целиком, а не обрезаются.
+        VerticalLayoutGroup inner = choice.AddComponent<VerticalLayoutGroup>();
+        inner.padding = new RectOffset(56, 24, 14, 14);
+        inner.childControlWidth = true;
+        inner.childControlHeight = true;
+        inner.childForceExpandWidth = true;
+        inner.childForceExpandHeight = false;
+        inner.childAlignment = TextAnchor.MiddleLeft;
+
+        LayoutElement le = choice.AddComponent<LayoutElement>();
+        le.minHeight = choiceMinHeight;
+
+        // --- Оформление: не участвует в раскладке ---
         GameObject edge = NewUI("Edge", choice.transform);
         Stretch((RectTransform)edge.transform);
         Image edgeImg = edge.AddComponent<Image>();
@@ -671,6 +722,7 @@ public class DialogueUI : MonoBehaviour
         edgeImg.type = Image.Type.Sliced;
         edgeImg.color = new Color(1f, 1f, 1f, 0.08f);
         edgeImg.raycastTarget = false;
+        edge.AddComponent<LayoutElement>().ignoreLayout = true;
 
         // Маркер слева — заполняется акцентом при наведении
         GameObject marker = NewUI("Marker", choice.transform);
@@ -679,35 +731,47 @@ public class DialogueUI : MonoBehaviour
         markerRect.anchorMax = new Vector2(0f, 1f);
         markerRect.pivot = new Vector2(0f, 0.5f);
         markerRect.offsetMin = new Vector2(0f, 10f);
-        markerRect.offsetMax = new Vector2(3.5f, -10f);
+        markerRect.offsetMax = new Vector2(1.5f, -10f);
         Image markerImg = marker.AddComponent<Image>();
         markerImg.sprite = UIShapes.Solid();
         markerImg.color = new Color(accentColor.r, accentColor.g, accentColor.b, 0f);
         markerImg.raycastTarget = false;
+        marker.AddComponent<LayoutElement>().ignoreLayout = true;
 
-        // Номер варианта
-        TextMeshProUGUI number = MakeLabel("Number", choice.transform);
-        RectTransform numRect = (RectTransform)number.transform;
-        numRect.anchorMin = new Vector2(0f, 0f);
-        numRect.anchorMax = new Vector2(0f, 1f);
-        numRect.pivot = new Vector2(0f, 0.5f);
-        numRect.offsetMin = new Vector2(16f, 0f);
-        numRect.offsetMax = new Vector2(48f, 0f);
-        number.text = "1";
-        number.fontSize = 17f;
-        number.alignment = TextAlignmentOptions.Left;
-        number.color = new Color(textColor.r, textColor.g, textColor.b, 0.35f);
+        // --- Текст варианта ---
+        // Создаётся ДО номера: DialogueManager ищет подпись через
+        // GetComponentInChildren<TextMeshProUGUI>(), а тот идёт по порядку детей.
+        // Если номер окажется первым, менеджер запишет текст реплики в него.
+        //
+        // Обёртка участвует в раскладке и задаёт высоту кнопки,
+        // а сам текст внутри можно свободно анимировать.
+        GameObject textHolder = NewUI("TextHolder", choice.transform);
 
-        // Текст варианта. DialogueManager ищет его через GetComponentInChildren,
-        // поэтому номер добавлен ПЕРЕД ним — иначе менеджер записал бы текст в номер.
-        TextMeshProUGUI label = MakeLabel("Label", choice.transform);
+        TextMeshProUGUI label = MakeLabel("Label", textHolder.transform);
         Stretch((RectTransform)label.transform);
-        RectTransform labelRect = (RectTransform)label.transform;
-        labelRect.offsetMin = new Vector2(50f, 2f);
-        labelRect.offsetMax = new Vector2(-20f, -2f);
-        label.fontSize = 20f;
+        label.fontSize = choiceFontSize;
         label.color = textColor;
         label.alignment = TextAlignmentOptions.Left;
+        label.enableWordWrapping = true;
+        label.overflowMode = TextOverflowModes.Overflow;
+
+        // Обёртка растёт по высоте текста
+        ContentSizeFitter holderFitter = textHolder.AddComponent<ContentSizeFitter>();
+        holderFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        // Номер варианта — поверх, вне раскладки
+        TextMeshProUGUI number = MakeLabel("Number", choice.transform);
+        RectTransform numRect = (RectTransform)number.transform;
+        numRect.anchorMin = new Vector2(0f, 1f);
+        numRect.anchorMax = new Vector2(0f, 1f);
+        numRect.pivot = new Vector2(0f, 1f);
+        numRect.anchoredPosition = new Vector2(20f, -14f);
+        numRect.sizeDelta = new Vector2(32f, 30f);
+        number.text = "1";
+        number.fontSize = 18f;
+        number.alignment = TextAlignmentOptions.TopLeft;
+        number.color = new Color(textColor.r, textColor.g, textColor.b, 0.35f);
+        number.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
 
         var helper = choice.AddComponent<DialogueChoiceButton>();
         helper.background = bg;

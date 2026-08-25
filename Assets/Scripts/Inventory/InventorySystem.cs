@@ -474,6 +474,20 @@ public class InventorySystem : MonoBehaviour
     public bool HasItem(ItemData item, int amount = 1) => CountItem(item) >= amount;
     public bool HasKey(string keyId) => CountItemByKeyId(keyId) > 0;
 
+    /// <summary>
+    /// Есть ли в инвентаре предмет, экипирующий оружие с данным id.
+    /// Нужно WeaponSlotManager, чтобы не давать переключиться на неподобранное оружие.
+    /// </summary>
+    public bool HasWeaponItem(string weaponId)
+    {
+        if (string.IsNullOrEmpty(weaponId)) return false;
+
+        foreach (Slot s in slots)
+            if (!s.IsEmpty && s.item.equipWeaponId == weaponId) return true;
+
+        return false;
+    }
+
     public int CountItemByKeyId(string keyId)
     {
         if (string.IsNullOrEmpty(keyId)) return 0;

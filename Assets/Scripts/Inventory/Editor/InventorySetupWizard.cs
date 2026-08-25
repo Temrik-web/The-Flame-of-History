@@ -31,31 +31,43 @@ public static class InventorySetupWizard
 
         var items = new List<ItemData>
         {
+            // Оружие: equipWeaponId должен совпадать с Weapon Id
+            // у компонента EquippableWeapon на модели в сцене
             CreateOrUpdateItem(
-                id: "rifle_ak", fileName: "Item_Rifle",
-                itemName: "Автомат",
-                description: "Надёжный автомат. Разбирается вслепую, стреляет в грязи.",
+                id: "ppsh41", fileName: "Item_Ppsh41",
+                itemName: "ППШ-41",
+                description: "Пистолет-пулемёт Шпагина. Дисковый магазин, высокий темп огня.",
                 type: ItemType.Weapon, rarity: ItemRarity.Rare,
-                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false),
+                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false,
+                equipWeaponId: "ppsh41"),
 
             CreateOrUpdateItem(
-                id: "pistol_tt", fileName: "Item_Pistol",
-                itemName: "Пистолет ТТ",
-                description: "Компактный, но злой. Последний довод.",
+                id: "rgd33", fileName: "Item_Rgd33",
+                itemName: "РГД-33",
+                description: "Ручная граната образца 1933 года. Рукоятка с длинным замахом.",
                 type: ItemType.Weapon, rarity: ItemRarity.Uncommon,
-                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false),
+                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false,
+                equipWeaponId: "rgd33"),
 
             CreateOrUpdateItem(
-                id: "ammo_545", fileName: "Item_Ammo545",
-                itemName: "Магазин 5.45",
-                description: "Полный магазин под автомат.",
+                id: "knife", fileName: "Item_Knife",
+                itemName: "Нож",
+                description: "Простой окопный нож. Тихо и наверняка.",
+                type: ItemType.Weapon, rarity: ItemRarity.Common,
+                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false,
+                equipWeaponId: "knife"),
+
+            CreateOrUpdateItem(
+                id: "ammo_762", fileName: "Item_Ammo762",
+                itemName: "Диск 7.62",
+                description: "Дисковый магазин под ППШ. 71 патрон.",
                 type: ItemType.Ammo, rarity: ItemRarity.Common,
                 useValue: 1f, stackable: true, maxStack: 10, consumeOnUse: true),
 
             CreateOrUpdateItem(
-                id: "ammo_762", fileName: "Item_Ammo762",
-                itemName: "Патроны 7.62",
-                description: "Россыпь винтовочных патронов.",
+                id: "ammo_loose", fileName: "Item_AmmoLoose",
+                itemName: "Патроны 7.62 (россыпь)",
+                description: "Горсть патронов. Надо чем-то набивать диск.",
                 type: ItemType.Ammo, rarity: ItemRarity.Common,
                 useValue: 1f, stackable: true, maxStack: 60, consumeOnUse: true),
 
@@ -116,6 +128,9 @@ public static class InventorySetupWizard
         InventorySystem inv = SetupPlayer(player, pickupPrefab, font);
         SetupDialogueUI(font);
         SetupFloatingText(font);
+        SetupWeaponSlots(player);
+        SetupAmmoLink(player, inv, items);
+        SetupWeaponHud(player, font);
         SpawnTestPickups(player, pickupPrefab, items.ToArray());
 
         AssetDatabase.SaveAssets();
@@ -128,11 +143,14 @@ public static class InventorySetupWizard
             "Управление:\n" +
             "  E — подобрать предмет (наведись на него)\n" +
             "  Tab — открыть/закрыть инвентарь\n" +
+            "  ЛКМ по ячейке — выбрать, повторный клик — действие\n" +
+            "  ПКМ по ячейке — выбросить 1, Shift+ПКМ — всё\n" +
             "  R — сортировать по категориям (в инвентаре)\n" +
             "  Q / E — переключать вкладки категорий\n" +
-            "  ЛКМ по ячейке — использовать\n" +
-            "  ПКМ по ячейке — выбросить 1, Shift+ПКМ — всё\n" +
-            "  1..9 — использовать слот, G+цифра — выбросить\n\n" +
+            "  Колесо мыши — сменить оружие в руках\n" +
+            "  0 — убрать оружие\n\n" +
+            "Оружие (ППШ-41, РГД-33, Нож) выключено до подбора.\n" +
+            "Подбери предмет, выбери его в инвентаре и нажми «Экипировать».\n\n" +
             $"Перед игроком разложено предметов: {items.Count}.\n" +
             "Не забудь сохранить сцену (Ctrl+S).",
             "Ок");
@@ -215,7 +233,7 @@ public static class InventorySetupWizard
     private static ItemData CreateOrUpdateItem(
         string id, string fileName, string itemName, string description,
         ItemType type, ItemRarity rarity, float useValue, bool stackable, int maxStack,
-        bool consumeOnUse, string keyId = "")
+        bool consumeOnUse, string keyId = "", string equipWeaponId = "")
     {
         string path = $"{ItemsFolder}/{fileName}.asset";
         ItemData item = AssetDatabase.LoadAssetAtPath<ItemData>(path);
@@ -233,6 +251,7 @@ public static class InventorySetupWizard
         item.maxStack = maxStack;
         item.consumeOnUse = consumeOnUse;
         item.keyId = keyId;
+        item.equipWeaponId = equipWeaponId;
 
         if (isNew) AssetDatabase.CreateAsset(item, path);
         EditorUtility.SetDirty(item);
@@ -410,6 +429,123 @@ public static class InventorySetupWizard
 
         ft.fontAsset = font;
         EditorUtility.SetDirty(ft);
+    }
+
+    /// <summary>
+    /// Настроить слот оружия: пометить модели в сцене компонентом EquippableWeapon
+    /// и повесить WeaponSlotManager на игрока. Оружие выключается до подбора.
+    /// </summary>
+    private static void SetupWeaponSlots(GameObject player)
+    {
+        // Имя объекта в сцене -> (id, отображаемое имя)
+        var known = new (string sceneName, string id, string display)[]
+        {
+            ("Ppsh-41(GR)", "ppsh41", "ППШ-41"),
+            ("Rgd-33(GR)",  "rgd33",  "РГД-33"),
+            ("Knife(GR)",   "knife",  "Нож"),
+            ("Knife",       "knife",  "Нож")
+        };
+
+        var manager = Object.FindObjectOfType<WeaponSlotManager>();
+        if (manager == null)
+        {
+            manager = player.GetComponent<WeaponSlotManager>();
+            if (manager == null) manager = Undo.AddComponent<WeaponSlotManager>(player);
+        }
+
+        manager.weapons.Clear();
+        manager.autoDisableOnStart = true;
+
+        var seenIds = new HashSet<string>();
+        var report = new List<string>();
+
+        // Ищем среди всех Transform, включая выключенные объекты
+        foreach (Transform tr in Resources.FindObjectsOfTypeAll<Transform>())
+        {
+            // Отсекаем ассеты и префабы, оставляем только объекты сцены
+            if (tr.gameObject.scene.name == null) continue;
+            if (UnityEditor.SceneManagement.EditorSceneManager.IsPreviewSceneObject(tr.gameObject)) continue;
+
+            foreach (var entry in known)
+            {
+                if (tr.name != entry.sceneName) continue;
+                if (seenIds.Contains(entry.id)) continue;
+
+                EquippableWeapon eq = tr.GetComponent<EquippableWeapon>();
+                if (eq == null) eq = Undo.AddComponent<EquippableWeapon>(tr.gameObject);
+
+                eq.weaponId = entry.id;
+                eq.displayName = entry.display;
+                eq.equippedOnStart = false;   // до подбора руки пустые
+
+                manager.weapons.Add(eq);
+                seenIds.Add(entry.id);
+                report.Add($"{entry.display} ({tr.name})");
+
+                EditorUtility.SetDirty(eq);
+                break;
+            }
+        }
+
+        EditorUtility.SetDirty(manager);
+
+        if (report.Count > 0)
+            Debug.Log($"[InventorySetup] Слот оружия настроен. Найдено: {string.Join(", ", report)}");
+        else
+            Debug.LogWarning("[InventorySetup] Модели оружия в сцене не найдены. " +
+                             "Ожидались объекты с именами Ppsh-41(GR), Rgd-33(GR), Knife(GR).");
+    }
+
+    /// <summary>
+    /// Связать запас магазинов оружия с инвентарём: магазин расходуется
+    /// при перезарядке и исчезает из сумки.
+    /// </summary>
+    private static void SetupAmmoLink(GameObject player, InventorySystem inv, List<ItemData> items)
+    {
+        WeaponAmmoLink link = player.GetComponent<WeaponAmmoLink>();
+        if (link == null) link = Undo.AddComponent<WeaponAmmoLink>(player);
+
+        link.inventory = inv;
+        link.magazineItemId = "ammo_762";
+        link.magazinesPerItem = 1;
+
+        // Ассет диска — тот, что мастер создал выше
+        foreach (ItemData item in items)
+        {
+            if (item != null && item.Id == "ammo_762") { link.magazineItem = item; break; }
+        }
+
+        // Оружие может быть выключено — ищем среди всех объектов сцены
+        foreach (Wep w in Resources.FindObjectsOfTypeAll<Wep>())
+        {
+            if (w.gameObject.scene.name == null) continue;
+            link.weapon = w;
+            break;
+        }
+
+        EditorUtility.SetDirty(link);
+        Debug.Log("[InventorySetup] Запас магазинов связан с предметом «Диск 7.62».");
+    }
+
+    /// <summary>HUD оружия на Canvas вместо IMGUI, который налезал на инвентарь.</summary>
+    private static void SetupWeaponHud(GameObject player, TMP_FontAsset font)
+    {
+        WeaponHudUI hud = player.GetComponent<WeaponHudUI>();
+        if (hud == null) hud = Undo.AddComponent<WeaponHudUI>(player);
+
+        hud.fontAsset = font;
+        hud.disableLegacyHud = true;
+        EditorUtility.SetDirty(hud);
+
+        // Гасим IMGUI сразу в редакторе, чтобы значение попало в сцену
+        foreach (Wep w in Resources.FindObjectsOfTypeAll<Wep>())
+        {
+            if (w.gameObject.scene.name == null) continue;
+            w.drawDebugGUI = false;
+            EditorUtility.SetDirty(w);
+        }
+
+        Debug.Log("[InventorySetup] HUD оружия переведён на Canvas, старый IMGUI выключен.");
     }
 
     private static void SpawnTestPickups(GameObject player, GameObject prefab, ItemData[] items)

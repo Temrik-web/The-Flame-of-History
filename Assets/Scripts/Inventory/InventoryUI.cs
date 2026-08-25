@@ -26,6 +26,17 @@ public class InventoryUI : MonoBehaviour
     public TextMeshProUGUI titleText;
     public TextMeshProUGUI capacityText;
 
+    [Header("Панель выбранного предмета")]
+    public GameObject detailsRoot;
+    public Image detailsIcon;
+    public TextMeshProUGUI detailsName;
+    public TextMeshProUGUI detailsCategory;
+    public TextMeshProUGUI detailsDescription;
+    public Button primaryActionButton;
+    public TextMeshProUGUI primaryActionLabel;
+    public Button dropActionButton;
+    public TextMeshProUGUI dropActionLabel;
+
     [Header("Тултип")]
     public GameObject tooltipRoot;
     public TextMeshProUGUI tooltipName;
@@ -40,8 +51,10 @@ public class InventoryUI : MonoBehaviour
     [Tooltip("Создать весь UI кодом при старте. Удобно, чтобы не собирать Canvas руками.")]
     public bool autoBuild = true;
     [Min(1)] public int columns = 5;
-    public Vector2 cellSize = new Vector2(88f, 88f);
-    public Vector2 cellSpacing = new Vector2(10f, 10f);
+    public Vector2 cellSize = new Vector2(112f, 112f);
+    public Vector2 cellSpacing = new Vector2(14f, 14f);
+    [Tooltip("Ширина боковой панели с описанием выбранного предмета.")]
+    public float detailsWidth = 420f;
 
     [Header("Оформление")]
     public Color panelColor = new Color(0.07f, 0.075f, 0.095f, 0.96f);
@@ -67,6 +80,7 @@ public class InventoryUI : MonoBehaviour
     private readonly List<InventorySlotUI> slotViews = new List<InventorySlotUI>();
     private readonly List<CategoryTab> tabs = new List<CategoryTab>();
     private int hoveredIndex = -1;
+    private int selectedViewIndex = -1;
     private bool built;
 
     private CanvasGroup panelGroup;
@@ -120,6 +134,10 @@ public class InventoryUI : MonoBehaviour
         inventory.OnToggled += HandleToggled;
         inventory.OnTargetChanged += HandleTargetChanged;
         inventory.OnSorted += HandleSorted;
+
+        // Кнопка «Экипировать» должна пропадать сразу после смены оружия
+        if (WeaponSlotManager.Instance != null)
+            WeaponSlotManager.Instance.OnEquippedChanged += HandleEquippedChanged;
     }
 
     void OnDisable()
@@ -129,6 +147,14 @@ public class InventoryUI : MonoBehaviour
         inventory.OnToggled -= HandleToggled;
         inventory.OnTargetChanged -= HandleTargetChanged;
         inventory.OnSorted -= HandleSorted;
+
+        if (WeaponSlotManager.Instance != null)
+            WeaponSlotManager.Instance.OnEquippedChanged -= HandleEquippedChanged;
+    }
+
+    void HandleEquippedChanged(EquippableWeapon weapon)
+    {
+        RefreshDetails();
     }
 
     void Start()
@@ -173,6 +199,7 @@ public class InventoryUI : MonoBehaviour
     public void SetFilter(ItemType? type)
     {
         activeFilter = type;
+        selectedViewIndex = -1;   // при смене вкладки выбор сбрасывается
         UpdateTabVisuals();
         Redraw();
 
@@ -265,6 +292,8 @@ public class InventoryUI : MonoBehaviour
         }
 
         UpdateTabCounts();
+        UpdateSelectionVisuals();
+        RefreshDetails();
 
         if (hoveredIndex >= 0) ShowTooltip(hoveredIndex);
     }
@@ -313,6 +342,7 @@ public class InventoryUI : MonoBehaviour
             inventoryPanel.SetActive(true);
             // При открытии всегда начинаем со вкладки «Всё» — предсказуемо
             activeFilter = null;
+            selectedViewIndex = -1;
             UpdateTabVisuals();
             Redraw();
             fadeRoutine = StartCoroutine(FadePanel(1f));
@@ -403,7 +433,19 @@ public class InventoryUI : MonoBehaviour
     public void OnSlotLeftClick(int viewIndex)
     {
         int real = ResolveIndex(viewIndex);
-        if (real >= 0) inventory.UseSlot(real);
+        if (real < 0) return;
+
+        // ЛКМ выбирает предмет и показывает панель с действиями.
+        // Повторный клик по уже выбранному — быстрое применение действия.
+        if (selectedViewIndex == viewIndex)
+        {
+            InvokePrimaryAction();
+            return;
+        }
+
+        selectedViewIndex = viewIndex;
+        UpdateSelectionVisuals();
+        RefreshDetails();
     }
 
     public void OnSlotRightClick(int viewIndex)
@@ -471,8 +513,9 @@ public class InventoryUI : MonoBehaviour
                     action = $"\n<color=#7fd694>ЛКМ — восстановить {item.useValue:0} HP</color>";
                     break;
                 case ItemType.Ammo:
-                    action = $"\n<color=#7fd694>ЛКМ — +{item.useValue:0} магазин(ов)</color>";
+                    action = "\n<color=#8a8f99>Расходуется при перезарядке (R)</color>";
                     break;
+
                 case ItemType.Key:
                     action = $"\n<color=#e0c86a>Отпирает: {item.keyId}</color>";
                     break;
@@ -480,7 +523,7 @@ public class InventoryUI : MonoBehaviour
 
             string desc = string.IsNullOrEmpty(item.description) ? "" : item.description;
             tooltipDescription.text = desc + action +
-                "\n<color=#5a5f69>ПКМ — выбросить 1 · Shift+ПКМ — всё</color>";
+                "\n<color=#5a5f69>ЛКМ — выбрать · ПКМ — выбросить 1</color>";
         }
     }
 
@@ -499,6 +542,230 @@ public class InventoryUI : MonoBehaviour
     void HideTooltip()
     {
         if (tooltipRoot != null) tooltipRoot.SetActive(false);
+    }
+
+    // =====================================================================
+    // Выбор предмета и панель действий
+    // =====================================================================
+    void UpdateSelectionVisuals()
+    {
+        // Выбор с пустой ячейки снимаем: предмет мог быть израсходован
+        if (selectedViewIndex >= 0)
+        {
+            int real = ResolveIndex(selectedViewIndex);
+            InventorySystem.Slot slot = real >= 0 ? inventory.GetSlot(real) : null;
+            if (slot == null || slot.IsEmpty) selectedViewIndex = -1;
+        }
+
+        for (int i = 0; i < slotViews.Count; i++)
+            slotViews[i].SetSelected(i == selectedViewIndex);
+    }
+
+    /// <summary>Слот, который сейчас выбран (null — ничего не выбрано).</summary>
+    InventorySystem.Slot GetSelectedSlot()
+    {
+        if (selectedViewIndex < 0) return null;
+        int real = ResolveIndex(selectedViewIndex);
+        return real >= 0 ? inventory.GetSlot(real) : null;
+    }
+
+    /// <summary>Перерисовать боковую панель под выбранный предмет.</summary>
+    void RefreshDetails()
+    {
+        if (detailsRoot == null) return;
+
+        InventorySystem.Slot slot = GetSelectedSlot();
+
+        if (slot == null || slot.IsEmpty)
+        {
+            ShowEmptyDetails();
+            return;
+        }
+
+        ItemData item = slot.item;
+        detailsRoot.SetActive(true);
+
+        if (detailsIcon != null)
+        {
+            bool hasIcon = item.icon != null;
+            detailsIcon.enabled = true;
+            detailsIcon.sprite = hasIcon ? item.icon : null;
+            detailsIcon.color = hasIcon
+                ? Color.white
+                : new Color(item.RarityColor.r, item.RarityColor.g, item.RarityColor.b, 0.28f);
+        }
+
+        if (detailsName != null)
+        {
+            detailsName.text = slot.amount > 1
+                ? $"{item.itemName}  <color=#8a8f99>x{slot.amount}</color>"
+                : item.itemName;
+            detailsName.color = item.RarityColor;
+        }
+
+        if (detailsCategory != null)
+        {
+            string catHex = ColorUtility.ToHtmlStringRGB(ItemData.GetCategoryColor(item.itemType));
+            string rarHex = ColorUtility.ToHtmlStringRGB(item.RarityColor);
+            detailsCategory.text = $"<color=#{catHex}>{item.CategoryName}</color>" +
+                                   "<color=#4f545e>   ·   </color>" +
+                                   $"<color=#{rarHex}>{GetRarityName(item.rarity)}</color>";
+        }
+
+        if (detailsDescription != null)
+            detailsDescription.text = BuildDetailsText(item, slot);
+
+        UpdateActionButtons(item);
+    }
+
+    string BuildDetailsText(ItemData item, InventorySystem.Slot slot)
+    {
+        var sb = new System.Text.StringBuilder();
+
+        if (!string.IsNullOrEmpty(item.description))
+            sb.Append(item.description).Append("\n\n");
+
+        switch (item.itemType)
+        {
+            case ItemType.Consumable:
+                sb.Append($"<color=#7fd694>Восстанавливает {item.useValue:0} HP</color>\n");
+                break;
+            case ItemType.Ammo:
+                sb.Append($"<color=#8a8f99>Расходуется при перезарядке (R)</color>\n");
+                break;
+            case ItemType.Key:
+                sb.Append($"<color=#e0c86a>Отпирает: {item.keyId}</color>\n");
+                break;
+            case ItemType.Weapon:
+                if (item.IsEquippable)
+                {
+                    bool inHands = WeaponSlotManager.IsEquippedById(item.equipWeaponId);
+                    sb.Append(inHands
+                        ? "<color=#7fd694>В руках</color>\n"
+                        : "<color=#8a8f99>Не экипировано</color>\n");
+                }
+                else
+                {
+                    sb.Append("<color=#c0704f>Не привязано к модели в сцене</color>\n");
+                }
+                break;
+        }
+
+        if (item.stackable && item.maxStack > 1)
+            sb.Append($"<color=#5a5f69>В стаке: {slot.amount} / {item.maxStack}</color>");
+
+        return sb.ToString();
+    }
+
+    void ShowEmptyDetails()
+    {
+        if (detailsRoot == null) return;
+        detailsRoot.SetActive(true);
+
+        if (detailsIcon != null) detailsIcon.enabled = false;
+        if (detailsName != null)
+        {
+            detailsName.text = "<color=#4f545e>Ничего не выбрано</color>";
+            detailsName.color = textColor;
+        }
+        if (detailsCategory != null) detailsCategory.text = "";
+        if (detailsDescription != null)
+            detailsDescription.text = "<color=#4f545e>Нажми на предмет, чтобы посмотреть\nописание и доступные действия.</color>";
+
+        if (primaryActionButton != null) primaryActionButton.gameObject.SetActive(false);
+        if (dropActionButton != null) dropActionButton.gameObject.SetActive(false);
+    }
+
+    /// <summary>
+    /// Настроить кнопки действий под тип предмета.
+    /// Для оружия «Экипировать» пропадает, когда оно уже в руках.
+    /// </summary>
+    void UpdateActionButtons(ItemData item)
+    {
+        if (dropActionButton != null)
+        {
+            dropActionButton.gameObject.SetActive(true);
+            if (dropActionLabel != null) dropActionLabel.text = "Выбросить";
+        }
+
+        if (primaryActionButton == null) return;
+
+        string label = null;
+        bool interactable = true;
+
+        switch (item.itemType)
+        {
+            case ItemType.Weapon:
+                if (item.IsEquippable)
+                {
+                    // Уже в руках — кнопка не нужна
+                    if (WeaponSlotManager.IsEquippedById(item.equipWeaponId)) label = null;
+                    else if (WeaponSlotManager.Instance != null &&
+                             !WeaponSlotManager.Instance.Has(item.equipWeaponId))
+                    {
+                        label = "Модель не найдена";
+                        interactable = false;
+                    }
+                    else label = "Экипировать";
+                }
+                break;
+
+            case ItemType.Consumable:
+                label = "Использовать";
+                break;
+
+            case ItemType.Ammo:
+                // Магазины расходуются сами при перезарядке — кнопка не нужна
+                label = null;
+                break;
+
+            case ItemType.Key:
+                label = string.IsNullOrEmpty(item.keyId) ? null : "Активировать";
+                break;
+        }
+
+        bool show = !string.IsNullOrEmpty(label);
+        primaryActionButton.gameObject.SetActive(show);
+        primaryActionButton.interactable = interactable;
+
+        if (show && primaryActionLabel != null)
+            primaryActionLabel.text = label;
+    }
+
+    /// <summary>Выполнить основное действие над выбранным предметом.</summary>
+    public void InvokePrimaryAction()
+    {
+        InventorySystem.Slot slot = GetSelectedSlot();
+        if (slot == null || slot.IsEmpty) return;
+
+        int real = ResolveIndex(selectedViewIndex);
+        if (real < 0) return;
+
+        ItemData item = slot.item;
+
+        // Оружие: экипировка вместо расхода предмета
+        if (item.itemType == ItemType.Weapon)
+        {
+            if (!item.IsEquippable) return;
+            if (WeaponSlotManager.IsEquippedById(item.equipWeaponId)) return;
+
+            WeaponSlotManager.EquipById(item.equipWeaponId);
+            RefreshDetails();
+            return;
+        }
+
+        inventory.UseSlot(real);
+        // Redraw вызовется по событию OnInventoryChanged, если предмет израсходован
+    }
+
+    /// <summary>Выбросить один выбранный предмет.</summary>
+    public void InvokeDropAction()
+    {
+        int real = ResolveIndex(selectedViewIndex);
+        if (real < 0) return;
+
+        if (Input.GetKey(KeyCode.LeftShift)) inventory.DropSlot(real);
+        else inventory.DropOne(real);
     }
 
     // =====================================================================
@@ -549,11 +816,22 @@ public class InventoryUI : MonoBehaviour
         backdrop.raycastTarget = true; // перехватывает клики мимо панели
 
         // --- Размеры панели ---
+        // Панель = сетка слева + панель описания справа.
         int rows = Mathf.CeilToInt(inventory.MaxSlots / (float)columns);
         float gridW = columns * cellSize.x + (columns - 1) * cellSpacing.x;
         float gridH = rows * cellSize.y + (rows - 1) * cellSpacing.y;
-        float width = gridW + 56f;
-        float height = gridH + (showCategoryTabs ? 190f : 140f);
+
+        const float padding = 32f;      // отступ от краёв панели
+        const float columnGap = 24f;    // между сеткой и описанием
+        const float headerHeight = 74f; // заголовок + разделитель
+        const float footerHeight = 46f; // подпись управления
+        float tabsHeight = showCategoryTabs ? 54f : 0f;
+
+        float width = padding * 2f + gridW + columnGap + detailsWidth;
+        float height = padding * 2f + headerHeight + tabsHeight + gridH + footerHeight;
+
+        // Не даём панели выйти за пределы экрана на низких разрешениях
+        height = Mathf.Min(height, 1020f);
 
         // --- Панель ---
         GameObject panel = CreateUIObject("Panel", root.transform);
@@ -577,16 +855,19 @@ public class InventoryUI : MonoBehaviour
         outlineImg.color = new Color(1f, 1f, 1f, 0.09f);
         outlineImg.raycastTarget = false;
 
+        // Правый край сетки в координатах панели
+        float gridRightEdge = -(padding + detailsWidth + columnGap);
+
         // --- Заголовок ---
         titleText = CreateLabel("Title", panel.transform);
         RectTransform titleRect = (RectTransform)titleText.transform;
         titleRect.anchorMin = new Vector2(0f, 1f);
         titleRect.anchorMax = new Vector2(1f, 1f);
         titleRect.pivot = new Vector2(0.5f, 1f);
-        titleRect.offsetMin = new Vector2(28f, -62f);
-        titleRect.offsetMax = new Vector2(-28f, -18f);
+        titleRect.offsetMin = new Vector2(padding, -62f);
+        titleRect.offsetMax = new Vector2(gridRightEdge, -20f);
         titleText.text = "ИНВЕНТАРЬ";
-        titleText.fontSize = 28f;
+        titleText.fontSize = 30f;
         titleText.characterSpacing = 8f;
         titleText.color = textColor;
         titleText.alignment = TextAlignmentOptions.Left;
@@ -597,25 +878,25 @@ public class InventoryUI : MonoBehaviour
         capRect.anchorMin = new Vector2(0f, 1f);
         capRect.anchorMax = new Vector2(1f, 1f);
         capRect.pivot = new Vector2(0.5f, 1f);
-        capRect.offsetMin = new Vector2(28f, -62f);
-        capRect.offsetMax = new Vector2(-28f, -18f);
-        capacityText.fontSize = 24f;
+        capRect.offsetMin = new Vector2(padding, -62f);
+        capRect.offsetMax = new Vector2(gridRightEdge, -20f);
+        capacityText.fontSize = 25f;
         capacityText.alignment = TextAlignmentOptions.Right;
 
-        // --- Разделитель под заголовком (градиент акцентного цвета) ---
+        // --- Разделитель под заголовком (акцентная линия) ---
         GameObject divider = CreateUIObject("Divider", panel.transform);
         RectTransform divRect = (RectTransform)divider.transform;
         divRect.anchorMin = new Vector2(0f, 1f);
         divRect.anchorMax = new Vector2(1f, 1f);
         divRect.pivot = new Vector2(0.5f, 1f);
-        divRect.offsetMin = new Vector2(28f, -68f);
-        divRect.offsetMax = new Vector2(-28f, -66f);
+        divRect.offsetMin = new Vector2(padding, -68f);
+        divRect.offsetMax = new Vector2(gridRightEdge, -66f);
         Image divImg = divider.AddComponent<Image>();
         divImg.sprite = solid;
         divImg.color = new Color(accentColor.r, accentColor.g, accentColor.b, 0.35f);
         divImg.raycastTarget = false;
 
-        float gridTopOffset = -78f;
+        float gridTopOffset = -(padding + headerHeight - 20f);
 
         // --- Вкладки категорий ---
         if (showCategoryTabs)
@@ -625,11 +906,11 @@ public class InventoryUI : MonoBehaviour
             tabsRect.anchorMin = new Vector2(0f, 1f);
             tabsRect.anchorMax = new Vector2(1f, 1f);
             tabsRect.pivot = new Vector2(0.5f, 1f);
-            tabsRect.offsetMin = new Vector2(28f, -122f);
-            tabsRect.offsetMax = new Vector2(-28f, -80f);
+            tabsRect.offsetMin = new Vector2(padding, -128f);
+            tabsRect.offsetMax = new Vector2(gridRightEdge, -80f);
 
             HorizontalLayoutGroup tabsLayout = tabsRow.AddComponent<HorizontalLayoutGroup>();
-            tabsLayout.spacing = 6f;
+            tabsLayout.spacing = 7f;
             tabsLayout.childForceExpandWidth = true;
             tabsLayout.childForceExpandHeight = true;
             tabsLayout.childAlignment = TextAnchor.MiddleLeft;
@@ -638,7 +919,7 @@ public class InventoryUI : MonoBehaviour
             foreach (ItemType type in ItemData.DisplayOrder)
                 CreateTab(tabsRow.transform, type, ItemData.GetCategoryColor(type), roundThin);
 
-            gridTopOffset = -132f;
+            gridTopOffset = -138f;
             UpdateTabVisuals();
         }
 
@@ -647,20 +928,24 @@ public class InventoryUI : MonoBehaviour
         RectTransform gridRect = (RectTransform)grid.transform;
         gridRect.anchorMin = new Vector2(0f, 0f);
         gridRect.anchorMax = new Vector2(1f, 1f);
-        gridRect.offsetMin = new Vector2(28f, 46f);
-        gridRect.offsetMax = new Vector2(-28f, gridTopOffset);
+        gridRect.offsetMin = new Vector2(padding, footerHeight);
+        gridRect.offsetMax = new Vector2(gridRightEdge, gridTopOffset);
 
         GridLayoutGroup layout = grid.AddComponent<GridLayoutGroup>();
         layout.cellSize = cellSize;
         layout.spacing = cellSpacing;
         layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         layout.constraintCount = columns;
-        layout.childAlignment = TextAnchor.UpperCenter;
+        layout.childAlignment = TextAnchor.UpperLeft;
         slotsContainer = grid.transform;
 
         // Ячейки анимируют свой anchoredPosition, поэтому раскладка должна
         // отработать один раз и больше не перетирать позиции.
         grid.AddComponent<GridLayoutFreezer>();
+
+        // --- Панель описания выбранного предмета ---
+        BuildDetailsPanel(panel.transform, roundThin, padding, detailsWidth,
+                          footerHeight, padding + 20f);
 
         // --- Подпись управления ---
         TextMeshProUGUI hintLabel = CreateLabel("ControlsHint", panel.transform);
@@ -668,16 +953,16 @@ public class InventoryUI : MonoBehaviour
         hintRect.anchorMin = new Vector2(0f, 0f);
         hintRect.anchorMax = new Vector2(1f, 0f);
         hintRect.pivot = new Vector2(0.5f, 0f);
-        hintRect.offsetMin = new Vector2(28f, 14f);
-        hintRect.offsetMax = new Vector2(-28f, 38f);
-        hintLabel.text = "<color=#8a8f99>ЛКМ</color> использовать   " +
+        hintRect.offsetMin = new Vector2(padding, 14f);
+        hintRect.offsetMax = new Vector2(gridRightEdge, 40f);
+        hintLabel.text = "<color=#8a8f99>ЛКМ</color> выбрать   " +
                          "<color=#8a8f99>ПКМ</color> выбросить   " +
                          "<color=#8a8f99>R</color> сортировать   " +
                          "<color=#8a8f99>Q/E</color> вкладки   " +
                          "<color=#8a8f99>Tab</color> закрыть";
-        hintLabel.fontSize = 16f;
+        hintLabel.fontSize = 17f;
         hintLabel.color = new Color(textColor.r, textColor.g, textColor.b, 0.5f);
-        hintLabel.alignment = TextAlignmentOptions.Center;
+        hintLabel.alignment = TextAlignmentOptions.Left;
 
         // --- Префаб ячейки ---
         slotPrefab = BuildSlotPrefab(canvas.transform, roundThin);
@@ -729,6 +1014,189 @@ public class InventoryUI : MonoBehaviour
             label = label,
             color = color
         });
+    }
+
+    /// <summary>
+    /// Боковая панель: крупная иконка, название, категория, описание
+    /// и кнопки действий («Экипировать» / «Использовать» / «Выбросить»).
+    /// </summary>
+    void BuildDetailsPanel(Transform panel, Sprite roundSprite,
+                           float padding, float width, float bottom, float top)
+    {
+        GameObject root = CreateUIObject("Details", panel);
+        RectTransform rect = (RectTransform)root.transform;
+        rect.anchorMin = new Vector2(1f, 0f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(1f, 0.5f);
+        rect.offsetMin = new Vector2(-(padding + width), bottom);
+        rect.offsetMax = new Vector2(-padding, -top);
+
+        Image bg = root.AddComponent<Image>();
+        bg.sprite = roundSprite;
+        bg.type = Image.Type.Sliced;
+        bg.color = new Color(1f, 1f, 1f, 0.035f);
+
+        GameObject edge = CreateUIObject("Edge", root.transform);
+        Stretch((RectTransform)edge.transform);
+        Image edgeImg = edge.AddComponent<Image>();
+        edgeImg.sprite = UIShapes.RoundedRect(48, 10, 2);
+        edgeImg.type = Image.Type.Sliced;
+        edgeImg.color = new Color(1f, 1f, 1f, 0.07f);
+        edgeImg.raycastTarget = false;
+
+        const float inner = 22f;
+        float iconSize = Mathf.Min(width - inner * 2f, 180f);
+
+        // --- Иконка ---
+        GameObject iconFrame = CreateUIObject("IconFrame", root.transform);
+        RectTransform iconFrameRect = (RectTransform)iconFrame.transform;
+        iconFrameRect.anchorMin = new Vector2(0.5f, 1f);
+        iconFrameRect.anchorMax = new Vector2(0.5f, 1f);
+        iconFrameRect.pivot = new Vector2(0.5f, 1f);
+        iconFrameRect.anchoredPosition = new Vector2(0f, -inner);
+        iconFrameRect.sizeDelta = new Vector2(iconSize, iconSize);
+
+        Image iconBg = iconFrame.AddComponent<Image>();
+        iconBg.sprite = roundSprite;
+        iconBg.type = Image.Type.Sliced;
+        iconBg.color = new Color(0f, 0f, 0f, 0.28f);
+        iconBg.raycastTarget = false;
+
+        detailsIcon = CreateUIObject("Icon", iconFrame.transform).AddComponent<Image>();
+        Stretch((RectTransform)detailsIcon.transform, 14f, 14f);
+        detailsIcon.preserveAspect = true;
+        detailsIcon.raycastTarget = false;
+        detailsIcon.enabled = false;
+
+        float cursor = inner + iconSize + 18f;
+
+        // --- Название ---
+        detailsName = CreateLabel("Name", root.transform);
+        RectTransform nameRect = (RectTransform)detailsName.transform;
+        nameRect.anchorMin = new Vector2(0f, 1f);
+        nameRect.anchorMax = new Vector2(1f, 1f);
+        nameRect.pivot = new Vector2(0.5f, 1f);
+        nameRect.offsetMin = new Vector2(inner, -(cursor + 62f));
+        nameRect.offsetMax = new Vector2(-inner, -cursor);
+        detailsName.fontSize = 25f;
+        detailsName.fontStyle = FontStyles.Bold;
+        detailsName.alignment = TextAlignmentOptions.Top;
+        detailsName.enableWordWrapping = true;
+
+        cursor += 66f;
+
+        // --- Категория и редкость ---
+        detailsCategory = CreateLabel("Category", root.transform);
+        RectTransform catRect = (RectTransform)detailsCategory.transform;
+        catRect.anchorMin = new Vector2(0f, 1f);
+        catRect.anchorMax = new Vector2(1f, 1f);
+        catRect.pivot = new Vector2(0.5f, 1f);
+        catRect.offsetMin = new Vector2(inner, -(cursor + 26f));
+        catRect.offsetMax = new Vector2(-inner, -cursor);
+        detailsCategory.fontSize = 17f;
+        detailsCategory.alignment = TextAlignmentOptions.Top;
+
+        cursor += 34f;
+
+        // --- Разделитель ---
+        GameObject sep = CreateUIObject("Separator", root.transform);
+        RectTransform sepRect = (RectTransform)sep.transform;
+        sepRect.anchorMin = new Vector2(0f, 1f);
+        sepRect.anchorMax = new Vector2(1f, 1f);
+        sepRect.pivot = new Vector2(0.5f, 1f);
+        sepRect.offsetMin = new Vector2(inner, -(cursor + 1.5f));
+        sepRect.offsetMax = new Vector2(-inner, -cursor);
+        Image sepImg = sep.AddComponent<Image>();
+        sepImg.sprite = UIShapes.Solid();
+        sepImg.color = new Color(1f, 1f, 1f, 0.09f);
+        sepImg.raycastTarget = false;
+
+        cursor += 14f;
+
+        const float buttonHeight = 48f;
+        const float buttonGap = 10f;
+        float buttonsBlock = buttonHeight * 2f + buttonGap + inner;
+
+        // --- Описание (занимает всё между категорией и кнопками) ---
+        detailsDescription = CreateLabel("Description", root.transform);
+        RectTransform descRect = (RectTransform)detailsDescription.transform;
+        descRect.anchorMin = new Vector2(0f, 0f);
+        descRect.anchorMax = new Vector2(1f, 1f);
+        descRect.offsetMin = new Vector2(inner, buttonsBlock);
+        descRect.offsetMax = new Vector2(-inner, -cursor);
+        detailsDescription.fontSize = 18f;
+        detailsDescription.lineSpacing = 6f;
+        detailsDescription.alignment = TextAlignmentOptions.TopLeft;
+        detailsDescription.enableWordWrapping = true;
+        detailsDescription.color = new Color(textColor.r, textColor.g, textColor.b, 0.85f);
+
+        // --- Кнопка основного действия ---
+        primaryActionButton = BuildActionButton(
+            root.transform, "PrimaryAction", roundSprite,
+            inner, buttonHeight, inner + buttonHeight + buttonGap,
+            new Color(accentColor.r * 0.28f, accentColor.g * 0.22f, accentColor.b * 0.12f, 1f),
+            accentColor,
+            out primaryActionLabel);
+        primaryActionButton.onClick.AddListener(InvokePrimaryAction);
+
+        // --- Кнопка «Выбросить» ---
+        dropActionButton = BuildActionButton(
+            root.transform, "DropAction", roundSprite,
+            inner, buttonHeight, inner,
+            new Color(0.16f, 0.10f, 0.10f, 1f),
+            new Color(0.85f, 0.45f, 0.40f),
+            out dropActionLabel);
+        dropActionButton.onClick.AddListener(InvokeDropAction);
+
+        detailsRoot = root;
+    }
+
+    Button BuildActionButton(Transform parent, string name, Sprite roundSprite,
+                             float sideInset, float height, float bottomOffset,
+                             Color fill, Color accent, out TextMeshProUGUI label)
+    {
+        GameObject obj = CreateUIObject(name, parent);
+        RectTransform rect = (RectTransform)obj.transform;
+        rect.anchorMin = new Vector2(0f, 0f);
+        rect.anchorMax = new Vector2(1f, 0f);
+        rect.pivot = new Vector2(0.5f, 0f);
+        rect.offsetMin = new Vector2(sideInset, bottomOffset);
+        rect.offsetMax = new Vector2(-sideInset, bottomOffset + height);
+
+        Image bg = obj.AddComponent<Image>();
+        bg.sprite = roundSprite;
+        bg.type = Image.Type.Sliced;
+        bg.color = fill;
+
+        Button button = obj.AddComponent<Button>();
+        button.targetGraphic = bg;
+
+        // Штатный ColorTint даёт наведение и нажатие без своего скрипта
+        var colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1.35f, 1.35f, 1.35f, 1f);
+        colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+        colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+        colors.fadeDuration = 0.08f;
+        button.colors = colors;
+
+        GameObject edge = CreateUIObject("Edge", obj.transform);
+        Stretch((RectTransform)edge.transform);
+        Image edgeImg = edge.AddComponent<Image>();
+        edgeImg.sprite = UIShapes.RoundedRect(48, 10, 2);
+        edgeImg.type = Image.Type.Sliced;
+        edgeImg.color = new Color(accent.r, accent.g, accent.b, 0.55f);
+        edgeImg.raycastTarget = false;
+
+        label = CreateLabel("Label", obj.transform);
+        Stretch((RectTransform)label.transform, 10f, 2f);
+        label.fontSize = 20f;
+        label.fontStyle = FontStyles.Bold;
+        label.color = accent;
+        label.alignment = TextAlignmentOptions.Center;
+
+        obj.SetActive(false);
+        return button;
     }
 
     InventorySlotUI BuildSlotPrefab(Transform canvasRoot, Sprite roundSprite)
