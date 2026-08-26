@@ -2,9 +2,15 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Блокирует стрельбу и (опционально) движение, пока инвентарь открыт.
-/// Ничего не меняет в существующих скриптах: просто выключает их компоненты
-/// на время открытия и включает обратно при закрытии.
+/// Запрещает игровой ввод, пока открыт инвентарь.
+///
+/// Оружие блокируется через PlayerInputLock: скрипты остаются включёнными,
+/// но сами пропускают Update. Так надёжнее, чем выключать enabled — иначе
+/// смена оружия в инвентаре и восстановление компонентов конфликтуют,
+/// и спрятанное оружие снова начинает стрелять.
+///
+/// Контроллер движения выключается компонентом: у него нет своей проверки,
+/// а он один и не участвует в переключении.
 ///
 /// Вешается на игрока рядом с InventorySystem.
 /// </summary>
@@ -15,7 +21,7 @@ public class InventoryInputBlocker : MonoBehaviour
     public InventorySystem inventory;
 
     [Header("Что блокировать")]
-    [Tooltip("Выключать скрипты оружия (Wep, WeaponShooting) при открытом инвентаре.")]
+    [Tooltip("Запрещать стрельбу, перезарядку и смену оружия при открытом инвентаре.")]
     public bool blockWeapons = true;
 
     [Tooltip("Выключать контроллер игрока (движение + обзор мышью).")]
@@ -49,27 +55,26 @@ public class InventoryInputBlocker : MonoBehaviour
     void OnDisable()
     {
         if (inventory != null) inventory.OnToggled -= HandleToggled;
-        RestoreAll();
+        Unblock();
     }
 
     void HandleToggled(bool open)
     {
-        if (open) BlockAll();
-        else RestoreAll();
+        if (open) Block();
+        else Unblock();
     }
 
-    void BlockAll()
+    void Block()
     {
-        RestoreAll();
+        Unblock();
 
-        if (blockWeapons)
-        {
-            foreach (var w in FindObjectsOfType<Wep>()) Disable(w);
-            foreach (var w in FindObjectsOfType<WeaponShooting>()) Disable(w);
-        }
+        // Оружие: замок, а не выключение компонентов
+        if (blockWeapons) PlayerInputLock.SetWeaponLock(this, true);
 
         if (blockMovement)
         {
+            PlayerInputLock.SetMovementLock(this, true);
+
             foreach (var c in FindObjectsOfType<EasyPeasyFirstPersonController.FirstPersonController>())
                 Disable(c);
         }
@@ -84,8 +89,10 @@ public class InventoryInputBlocker : MonoBehaviour
         disabledByUs.Add(target);
     }
 
-    void RestoreAll()
+    void Unblock()
     {
+        PlayerInputLock.ReleaseAll(this);
+
         for (int i = 0; i < disabledByUs.Count; i++)
         {
             if (disabledByUs[i] != null) disabledByUs[i].enabled = true;

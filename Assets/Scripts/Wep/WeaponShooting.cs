@@ -52,6 +52,10 @@ public class WeaponShooting : MonoBehaviour
     {
         if (playerCamera == null) return; // без камеры стрелять некуда
 
+        // Открытый инвентарь или диалог: ввод игнорируем
+        if (PlayerInputLock.WeaponsLocked) return;
+        if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive) return;
+
         if (isReloading) return;
 
         if (currentAmmo <= 0)

@@ -87,6 +87,7 @@ public class InventoryUI : MonoBehaviour
     private Image backdrop;
     private RectTransform panelRect;
     private Coroutine fadeRoutine;
+    private WeaponSlotManager subscribedSlotManager;
 
     // null = вкладка «Всё»
     private ItemType? activeFilter;
@@ -135,9 +136,7 @@ public class InventoryUI : MonoBehaviour
         inventory.OnTargetChanged += HandleTargetChanged;
         inventory.OnSorted += HandleSorted;
 
-        // Кнопка «Экипировать» должна пропадать сразу после смены оружия
-        if (WeaponSlotManager.Instance != null)
-            WeaponSlotManager.Instance.OnEquippedChanged += HandleEquippedChanged;
+        SubscribeWeaponSlot();
     }
 
     void OnDisable()
@@ -148,13 +147,33 @@ public class InventoryUI : MonoBehaviour
         inventory.OnTargetChanged -= HandleTargetChanged;
         inventory.OnSorted -= HandleSorted;
 
-        if (WeaponSlotManager.Instance != null)
-            WeaponSlotManager.Instance.OnEquippedChanged -= HandleEquippedChanged;
+        if (subscribedSlotManager != null)
+        {
+            subscribedSlotManager.OnEquippedChanged -= HandleEquippedChanged;
+            subscribedSlotManager = null;
+        }
+    }
+
+    /// <summary>
+    /// Подписаться на смену оружия. Менеджер мог ещё не создаться к моменту
+    /// OnEnable (порядок Awake не гарантирован), поэтому попытка повторяется.
+    /// </summary>
+    void SubscribeWeaponSlot()
+    {
+        if (subscribedSlotManager != null) return;
+
+        WeaponSlotManager slots = WeaponSlotManager.Instance;
+        if (slots == null) return;
+
+        slots.OnEquippedChanged += HandleEquippedChanged;
+        subscribedSlotManager = slots;
     }
 
     void HandleEquippedChanged(EquippableWeapon weapon)
     {
-        RefreshDetails();
+        // Нужен полный Redraw, а не только панель описания:
+        // метка «Экипировано» снимается с прежнего оружия и переходит на новое.
+        Redraw();
     }
 
     void Start()
@@ -173,6 +192,9 @@ public class InventoryUI : MonoBehaviour
 
     void Update()
     {
+        // Менеджер оружия мог появиться позже нас
+        if (subscribedSlotManager == null) SubscribeWeaponSlot();
+
         if (inventory == null || !inventory.IsOpen || !showCategoryTabs) return;
 
         if (Input.GetKeyDown(nextTabKey)) CycleTab(1);
@@ -499,9 +521,15 @@ public class InventoryUI : MonoBehaviour
         if (tooltipCategory != null)
         {
             string catHex = ColorUtility.ToHtmlStringRGB(ItemData.GetCategoryColor(item.itemType));
-            tooltipCategory.text = $"<color=#{catHex}>{item.CategoryName}</color>" +
-                                   $"<color=#5a5f69>  ·  </color>" +
-                                   $"<color=#{rarityHex}>{GetRarityName(item.rarity)}</color>";
+            string line = $"<color=#{catHex}>{item.CategoryName}</color>" +
+                          "<color=#5a5f69>  ·  </color>" +
+                          $"<color=#{rarityHex}>{GetRarityName(item.rarity)}</color>";
+
+            if (item.IsCurrentlyEquipped)
+                line += "<color=#5a5f69>  ·  </color>" +
+                        $"<color=#{ColorUtility.ToHtmlStringRGB(accentColor)}><b>ЭКИПИРОВАНО</b></color>";
+
+            tooltipCategory.text = line;
         }
 
         if (tooltipDescription != null)
@@ -597,9 +625,11 @@ public class InventoryUI : MonoBehaviour
 
         if (detailsName != null)
         {
-            detailsName.text = slot.amount > 1
-                ? $"{item.itemName}  <color=#8a8f99>x{slot.amount}</color>"
-                : item.itemName;
+            string prefix = item.HasHotbarSlot
+                ? $"<color=#{ColorUtility.ToHtmlStringRGB(accentColor)}>{item.hotbarSlot}</color><color=#4f545e>  ·  </color>"
+                : "";
+            string amount = slot.amount > 1 ? $"  <color=#8a8f99>x{slot.amount}</color>" : "";
+            detailsName.text = prefix + item.itemName + amount;
             detailsName.color = item.RarityColor;
         }
 
@@ -607,9 +637,16 @@ public class InventoryUI : MonoBehaviour
         {
             string catHex = ColorUtility.ToHtmlStringRGB(ItemData.GetCategoryColor(item.itemType));
             string rarHex = ColorUtility.ToHtmlStringRGB(item.RarityColor);
-            detailsCategory.text = $"<color=#{catHex}>{item.CategoryName}</color>" +
-                                   "<color=#4f545e>   ·   </color>" +
-                                   $"<color=#{rarHex}>{GetRarityName(item.rarity)}</color>";
+            string line = $"<color=#{catHex}>{item.CategoryName}</color>" +
+                          "<color=#4f545e>   ·   </color>" +
+                          $"<color=#{rarHex}>{GetRarityName(item.rarity)}</color>";
+
+            // Статус экипировки виден сразу, без чтения описания
+            if (item.IsCurrentlyEquipped)
+                line += "<color=#4f545e>   ·   </color>" +
+                        $"<color=#{ColorUtility.ToHtmlStringRGB(accentColor)}><b>в руках</b></color>";
+
+            detailsCategory.text = line;
         }
 
         if (detailsDescription != null)
@@ -631,7 +668,7 @@ public class InventoryUI : MonoBehaviour
                 sb.Append($"<color=#7fd694>Восстанавливает {item.useValue:0} HP</color>\n");
                 break;
             case ItemType.Ammo:
-                sb.Append($"<color=#8a8f99>Расходуется при перезарядке (R)</color>\n");
+                sb.Append("<color=#8a8f99>Расходуется при перезарядке (R)</color>\n");
                 break;
             case ItemType.Key:
                 sb.Append($"<color=#e0c86a>Отпирает: {item.keyId}</color>\n");
@@ -639,9 +676,9 @@ public class InventoryUI : MonoBehaviour
             case ItemType.Weapon:
                 if (item.IsEquippable)
                 {
-                    bool inHands = WeaponSlotManager.IsEquippedById(item.equipWeaponId);
-                    sb.Append(inHands
-                        ? "<color=#7fd694>В руках</color>\n"
+                    string accentHex = ColorUtility.ToHtmlStringRGB(accentColor);
+                    sb.Append(item.IsCurrentlyEquipped
+                        ? $"<color=#{accentHex}><b>ЭКИПИРОВАНО</b></color>\n"
                         : "<color=#8a8f99>Не экипировано</color>\n");
                 }
                 else
@@ -650,6 +687,10 @@ public class InventoryUI : MonoBehaviour
                 }
                 break;
         }
+
+        if (item.HasHotbarSlot)
+            sb.Append($"<color=#5a5f69>Быстрый слот: </color>" +
+                      $"<color=#{ColorUtility.ToHtmlStringRGB(accentColor)}>{item.hotbarSlot}</color>\n");
 
         if (item.stackable && item.maxStack > 1)
             sb.Append($"<color=#5a5f69>В стаке: {slot.amount} / {item.maxStack}</color>");
@@ -698,20 +739,24 @@ public class InventoryUI : MonoBehaviour
             case ItemType.Weapon:
                 if (item.IsEquippable)
                 {
-                    // Уже в руках — кнопка не нужна
-                    if (WeaponSlotManager.IsEquippedById(item.equipWeaponId)) label = null;
+                    // Уже в руках — вместо кнопки статус в описании
+                    if (item.IsCurrentlyEquipped) label = null;
                     else if (WeaponSlotManager.Instance != null &&
                              !WeaponSlotManager.Instance.Has(item.equipWeaponId))
                     {
                         label = "Модель не найдена";
                         interactable = false;
                     }
-                    else label = "Экипировать";
+                    else label = item.HasHotbarSlot
+                        ? $"Экипировать  ({item.hotbarSlot})"
+                        : "Экипировать";
                 }
                 break;
 
             case ItemType.Consumable:
-                label = "Использовать";
+                label = item.HasHotbarSlot
+                    ? $"Использовать  ({item.hotbarSlot})"
+                    : "Использовать";
                 break;
 
             case ItemType.Ammo:
@@ -747,10 +792,10 @@ public class InventoryUI : MonoBehaviour
         if (item.itemType == ItemType.Weapon)
         {
             if (!item.IsEquippable) return;
-            if (WeaponSlotManager.IsEquippedById(item.equipWeaponId)) return;
+            if (item.IsCurrentlyEquipped) return;
 
             WeaponSlotManager.EquipById(item.equipWeaponId);
-            RefreshDetails();
+            Redraw();   // метка «Экипировано» переезжает на новую ячейку
             return;
         }
 
@@ -1273,6 +1318,54 @@ public class InventoryUI : MonoBehaviour
         selectionImg.raycastTarget = false;
         selection.SetActive(false);
         view.selectionFrame = selection;
+
+        // --- Цифра быстрого слота (левый верхний угол) ---
+        TextMeshProUGUI hotbar = CreateLabel("Hotbar", slot.transform);
+        RectTransform hotbarRect = (RectTransform)hotbar.transform;
+        hotbarRect.anchorMin = new Vector2(0f, 1f);
+        hotbarRect.anchorMax = new Vector2(0f, 1f);
+        hotbarRect.pivot = new Vector2(0f, 1f);
+        hotbarRect.anchoredPosition = new Vector2(9f, -7f);
+        hotbarRect.sizeDelta = new Vector2(26f, 26f);
+        hotbar.text = "";
+        hotbar.fontSize = 17f;
+        hotbar.fontStyle = FontStyles.Bold;
+        hotbar.color = new Color(textColor.r, textColor.g, textColor.b, 0.42f);
+        hotbar.alignment = TextAlignmentOptions.TopLeft;
+        hotbar.gameObject.SetActive(false);
+        view.hotbarLabel = hotbar;
+
+        // --- Плашка «Экипировано» (нижняя кромка ячейки) ---
+        GameObject badge = CreateUIObject("EquippedBadge", slot.transform);
+        RectTransform badgeRect = (RectTransform)badge.transform;
+        badgeRect.anchorMin = new Vector2(0f, 0f);
+        badgeRect.anchorMax = new Vector2(1f, 0f);
+        badgeRect.pivot = new Vector2(0.5f, 0f);
+        badgeRect.offsetMin = new Vector2(4f, 4f);
+        badgeRect.offsetMax = new Vector2(-4f, 26f);
+
+        Image badgeBg = badge.AddComponent<Image>();
+        badgeBg.sprite = UIShapes.RoundedRect(32, 7);
+        badgeBg.type = Image.Type.Sliced;
+        badgeBg.color = new Color(accentColor.r * 0.85f, accentColor.g * 0.6f, accentColor.b * 0.2f, 0.95f);
+        badgeBg.raycastTarget = false;
+
+        TextMeshProUGUI badgeLabel = CreateLabel("Label", badge.transform);
+        Stretch((RectTransform)badgeLabel.transform, 3f, 1f);
+        badgeLabel.text = "ЭКИПИРОВАНО";
+        badgeLabel.fontSize = 11f;
+        badgeLabel.fontStyle = FontStyles.Bold;
+        badgeLabel.characterSpacing = 2f;
+        badgeLabel.color = new Color(0.08f, 0.06f, 0.03f);
+        badgeLabel.alignment = TextAlignmentOptions.Center;
+        badgeLabel.enableAutoSizing = true;
+        badgeLabel.fontSizeMin = 8f;
+        badgeLabel.fontSizeMax = 12f;
+
+        badge.SetActive(false);
+        view.equippedBadge = badge;
+        view.equippedLabel = badgeLabel;
+        view.equippedColor = accentColor;
 
         slot.SetActive(false);
         return view;

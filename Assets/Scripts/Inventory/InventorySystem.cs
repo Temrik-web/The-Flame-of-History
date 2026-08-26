@@ -191,16 +191,48 @@ public class InventorySystem : MonoBehaviour
         if (useHotkeys) HandleHotkeys();
     }
 
+    /// <summary>
+    /// Цифры 1..9 — быстрый доступ. Номер берётся из ItemData.hotbarSlot,
+    /// а не из позиции в списке: слот предмета не должен зависеть
+    /// от сортировки и порядка подбора.
+    /// </summary>
     void HandleHotkeys()
     {
-        for (int i = 0; i < 9; i++)
+        for (int digit = 1; digit <= 9; digit++)
         {
-            if (!Input.GetKeyDown(KeyCode.Alpha1 + i)) continue;
+            if (!Input.GetKeyDown(KeyCode.Alpha1 + (digit - 1))) continue;
 
-            if (Input.GetKey(dropKey)) DropSlot(i);
-            else UseSlot(i);
+            int index = FindSlotByHotbar(digit);
+            if (index < 0)
+            {
+                Debug.Log($"[Inventory] В слоте {digit} ничего нет.");
+                return;
+            }
+
+            if (Input.GetKey(dropKey)) DropSlot(index);
+            else UseSlot(index);
             return;
         }
+    }
+
+    /// <summary>Индекс первого слота с предметом, назначенным на данную цифру.</summary>
+    public int FindSlotByHotbar(int digit)
+    {
+        if (digit < 1 || digit > 9) return -1;
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (slots[i].IsEmpty) continue;
+            if (slots[i].item.hotbarSlot == digit) return i;
+        }
+        return -1;
+    }
+
+    /// <summary>Предмет, назначенный на цифру (null — ничего).</summary>
+    public ItemData GetHotbarItem(int digit)
+    {
+        int index = FindSlotByHotbar(digit);
+        return index >= 0 ? slots[index].item : null;
     }
 
     // =====================================================================

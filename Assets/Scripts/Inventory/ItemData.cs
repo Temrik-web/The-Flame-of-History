@@ -71,6 +71,11 @@ public class ItemData : ScriptableObject
              "полем Weapon Id у компонента EquippableWeapon. Например: ppsh41, rgd33, knife.")]
     public string equipWeaponId = "";
 
+    [Header("Быстрый слот")]
+    [Tooltip("Цифра 1..9 для быстрого доступа. 0 — не назначен.\n" +
+             "Оружие по нажатию экипируется, расходники применяются.")]
+    [Range(0, 9)] public int hotbarSlot = 0;
+
     [Header("Мир")]
     [Tooltip("Префаб для выбрасывания именно этого предмета. " +
              "Если пусто — инвентарь возьмёт универсальный префаб.")]
@@ -158,6 +163,13 @@ public class ItemData : ScriptableObject
     /// <summary>Можно ли этот предмет экипировать в руки.</summary>
     public bool IsEquippable =>
         itemType == ItemType.Weapon && !string.IsNullOrEmpty(equipWeaponId);
+
+    /// <summary>Экипирован ли этот предмет прямо сейчас (только для оружия).</summary>
+    public bool IsCurrentlyEquipped =>
+        IsEquippable && WeaponSlotManager.IsEquippedById(equipWeaponId);
+
+    /// <summary>Назначен ли предмету быстрый слот.</summary>
+    public bool HasHotbarSlot => hotbarSlot >= 1 && hotbarSlot <= 9;
 
     /// <summary>
     /// Применить предмет. Возвращает true, если использование сработало

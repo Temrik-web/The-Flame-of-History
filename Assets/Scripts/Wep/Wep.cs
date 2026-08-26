@@ -430,6 +430,14 @@ public class Wep : MonoBehaviour
         if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
             return;
 
+        // Открытый инвентарь и другие UI-режимы: стрелять и перезаряжаться нельзя.
+        // Замок вместо enabled = false, чтобы не конфликтовать со сменой оружия.
+        if (PlayerInputLock.WeaponsLocked)
+        {
+            if (crosshairObject != null) crosshairObject.SetActive(false);
+            return;
+        }
+
         if (fpsController != null)
             SyncFromController();
 
@@ -581,6 +589,9 @@ public class Wep : MonoBehaviour
         // Дополнительная защита от выстрела во время диалога
         if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
             return;
+
+        // И от выстрела при открытом инвентаре: Shoot могли вызвать из корутины
+        if (PlayerInputLock.WeaponsLocked) return;
 
         if (currentAmmo <= 0 || muzzlePoint == null || playerCamera == null || isInspecting) return;
 

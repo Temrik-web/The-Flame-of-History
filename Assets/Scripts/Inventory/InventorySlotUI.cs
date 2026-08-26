@@ -20,10 +20,20 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     public Image stackBar;
     public GameObject selectionFrame;
 
+    [Header("Метки")]
+    [Tooltip("Цифра быстрого слота в углу ячейки.")]
+    public TextMeshProUGUI hotbarLabel;
+    [Tooltip("Плашка «Экипировано» для оружия в руках.")]
+    public GameObject equippedBadge;
+    public TextMeshProUGUI equippedLabel;
+    [Tooltip("Свечение ячейки, когда предмет экипирован.")]
+    public Image equippedGlow;
+
     [Header("Цвета фона")]
     public Color normalColor = new Color(1f, 1f, 1f, 0.06f);
     public Color hoverColor = new Color(1f, 1f, 1f, 0.18f);
     public Color emptyColor = new Color(1f, 1f, 1f, 0.03f);
+    public Color equippedColor = new Color(1f, 0.66f, 0.28f);
 
     [Header("Анимация")]
     public float hoverScale = 1.08f;
@@ -36,6 +46,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     private int index = -1;
     private bool isEmpty = true;
     private bool isHovered;
+    private bool isEquipped;
 
     private RectTransform rect;
     private Vector2 basePosition;
@@ -145,6 +156,25 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             }
         }
 
+        // --- Цифра быстрого слота ---
+        if (hotbarLabel != null)
+        {
+            bool showDigit = !isEmpty && slot.item.HasHotbarSlot;
+            hotbarLabel.gameObject.SetActive(showDigit);
+            if (showDigit) hotbarLabel.text = slot.item.hotbarSlot.ToString();
+        }
+
+        // --- Метка «Экипировано» ---
+        isEquipped = !isEmpty && slot.item.IsCurrentlyEquipped;
+
+        if (equippedBadge != null) equippedBadge.SetActive(isEquipped);
+        if (equippedLabel != null && isEquipped) equippedLabel.text = "ЭКИПИРОВАНО";
+        if (equippedGlow != null) equippedGlow.enabled = isEquipped;
+
+        // Экипированное оружие получает акцентную рамку вместо рамки редкости
+        if (rarityFrame != null && isEquipped)
+            rarityFrame.color = new Color(equippedColor.r, equippedColor.g, equippedColor.b, 1f);
+
         ApplyBackgroundColor();
 
         // Пружинка, если предмет появился или количество выросло
@@ -204,6 +234,16 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     {
         if (background == null) return;
         if (isEmpty) { background.color = emptyColor; return; }
+
+        if (isEquipped)
+        {
+            // Экипированное заметно даже без наведения
+            Color tint = new Color(equippedColor.r, equippedColor.g, equippedColor.b,
+                                   isHovered ? 0.26f : 0.16f);
+            background.color = tint;
+            return;
+        }
+
         background.color = isHovered ? hoverColor : normalColor;
     }
 

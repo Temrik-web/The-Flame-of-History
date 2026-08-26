@@ -39,15 +39,7 @@ public static class InventorySetupWizard
                 description: "Пистолет-пулемёт Шпагина. Дисковый магазин, высокий темп огня.",
                 type: ItemType.Weapon, rarity: ItemRarity.Rare,
                 useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false,
-                equipWeaponId: "ppsh41"),
-
-            CreateOrUpdateItem(
-                id: "rgd33", fileName: "Item_Rgd33",
-                itemName: "РГД-33",
-                description: "Ручная граната образца 1933 года. Рукоятка с длинным замахом.",
-                type: ItemType.Weapon, rarity: ItemRarity.Uncommon,
-                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false,
-                equipWeaponId: "rgd33"),
+                equipWeaponId: "ppsh41", hotbarSlot: 1),
 
             CreateOrUpdateItem(
                 id: "knife", fileName: "Item_Knife",
@@ -55,7 +47,31 @@ public static class InventorySetupWizard
                 description: "Простой окопный нож. Тихо и наверняка.",
                 type: ItemType.Weapon, rarity: ItemRarity.Common,
                 useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false,
-                equipWeaponId: "knife"),
+                equipWeaponId: "knife", hotbarSlot: 2),
+
+            CreateOrUpdateItem(
+                id: "rgd33", fileName: "Item_Rgd33",
+                itemName: "РГД-33",
+                description: "Ручная граната образца 1933 года. Рукоятка с длинным замахом.",
+                type: ItemType.Weapon, rarity: ItemRarity.Uncommon,
+                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false,
+                equipWeaponId: "rgd33", hotbarSlot: 3),
+
+            CreateOrUpdateItem(
+                id: "bandage", fileName: "Item_Bandage",
+                itemName: "Бинт",
+                description: "Останавливает кровь. Немного, но лучше, чем ничего.",
+                type: ItemType.Consumable, rarity: ItemRarity.Common,
+                useValue: 15f, stackable: true, maxStack: 12, consumeOnUse: true,
+                hotbarSlot: 4),
+
+            CreateOrUpdateItem(
+                id: "medkit", fileName: "Item_Medkit",
+                itemName: "Аптечка",
+                description: "Бинты, жгут, ампула. Хватит, чтобы дойти до укрытия.",
+                type: ItemType.Consumable, rarity: ItemRarity.Uncommon,
+                useValue: 40f, stackable: true, maxStack: 5, consumeOnUse: true,
+                hotbarSlot: 5),
 
             CreateOrUpdateItem(
                 id: "ammo_762", fileName: "Item_Ammo762",
@@ -70,20 +86,6 @@ public static class InventorySetupWizard
                 description: "Горсть патронов. Надо чем-то набивать диск.",
                 type: ItemType.Ammo, rarity: ItemRarity.Common,
                 useValue: 1f, stackable: true, maxStack: 60, consumeOnUse: true),
-
-            CreateOrUpdateItem(
-                id: "medkit", fileName: "Item_Medkit",
-                itemName: "Аптечка",
-                description: "Бинты, жгут, ампула. Хватит, чтобы дойти до укрытия.",
-                type: ItemType.Consumable, rarity: ItemRarity.Uncommon,
-                useValue: 40f, stackable: true, maxStack: 5, consumeOnUse: true),
-
-            CreateOrUpdateItem(
-                id: "bandage", fileName: "Item_Bandage",
-                itemName: "Бинт",
-                description: "Останавливает кровь. Немного, но лучше, чем ничего.",
-                type: ItemType.Consumable, rarity: ItemRarity.Common,
-                useValue: 15f, stackable: true, maxStack: 12, consumeOnUse: true),
 
             CreateOrUpdateItem(
                 id: "key_cellar", fileName: "Item_KeyCellar",
@@ -149,8 +151,12 @@ public static class InventorySetupWizard
             "  Q / E — переключать вкладки категорий\n" +
             "  Колесо мыши — сменить оружие в руках\n" +
             "  0 — убрать оружие\n\n" +
-            "Оружие (ППШ-41, РГД-33, Нож) выключено до подбора.\n" +
-            "Подбери предмет, выбери его в инвентаре и нажми «Экипировать».\n\n" +
+            "Быстрые слоты:\n" +
+            "  1 — ППШ-41    2 — Нож    3 — РГД-33\n" +
+            "  4 — Бинт      5 — Аптечка\n\n" +
+            "Оружие выключено до подбора. Подбери предмет,\n" +
+            "выбери его в инвентаре и нажми «Экипировать»\n" +
+            "или нажми его цифру.\n\n" +
             $"Перед игроком разложено предметов: {items.Count}.\n" +
             "Не забудь сохранить сцену (Ctrl+S).",
             "Ок");
@@ -233,7 +239,7 @@ public static class InventorySetupWizard
     private static ItemData CreateOrUpdateItem(
         string id, string fileName, string itemName, string description,
         ItemType type, ItemRarity rarity, float useValue, bool stackable, int maxStack,
-        bool consumeOnUse, string keyId = "", string equipWeaponId = "")
+        bool consumeOnUse, string keyId = "", string equipWeaponId = "", int hotbarSlot = 0)
     {
         string path = $"{ItemsFolder}/{fileName}.asset";
         ItemData item = AssetDatabase.LoadAssetAtPath<ItemData>(path);
@@ -252,6 +258,7 @@ public static class InventorySetupWizard
         item.consumeOnUse = consumeOnUse;
         item.keyId = keyId;
         item.equipWeaponId = equipWeaponId;
+        item.hotbarSlot = hotbarSlot;
 
         if (isNew) AssetDatabase.CreateAsset(item, path);
         EditorUtility.SetDirty(item);
