@@ -1,10 +1,17 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace FlameOfHistory.AI
 {
-    [RequireComponent(typeof(NavMeshAgent))]
+    /// <summary>
+    /// Боевой ИИ врага: восприятие, состояния, стрельба.
+    ///
+    /// Передвижением сам не занимается — всё через <see cref="EnemyMotor"/>,
+    /// поэтому враг ходит по земле и с запечённым NavMesh, и без него.
+    /// Звуки и крики — через <see cref="EnemyVoice"/>.
+    /// Оружие в руках — через <see cref="EnemyLoadout"/> (или ссылкой вручную).
+    /// </summary>
+    [RequireComponent(typeof(EnemyMotor))]
     [RequireComponent(typeof(CharacterHealth))]
     [DisallowMultipleComponent]
     public sealed class EnemyAI : MonoBehaviour
@@ -14,6 +21,10 @@ namespace FlameOfHistory.AI
         [SerializeField] private HitscanWeapon weapon;
         [SerializeField] private PatrolRoute patrolRoute;
         [SerializeField] private Animator animator;
+        [Tooltip("Голос врага. Пусто — будет найден на этом объекте автоматически.")]
+        [SerializeField] private EnemyVoice voice;
+        [Tooltip("Выдача оружия. Пусто — будет найдена на этом объекте автоматически.")]
+        [SerializeField] private EnemyLoadout loadout;
 
         [Header("Target")]
         [SerializeField] private Team enemyTeam = Team.Allies;
@@ -39,6 +50,8 @@ namespace FlameOfHistory.AI
         [Tooltip("Если маршрут не задан — враг сам бродит по округе, а не стоит на месте.")]
         [SerializeField] private bool wanderWhenNoRoute = true;
         [SerializeField, Min(1f)] private float wanderRadius = 14f;
+        [Tooltip("Сколько ждать на месте, если новую точку для прогулки найти не удалось.")]
+        [SerializeField, Min(0.1f)] private float wanderRetryDelay = 1.5f;
 
         [Header("Combat")]
         [SerializeField, Min(0f)] private float chaseSpeed = 4.2f;
@@ -65,15 +78,21 @@ namespace FlameOfHistory.AI
         [SerializeField, Min(0.1f)] private float suppressionDecay = 0.6f;
 
         [Header("Navigation")]
-        [SerializeField, Min(0.1f)] private float stoppingDistance = 1.2f;
         [SerializeField, Min(0.05f)] private float pathRefreshInterval = 0.25f;
+
+        [Header("Death")]
+        [Tooltip("Через сколько секунд убрать труп. 0 — оставить навсегда.")]
+        [SerializeField, Min(0f)] private float corpseLifetime = 0f;
 
         public EnemyState State { get; private set; }
         public Transform CurrentTarget => _target;
         public float Awareness => _awareness;
         public float Suppression => _suppression;
 
-        private NavMeshAgent _agent;
+        /// <summary>Текущее оружие врага (может быть null — тогда он просто преследует).</summary>
+        public HitscanWeapon Weapon => weapon;
+
+        private EnemyMotor _motor;
         private CharacterHealth _health;
 
         private Transform _target;
@@ -87,6 +106,7 @@ namespace FlameOfHistory.AI
 
         private float _awareness;
         private float _suppression;
+        private float _lastSuppressionShout;
         private Vector3 _suspicionPoint;
         private bool _hasSuspicion;
 
@@ -95,6 +115,7 @@ namespace FlameOfHistory.AI
         private float _patrolWaitUntil;
         private bool _waitingAtPoint;
         private float _retreatUntil;
+        private float _nextWanderAttemptTime;
 
         private int _patrolIndex;
         private Vector3 _homePosition;
@@ -106,15 +127,36 @@ namespace FlameOfHistory.AI
 
         private static readonly int SpeedHash = Animator.StringToHash("Speed");
         private static readonly int IsAimingHash = Animator.StringToHash("IsAiming");
+        private static readonly int IsMovingHash = Animator.StringToHash("IsMoving");
+        private static readonly int ShootHash = Animator.StringToHash("Shoot");
+        private static readonly int ReloadHash = Animator.StringToHash("Reload");
+        private static readonly int HitHash = Animator.StringToHash("Hit");
         private static readonly int DieHash = Animator.StringToHash("Die");
 
         private void Awake()
         {
-            _agent = GetComponent<NavMeshAgent>();
+            // Уже расставленные по сценам враги были сериализованы без EnemyMotor,
+            // а RequireComponent задним числом его не добавляет. Поэтому чиним здесь,
+            // иначе старые сцены падали бы с NullReferenceException.
+            _motor = GetComponent<EnemyMotor>();
+            if (_motor == null)
+            {
+                if (GetComponent<UnityEngine.AI.NavMeshAgent>() == null)
+                    gameObject.AddComponent<UnityEngine.AI.NavMeshAgent>();
+
+                _motor = gameObject.AddComponent<EnemyMotor>();
+            }
+
             _health = GetComponent<CharacterHealth>();
-            _agent.stoppingDistance = stoppingDistance;
-            _agent.updateRotation = true;
+
             if (eyePoint == null) eyePoint = transform;
+            if (voice == null) voice = GetComponent<EnemyVoice>();
+            if (loadout == null) loadout = GetComponent<EnemyLoadout>();
+            if (animator == null) animator = GetComponentInChildren<Animator>();
+
+            // Если оружие не проставлено вручную — берём то, что уже висит в иерархии.
+            // EnemyLoadout при спавне оружия всё равно перезапишет ссылку через SetWeapon.
+            if (weapon == null) weapon = GetComponentInChildren<HitscanWeapon>(true);
         }
 
         private void OnEnable()
@@ -122,13 +164,19 @@ namespace FlameOfHistory.AI
             _health.Damaged += OnDamaged;
             _health.Died += OnDied;
             NoiseSystem.NoiseCreated += OnNoiseCreated;
+            SubscribeWeapon(weapon);
             State = EnemyState.Patrol;
         }
 
         private void Start()
         {
             _homePosition = transform.position;
-            ChangeState(EnemyState.Patrol);
+
+            // ChangeState(Patrol) здесь ничего бы не сделал: State уже Patrol после
+            // OnEnable, и метод вышел бы по проверке «состояние не менялось».
+            // Поэтому стартовые настройки мотора выставляем напрямую.
+            _motor.SetSpeed(patrolSpeed);
+            _motor.SetAutoRotation(true);
         }
 
         /// <summary>
@@ -156,11 +204,66 @@ namespace FlameOfHistory.AI
         /// <summary>Задать маршрут патрулирования (используется мастером на экземплярах сцены).</summary>
         public void SetPatrolRoute(PatrolRoute route) => patrolRoute = route;
 
+        /// <summary>
+        /// Сменить оружие в рантайме. Вызывается EnemyLoadout после выдачи оружия
+        /// в руку, но можно дёргать и вручную — например, при подборе трофея.
+        /// </summary>
+        public void SetWeapon(HitscanWeapon newWeapon)
+        {
+            if (weapon == newWeapon) return;
+
+            UnsubscribeWeapon(weapon);
+            weapon = newWeapon;
+            SubscribeWeapon(weapon);
+
+            _shotsRemaining = 0;
+            _nextBurstTime = 0f;
+        }
+
         /// <summary>Публичный вход подавления — вызывается SuppressionReceiver при близком пролёте.</summary>
         public void ApplySuppression(float amount)
         {
             if (_health == null || !_health.IsAlive) return;
             _suppression = Mathf.Clamp01(_suppression + amount);
+
+            if (_suppression > 0.7f && Time.time - _lastSuppressionShout > 5f)
+            {
+                _lastSuppressionShout = Time.time;
+                if (voice != null) voice.PlaySuppressed();
+            }
+        }
+
+        private void SubscribeWeapon(HitscanWeapon target)
+        {
+            if (target == null) return;
+
+            // Порядок Awake между EnemyLoadout и EnemyAI не гарантирован, поэтому
+            // сначала снимаем подписку — иначе можно подписаться дважды и получить
+            // двойные триггеры анимации выстрела.
+            target.Fired -= OnWeaponFired;
+            target.ReloadStarted -= OnWeaponReloadStarted;
+
+            target.Fired += OnWeaponFired;
+            target.ReloadStarted += OnWeaponReloadStarted;
+        }
+
+        private void UnsubscribeWeapon(HitscanWeapon target)
+        {
+            if (target == null) return;
+            target.Fired -= OnWeaponFired;
+            target.ReloadStarted -= OnWeaponReloadStarted;
+        }
+
+        private void OnWeaponFired(Vector3 impactPoint)
+        {
+            if (animator != null) animator.SetTrigger(ShootHash);
+            if (voice != null) voice.PlayCombatChatter();
+        }
+
+        private void OnWeaponReloadStarted()
+        {
+            if (animator != null) animator.SetTrigger(ReloadHash);
+            if (voice != null) voice.PlayReload();
         }
 
         private void Update()
@@ -193,6 +296,7 @@ namespace FlameOfHistory.AI
             }
 
             UpdateAnimator();
+            UpdateVoiceFootsteps();
         }
 
         private void UpdatePerception()
@@ -320,19 +424,23 @@ namespace FlameOfHistory.AI
             return hit.transform == target || hit.transform.IsChildOf(target);
         }
 
+        // =====================================================================
+        // Патрулирование и прогулка
+        // =====================================================================
+
         private void UpdatePatrol()
         {
             if (patrolRoute == null || patrolRoute.Count == 0)
             {
                 if (wanderWhenNoRoute) UpdateWander();
-                else StopMoving();
+                else _motor.Stop();
                 return;
             }
 
             Transform point = patrolRoute.GetPoint(_patrolIndex);
             if (point == null) return;
 
-            _agent.speed = patrolSpeed;
+            _motor.SetSpeed(patrolSpeed);
 
             if (_waitingAtPoint)
             {
@@ -340,51 +448,66 @@ namespace FlameOfHistory.AI
                 {
                     _waitingAtPoint = false;
                     AdvancePatrolIndex();
-                    MoveTo(patrolRoute.GetPoint(_patrolIndex).position);
+
+                    Transform next = patrolRoute.GetPoint(_patrolIndex);
+                    if (next != null) MoveTo(next.position);
                 }
                 return;
             }
 
-            if (!_agent.pathPending && !_agent.hasPath)
-                MoveTo(point.position);
+            if (!_motor.HasDestination) MoveTo(point.position);
 
-            float flatDist = Vector3.Distance(
-                new Vector3(transform.position.x, 0f, transform.position.z),
-                new Vector3(point.position.x, 0f, point.position.z));
+            float flatDist = FlatDistance(transform.position, point.position);
 
-            if (!_agent.pathPending && flatDist <= pointReachRadius)
+            if (flatDist <= pointReachRadius || _motor.HasArrived())
             {
                 _waitingAtPoint = true;
                 _patrolWaitUntil = Time.time + pointWaitDuration;
-                StopMoving();
+                _motor.Stop();
             }
         }
 
         private void AdvancePatrolIndex()
         {
-            _patrolIndex = (_patrolIndex + 1) % patrolRoute.Count;
+            if (patrolRoute == null || patrolRoute.Count == 0) return;
+
+            int next = _patrolIndex + 1;
+
+            if (next >= patrolRoute.Count)
+                next = patrolRoute.Loop ? 0 : patrolRoute.Count - 1;
+
+            _patrolIndex = next;
         }
 
         private void UpdateWander()
         {
-            _agent.speed = patrolSpeed;
+            _motor.SetSpeed(patrolSpeed);
 
-            // Если агент достиг точки или остановлен – выбираем новую случайную точку
-            if (!_agent.pathPending && (!_agent.hasPath || HasReachedDestination()))
+            if (_motor.HasDestination && !_motor.HasArrived()) return;
+            if (Time.time < _nextWanderAttemptTime) return;
+
+            _nextWanderAttemptTime = Time.time + wanderRetryDelay;
+
+            // Несколько попыток: одиночная выборка часто попадает в стену или в себя.
+            for (int attempt = 0; attempt < 6; attempt++)
             {
-                Vector3 randomDirection = Random.insideUnitSphere * wanderRadius;
-                randomDirection += _homePosition;
+                Vector2 circle = Random.insideUnitCircle * wanderRadius;
+                Vector3 candidate = _homePosition + new Vector3(circle.x, 0f, circle.y);
 
-                if (NavMesh.SamplePosition(randomDirection, out NavMeshHit hit, wanderRadius, NavMesh.AllAreas))
-                {
-                    // Игнорируем слишком близкие точки, чтобы избежать "дрожания"
-                    if (Vector3.Distance(transform.position, hit.position) > pointReachRadius)
-                    {
-                        MoveTo(hit.position);
-                    }
-                }
+                if (!_motor.SampleReachablePoint(candidate, wanderRadius, out Vector3 point))
+                    continue;
+
+                if (FlatDistance(transform.position, point) <= pointReachRadius * 2f)
+                    continue;
+
+                MoveTo(point);
+                return;
             }
         }
+
+        // =====================================================================
+        // Настороженность и поиск
+        // =====================================================================
 
         private void UpdateAlert()
         {
@@ -394,27 +517,33 @@ namespace FlameOfHistory.AI
                 return;
             }
 
-            _agent.speed = chaseSpeed * 0.8f;
+            _motor.SetSpeed(chaseSpeed * 0.8f);
             RefreshDestination(_suspicionPoint);
 
-            if (HasReachedDestination())
+            if (_motor.HasArrived())
             {
                 _hasSuspicion = false;
                 _awareness = Mathf.Min(_awareness, 0.4f);
-                StopMoving();
+                _motor.Stop();
                 ChangeState(EnemyState.Search);
             }
         }
 
         private void UpdateSearch()
         {
-            _agent.speed = patrolSpeed;
-            StopMoving();
+            _motor.SetSpeed(patrolSpeed);
+            _motor.Stop();
+
+            // Осматриваемся на месте.
             transform.Rotate(0f, 90f * Time.deltaTime, 0f);
 
             if (_awareness <= 0.02f)
                 ChangeState(EnemyState.Patrol);
         }
+
+        // =====================================================================
+        // Преследование и бой
+        // =====================================================================
 
         private void UpdateChase()
         {
@@ -429,7 +558,7 @@ namespace FlameOfHistory.AI
                 return;
             }
 
-            _agent.speed = chaseSpeed;
+            _motor.SetSpeed(chaseSpeed);
             RefreshDestination(_lastKnownTargetPosition);
         }
 
@@ -447,12 +576,12 @@ namespace FlameOfHistory.AI
                 return;
             }
 
-            FaceTarget(_target.position);
+            _motor.FaceTowards(_target.position, Mathf.Lerp(1f, 0.5f, _suppression));
 
             bool moving;
             if (distance > preferredCombatDistance + combatRepositionDistance)
             {
-                _agent.speed = chaseSpeed;
+                _motor.SetSpeed(chaseSpeed);
                 RefreshDestination(_target.position);
                 moving = true;
             }
@@ -460,11 +589,11 @@ namespace FlameOfHistory.AI
                      _suppression > 0.6f)
             {
                 Vector3 away = (transform.position - _target.position).normalized;
-                moving = TryMoveToNearbyNavMeshPoint(transform.position + away * combatRepositionDistance);
+                moving = TryMoveToNearbyPoint(transform.position + away * combatRepositionDistance);
             }
             else
             {
-                StopMoving();
+                _motor.Stop();
                 moving = false;
             }
 
@@ -478,6 +607,9 @@ namespace FlameOfHistory.AI
 
             if (Time.time < _canFireAfter)
                 return;
+
+            // Дальше дистанции ствола стрелять бессмысленно — пуля не доедет.
+            if (distance > weapon.Range) return;
 
             if (weapon.AmmunitionInMagazine <= 0) { weapon.BeginReload(); return; }
 
@@ -512,6 +644,10 @@ namespace FlameOfHistory.AI
             return basePoint + right * circle.x + up * circle.y;
         }
 
+        // =====================================================================
+        // Отход
+        // =====================================================================
+
         private void BeginRetreat()
         {
             _retreatUntil = Time.time + retreatDuration;
@@ -528,19 +664,20 @@ namespace FlameOfHistory.AI
                 return;
             }
 
-            _agent.speed = retreatSpeed;
+            _motor.SetSpeed(retreatSpeed);
 
-            if (HasReachedDestination())
+            if (_motor.HasArrived())
                 SelectCoverOrRetreat();
 
             if (_target != null && CanSeeCurrentTarget() && Time.time >= _canFireAfter)
             {
-                FaceTarget(_target.position);
+                _motor.FaceTowards(_target.position);
+
                 if (weapon != null)
                 {
-                    Vector3 aim = ComputeAimPoint(
-                        Vector3.Distance(transform.position, _target.position), true);
-                    weapon.TryFire(aim, gameObject);
+                    float distance = Vector3.Distance(transform.position, _target.position);
+                    if (distance <= weapon.Range)
+                        weapon.TryFire(ComputeAimPoint(distance, true), gameObject);
                 }
             }
         }
@@ -550,6 +687,7 @@ namespace FlameOfHistory.AI
             Vector3 threat = _target != null ? _target.position : _lastKnownTargetPosition;
             Vector3 away = transform.position - threat;
             if (away.sqrMagnitude < 0.01f) away = -transform.forward;
+            away.y = 0f;
             away.Normalize();
 
             Vector3 bestCover = Vector3.zero;
@@ -561,34 +699,34 @@ namespace FlameOfHistory.AI
                                Random.Range(-retreatDistance * 0.6f, retreatDistance * 0.6f);
                 Vector3 candidate = transform.position + away * retreatDistance + side;
 
-                if (!NavMesh.SamplePosition(candidate, out NavMeshHit navHit, 6f, NavMesh.AllAreas))
+                if (!_motor.SampleReachablePoint(candidate, 6f, out Vector3 point))
                     continue;
 
                 Vector3 threatEye = threat + Vector3.up * 1.5f;
-                Vector3 coverEye = navHit.position + Vector3.up * 1.5f;
+                Vector3 coverEye = point + Vector3.up * 1.5f;
                 bool blocked = Physics.Linecast(threatEye, coverEye, visibilityMask,
                                                  QueryTriggerInteraction.Ignore);
 
                 if (blocked)
                 {
-                    bestCover = navHit.position;
+                    bestCover = point;
                     coverFound = true;
                     break;
                 }
 
-                if (!coverFound) { bestCover = navHit.position; coverFound = true; }
+                if (!coverFound) { bestCover = point; coverFound = true; }
             }
 
             if (coverFound) MoveTo(bestCover);
-            else StopMoving();
+            else _motor.Stop();
         }
 
         private void GoSearchLastKnown()
         {
-            _agent.speed = chaseSpeed;
+            _motor.SetSpeed(chaseSpeed);
             RefreshDestination(_lastKnownTargetPosition);
 
-            if (HasReachedDestination())
+            if (_motor.HasArrived())
             {
                 ClearTarget();
                 _firstSightAcquired = false;
@@ -652,76 +790,106 @@ namespace FlameOfHistory.AI
             return col != null ? col.bounds.center : target.position + Vector3.up * 1.4f;
         }
 
+        // =====================================================================
+        // Обёртки над мотором
+        // =====================================================================
+
         private void RefreshDestination(Vector3 destination)
         {
+            // Если цели ещё нет — ставим её немедленно, не дожидаясь интервала.
+            // Иначе состояние сразу видит HasArrived() == true (цели-то нет)
+            // и проскакивает дальше, так и не начав движение.
+            if (!_motor.HasDestination)
+            {
+                _nextPathRefreshTime = Time.time + pathRefreshInterval;
+                MoveTo(destination);
+                return;
+            }
+
             if (Time.time < _nextPathRefreshTime) return;
             _nextPathRefreshTime = Time.time + pathRefreshInterval;
             MoveTo(destination);
         }
 
-        private void MoveTo(Vector3 destination)
-        {
-            if (!_agent.enabled || !_agent.isOnNavMesh) return;
-            _agent.isStopped = false;
-            _agent.SetDestination(destination);
-        }
+        private void MoveTo(Vector3 destination) => _motor.MoveTo(destination);
 
-        private bool TryMoveToNearbyNavMeshPoint(Vector3 position)
+        private bool TryMoveToNearbyPoint(Vector3 position)
         {
-            if (!NavMesh.SamplePosition(position, out NavMeshHit hit, 6f, NavMesh.AllAreas))
+            if (!_motor.SampleReachablePoint(position, 6f, out Vector3 point))
                 return false;
-            MoveTo(hit.position);
+
+            MoveTo(point);
             return true;
         }
 
-        private void StopMoving()
+        private static float FlatDistance(Vector3 a, Vector3 b)
         {
-            if (!_agent.enabled || !_agent.isOnNavMesh) return;
-            _agent.isStopped = true;
-            _agent.ResetPath();
-        }
-
-        private bool HasReachedDestination()
-        {
-            if (!_agent.enabled || !_agent.isOnNavMesh || _agent.pathPending)
-                return false;
-
-            if (_agent.remainingDistance > _agent.stoppingDistance + 0.15f)
-                return false;
-
-            return !_agent.hasPath || _agent.velocity.sqrMagnitude < 0.05f;
-        }
-
-        private void FaceTarget(Vector3 targetPosition)
-        {
-            Vector3 dir = targetPosition - transform.position;
-            dir.y = 0f;
-            if (dir.sqrMagnitude < 0.001f) return;
-
-            Quaternion targetRot = Quaternion.LookRotation(dir);
-            float turnSpeed = Mathf.Lerp(10f, 5f, _suppression);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, turnSpeed * Time.deltaTime);
+            a.y = 0f;
+            b.y = 0f;
+            return Vector3.Distance(a, b);
         }
 
         private bool ShouldRetreat() =>
             _health.NormalizedHealth <= retreatHealthThreshold && _target != null;
 
+        // =====================================================================
+        // Состояния
+        // =====================================================================
+
         private void ChangeState(EnemyState newState)
         {
             if (State == EnemyState.Dead || State == newState) return;
+
+            EnemyState previous = State;
             State = newState;
 
             bool aiming = newState is EnemyState.Combat or EnemyState.Retreat;
             if (animator != null) animator.SetBool(IsAimingHash, aiming);
 
+            // Разворотом в бою управляем сами, вне боя — пусть его ведёт мотор
+            // по направлению движения.
+            _motor.SetAutoRotation(!aiming);
+
             switch (newState)
             {
-                case EnemyState.Patrol: _agent.speed = patrolSpeed; break;
+                case EnemyState.Patrol:
+                    _motor.SetSpeed(patrolSpeed);
+                    _waitingAtPoint = false;
+                    _nextWanderAttemptTime = 0f;
+                    if (previous is EnemyState.Search or EnemyState.Chase or EnemyState.Combat)
+                        if (voice != null) voice.PlayLostTarget();
+                    break;
+
                 case EnemyState.Alert:
-                case EnemyState.Chase: _agent.speed = chaseSpeed; break;
-                case EnemyState.Retreat: _agent.speed = retreatSpeed; break;
+                    _motor.SetSpeed(chaseSpeed * 0.8f);
+                    if (previous == EnemyState.Patrol && voice != null) voice.PlayAlert();
+                    break;
+
+                case EnemyState.Search:
+                    _motor.SetSpeed(patrolSpeed);
+                    break;
+
+                case EnemyState.Chase:
+                    _motor.SetSpeed(chaseSpeed);
+                    if (previous is EnemyState.Patrol or EnemyState.Alert or EnemyState.Search)
+                        if (voice != null) voice.PlaySpotted();
+                    break;
+
+                case EnemyState.Combat:
+                    if (previous is EnemyState.Patrol or EnemyState.Alert or EnemyState.Search)
+                        if (voice != null) voice.PlaySpotted();
+                    break;
+
+                case EnemyState.Retreat:
+                    _motor.SetSpeed(retreatSpeed);
+                    if (voice != null) voice.PlayRetreat();
+                    break;
             }
         }
+
+        // =====================================================================
+        // Реакции
+        // =====================================================================
 
         private void OnNoiseCreated(NoiseSystem.Noise noise)
         {
@@ -732,6 +900,9 @@ namespace FlameOfHistory.AI
 
             if (noise.Source != null)
             {
+                // Свои крики и шаги игнорируем полностью.
+                if (noise.Source.transform.root == transform.root) return;
+
                 var srcHealth = noise.Source.GetComponentInParent<CharacterHealth>();
                 if (srcHealth != null && srcHealth.Team == _health.Team) return;
             }
@@ -754,6 +925,12 @@ namespace FlameOfHistory.AI
         private void OnDamaged(DamageInfo damage)
         {
             _suppression = Mathf.Min(1f, _suppression + (damage.IsSuppression ? 0.5f : 0.35f));
+
+            if (!damage.IsSuppression)
+            {
+                if (voice != null) voice.PlayPain();
+                if (animator != null) animator.SetTrigger(HitHash);
+            }
 
             if (damage.Attacker != null)
             {
@@ -781,29 +958,57 @@ namespace FlameOfHistory.AI
         private void OnDied(DamageInfo damage)
         {
             State = EnemyState.Dead;
-            StopMoving();
 
-            if (weapon != null) { weapon.CancelReload(); weapon.enabled = false; }
+            if (voice != null) voice.PlayDeath();
+
+            // Оружие выпадает из рук (если есть EnemyLoadout), иначе просто глохнет.
+            if (loadout != null) loadout.HandleOwnerDeath();
+            else if (weapon != null)
+            {
+                weapon.CancelReload();
+                weapon.enabled = false;
+            }
+
+            UnsubscribeWeapon(weapon);
 
             if (animator != null)
             {
                 animator.SetBool(IsAimingHash, false);
+                animator.SetBool(IsMovingHash, false);
+                animator.SetFloat(SpeedHash, 0f);
                 animator.SetTrigger(DieHash);
             }
 
-            _agent.enabled = false;
+            _motor.Disable();
 
             foreach (Collider c in GetComponentsInChildren<Collider>())
                 c.enabled = false;
 
+            if (corpseLifetime > 0f) Destroy(gameObject, corpseLifetime);
+
             enabled = false;
         }
+
+        // =====================================================================
+        // Анимация и звук движения
+        // =====================================================================
 
         private void UpdateAnimator()
         {
             if (animator == null) return;
-            float speed = _agent.enabled ? _agent.velocity.magnitude : 0f;
+
+            float speed = _motor.CurrentSpeed;
             animator.SetFloat(SpeedHash, speed, 0.15f, Time.deltaTime);
+            animator.SetBool(IsMovingHash, speed > 0.2f);
+        }
+
+        private void UpdateVoiceFootsteps()
+        {
+            if (voice == null) return;
+
+            Vector3 velocity = _motor.Velocity;
+            velocity.y = 0f;
+            voice.UpdateFootsteps(velocity.magnitude, _motor.IsGrounded);
         }
 
         private void OnDisable()
@@ -814,6 +1019,7 @@ namespace FlameOfHistory.AI
                 _health.Died -= OnDied;
             }
             NoiseSystem.NoiseCreated -= OnNoiseCreated;
+            UnsubscribeWeapon(weapon);
         }
 
 #if UNITY_EDITOR
@@ -831,6 +1037,13 @@ namespace FlameOfHistory.AI
             Gizmos.color = Color.yellow;
             Gizmos.DrawRay(origin.position, left * viewDistance);
             Gizmos.DrawRay(origin.position, right * viewDistance);
+
+            if (wanderWhenNoRoute && (patrolRoute == null || patrolRoute.Count == 0))
+            {
+                Vector3 center = Application.isPlaying ? _homePosition : transform.position;
+                Gizmos.color = new Color(0.3f, 0.8f, 1f, 0.35f);
+                Gizmos.DrawWireSphere(center, wanderRadius);
+            }
 
             if (Application.isPlaying && _target != null)
             {

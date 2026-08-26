@@ -44,6 +44,30 @@ public sealed class HitscanWeapon : MonoBehaviour
     public bool HasAmmunition => AmmunitionInMagazine > 0 || _reserve > 0;
     public bool NeedsReload => AmmunitionInMagazine <= 0 && _reserve > 0;
 
+    /// <summary>Задано ли дуло. Нужно EnemyLoadout, чтобы не перетирать ручную настройку.</summary>
+    public bool HasMuzzle => muzzle != null;
+
+    /// <summary>Задан ли источник звука.</summary>
+    public bool HasAudioSource => audioSource != null;
+
+    /// <summary>Мировая позиция дула (или самого объекта, если дуло не задано).</summary>
+    public Vector3 MuzzlePosition => muzzle != null ? muzzle.position : transform.position;
+
+    /// <summary>Направление ствола.</summary>
+    public Vector3 MuzzleForward => muzzle != null ? muzzle.forward : transform.forward;
+
+    /// <summary>Дальность стрельбы — ИИ по ней решает, стоит ли вообще открывать огонь.</summary>
+    public float Range => range;
+
+    /// <summary>Сработал выстрел. Аргумент — точка, куда пришлась пуля.</summary>
+    public event System.Action<Vector3> Fired;
+
+    /// <summary>Началась перезарядка — по ней ИИ кричит «Перезаряжаюсь!».</summary>
+    public event System.Action ReloadStarted;
+
+    /// <summary>Перезарядка закончена.</summary>
+    public event System.Action ReloadFinished;
+
     private int _reserve;
     private float _nextShotTime;
     private Coroutine _reloadRoutine;
@@ -54,6 +78,25 @@ public sealed class HitscanWeapon : MonoBehaviour
 
     private void Awake()  => ResetAmmo();
     private void OnEnable() { if (AmmunitionInMagazine <= 0 && _reserve <= 0) ResetAmmo(); }
+
+    /// <summary>Назначить дуло в рантайме (используется EnemyLoadout).</summary>
+    public void SetMuzzle(Transform muzzleTransform)
+    {
+        if (muzzleTransform != null) muzzle = muzzleTransform;
+    }
+
+    /// <summary>Назначить источник звука в рантайме.</summary>
+    public void SetAudioSource(AudioSource source)
+    {
+        if (source != null) audioSource = source;
+    }
+
+    /// <summary>Подменить звуки выстрела и перезарядки (разное оружие — разный звук).</summary>
+    public void SetSounds(AudioClip shot, AudioClip reload)
+    {
+        if (shot != null) shotSound = shot;
+        if (reload != null) reloadSound = reload;
+    }
 
     public void ResetAmmo()
     {
@@ -84,8 +127,13 @@ public sealed class HitscanWeapon : MonoBehaviour
         AmmunitionInMagazine--;
         _nextShotTime = Time.time + ShotInterval;
 
-        Vector3 origin = muzzle.position;
-        Vector3 direction = ApplySpread((targetPoint - origin).normalized);
+        // Дуло может быть не назначено (модель без сокета) — тогда стреляем
+        // от самого объекта оружия, вместо падения с NullReferenceException.
+        Vector3 origin = MuzzlePosition;
+        Vector3 toTarget = targetPoint - origin;
+        Vector3 direction = toTarget.sqrMagnitude > 0.0001f
+            ? ApplySpread(toTarget.normalized)
+            : ApplySpread(MuzzleForward);
         origin += direction * 0.35f;
 
         muzzleFlash?.Play();
@@ -93,7 +141,7 @@ public sealed class HitscanWeapon : MonoBehaviour
         if (audioSource != null && shotSound != null)
             audioSource.PlayOneShot(shotSound);
 
-        NoiseSystem.Emit(muzzle.position, shotNoiseRadius, owner, 1f);
+        NoiseSystem.Emit(MuzzlePosition, shotNoiseRadius, owner, 1f);
 
         Vector3 endPoint = origin + direction * range;
         bool hitSomething = false;
@@ -121,6 +169,8 @@ public sealed class HitscanWeapon : MonoBehaviour
         // Оповещаем о пролёте пули (для whizz игроку и подавления врагам).
         ProjectilePass.Emit(new ProjectilePass.Shot(
             origin, endPoint, owner, _ownerTeam, hitSomething));
+
+        Fired?.Invoke(endPoint);
 
         if (AmmunitionInMagazine == 0)
             BeginReload();
@@ -156,6 +206,7 @@ public sealed class HitscanWeapon : MonoBehaviour
     private IEnumerator ReloadRoutine()
     {
         IsReloading = true;
+        ReloadStarted?.Invoke();
 
         if (audioSource != null && reloadSound != null)
             audioSource.PlayOneShot(reloadSound);
@@ -170,6 +221,7 @@ public sealed class HitscanWeapon : MonoBehaviour
 
         IsReloading = false;
         _reloadRoutine = null;
+        ReloadFinished?.Invoke();
     }
 
     private Vector3 ApplySpread(Vector3 direction)
@@ -189,9 +241,8 @@ public sealed class HitscanWeapon : MonoBehaviour
 #if UNITY_EDITOR
     private void OnDrawGizmosSelected()
     {
-        if (muzzle == null) return;
         Gizmos.color = Color.red;
-        Gizmos.DrawRay(muzzle.position, muzzle.forward * range);
+        Gizmos.DrawRay(MuzzlePosition, MuzzleForward * range);
     }
 #endif
 }

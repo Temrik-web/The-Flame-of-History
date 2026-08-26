@@ -3,17 +3,27 @@ using UnityEngine;
 using UnityEngine.AI;
 using FlameOfHistory.AI;
 
+// ВАЖНО: в проекте есть второй, старый класс EnemyAI в глобальном пространстве имён
+// (Assets/Scripts/Wep/Enemyai.cs). Правила C# отдают приоритет типу из глобального
+// namespace перед типом из using-директивы, поэтому без псевдонима мастер молча
+// работал бы со старым ИИ и не находил бы его поля. Псевдонимы фиксируют,
+// что настраивается именно боевая система из папки AI.
+using CombatEnemyAI = FlameOfHistory.AI.EnemyAI;
+using CombatTeam = FlameOfHistory.AI.Team;
+
 /// <summary>
 /// Мастер быстрого создания и настройки врага для боевой системы (папка AI).
 /// Меню: Tools -> Враги.
 ///
 /// Что делает:
 /// 1) Создаёт префаб врага Assets/GameData/Prefabs/Enemy.prefab с полным набором
-///    компонентов (NavMeshAgent, CharacterHealth, EnemyAI, HitscanWeapon, SuppressionReceiver).
+///    компонентов (NavMeshAgent, EnemyMotor, CharacterHealth, EnemyAI,
+///    EnemyVoice, EnemyLoadout, HitscanWeapon, SuppressionReceiver).
 /// 2) Размещает «эталонного» врага перед игроком — его удобно брать для клонирования
 ///    (Ctrl+D) и расстановки по уровню.
 /// 3) Настраивает игрока: вешает CameraShake и SuppressionReceiver на камеру,
 ///    чтобы работал свист пуль и тряска.
+/// 4) Доукомплектовывает уже расставленных на сцене врагов новыми компонентами.
 ///
 /// Сторонние скрипты не трогает — только читает сцену, чтобы найти игрока.
 /// </summary>
@@ -92,7 +102,9 @@ public static class EnemySetupWizard
         if (NavMesh.SamplePosition(spawnPos, out NavMeshHit navHit, 8f, NavMesh.AllAreas))
             spawnPos = navHit.position;
         else
-            Debug.LogWarning("[EnemySetup] NavMesh рядом не найден. Запеки NavMesh, иначе враг не будет двигаться.");
+            Debug.Log("[EnemySetup] NavMesh рядом не найден. Враг будет ходить в режиме " +
+                      "EnemyMotor.Fallback (по коллайдерам земли). Для полноценной навигации " +
+                      "с обходом препятствий запеки NavMesh.");
 
         GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
         instance.name = EnemyTemplateName;
@@ -138,9 +150,10 @@ public static class EnemySetupWizard
 
         GameObject camGo = cam.gameObject;
 
-        // CameraShake
+        // CameraShake — тряска камеры. SuppressionReceiver её намеренно не вызывает
+        // (там только звук), но компонент нужен другим системам и настраивается тут же.
         CameraShake shake = camGo.GetComponent<CameraShake>();
-        if (shake == null) shake = Undo.AddComponent<CameraShake>(camGo);
+        if (shake == null) Undo.AddComponent<CameraShake>(camGo);
 
         // AudioSource под свист
         AudioSource whizz = camGo.GetComponent<AudioSource>();
@@ -155,7 +168,6 @@ public static class EnemySetupWizard
         var so = new SerializedObject(receiver);
         so.FindProperty("isPlayer").boolValue = true;
         so.FindProperty("nearMissRadius").floatValue = 2.5f;
-        so.FindProperty("cameraShake").objectReferenceValue = shake;
         so.FindProperty("whizzSource").objectReferenceValue = whizz;
         so.ApplyModifiedProperties();
 
@@ -177,6 +189,67 @@ public static class EnemySetupWizard
     }
 
     // =====================================================================
+    // 4. Доукомплектовать врагов на сцене
+    // =====================================================================
+    [MenuItem("Tools/Враги/Обновить врагов на сцене (ходьба + звуки + оружие)", false, 21)]
+    public static void UpgradeSceneEnemies()
+    {
+        CombatEnemyAI[] enemies = Object.FindObjectsOfType<CombatEnemyAI>(true);
+        if (enemies.Length == 0)
+        {
+            EditorUtility.DisplayDialog("Обновление врагов",
+                "На активных сценах не найдено ни одного EnemyAI.", "Ок");
+            return;
+        }
+
+        int upgraded = 0;
+
+        foreach (CombatEnemyAI ai in enemies)
+        {
+            GameObject go = ai.gameObject;
+            bool changed = false;
+
+            if (go.GetComponent<NavMeshAgent>() == null)
+            {
+                ConfigureAgent(Undo.AddComponent<NavMeshAgent>(go));
+                changed = true;
+            }
+
+            if (go.GetComponent<EnemyMotor>() == null)
+            {
+                ConfigureMotor(Undo.AddComponent<EnemyMotor>(go), go.layer);
+                changed = true;
+            }
+
+            if (go.GetComponent<EnemyVoice>() == null)
+            {
+                Undo.AddComponent<EnemyVoice>(go);
+                changed = true;
+            }
+
+            if (go.GetComponent<EnemyLoadout>() == null)
+            {
+                Undo.AddComponent<EnemyLoadout>(go);
+                changed = true;
+            }
+
+            if (changed)
+            {
+                upgraded++;
+                EditorUtility.SetDirty(go);
+            }
+        }
+
+        Debug.Log($"[EnemySetup] Обновлено врагов: {upgraded} из {enemies.Length}.");
+        EditorUtility.DisplayDialog("Обновление врагов",
+            $"Найдено врагов: {enemies.Length}\nДобавлены недостающие компоненты: {upgraded}\n\n" +
+            "Осталось вручную:\n" +
+            "  • закинуть звуки в EnemyVoice (крики, боль, смерть, шаги)\n" +
+            "  • указать префаб оружия в EnemyLoadout → Weapon Prefab",
+            "Ок");
+    }
+
+    // =====================================================================
     // Построение объекта врага со всеми компонентами
     // =====================================================================
     private static GameObject BuildEnemyObject()
@@ -190,18 +263,15 @@ public static class EnemySetupWizard
         if (charLayer >= 0) root.layer = charLayer;
 
         // --- NavMeshAgent ---
-        NavMeshAgent agent = root.AddComponent<NavMeshAgent>();
-        agent.speed = 4.2f;
-        agent.angularSpeed = 720f;
-        agent.acceleration = 12f;
-        agent.stoppingDistance = 1.2f;
-        agent.radius = 0.4f;
-        agent.height = 2f;
+        ConfigureAgent(root.AddComponent<NavMeshAgent>());
+
+        // --- EnemyMotor (ходьба: NavMesh + режим без навмеша) ---
+        ConfigureMotor(root.AddComponent<EnemyMotor>(), root.layer);
 
         // --- CharacterHealth (Team.Axis) ---
         CharacterHealth health = root.AddComponent<CharacterHealth>();
         var healthSo = new SerializedObject(health);
-        healthSo.FindProperty("team").enumValueIndex = (int)Team.Axis;
+        healthSo.FindProperty("team").enumValueIndex = (int)CombatTeam.Axis;
         healthSo.FindProperty("maximumHealth").floatValue = 100f;
         healthSo.ApplyModifiedProperties();
 
@@ -229,12 +299,16 @@ public static class EnemySetupWizard
         weaponSo.FindProperty("audioSource").objectReferenceValue = weaponAudio;
         weaponSo.ApplyModifiedProperties();
 
+        // --- Голос: крики, боль, смерть, шаги ---
+        EnemyVoice voice = root.AddComponent<EnemyVoice>();
+
         // --- EnemyAI ---
-        EnemyAI ai = root.AddComponent<EnemyAI>();
+        CombatEnemyAI ai = root.AddComponent<CombatEnemyAI>();
         var aiSo = new SerializedObject(ai);
         aiSo.FindProperty("eyePoint").objectReferenceValue = eye.transform;
         aiSo.FindProperty("weapon").objectReferenceValue = weapon;
-        aiSo.FindProperty("enemyTeam").enumValueIndex = (int)Team.Allies;
+        aiSo.FindProperty("voice").objectReferenceValue = voice;
+        aiSo.FindProperty("enemyTeam").enumValueIndex = (int)CombatTeam.Allies;
 
         // targetMask -> Characters, если слой есть; иначе Everything
         SerializedProperty targetMask = aiSo.FindProperty("targetMask");
@@ -242,6 +316,12 @@ public static class EnemySetupWizard
 
         aiSo.FindProperty("visibilityMask").intValue = ~0;
         aiSo.ApplyModifiedProperties();
+
+        // --- Выдача оружия в руки ---
+        // existingWeapon/handSocket намеренно не проставляем: EnemyLoadout сам найдёт
+        // уже стоящее в иерархии оружие и не собьёт его локальную позицию.
+        // Чтобы выдать врагу модельное оружие — укажи префаб в поле Weapon Prefab.
+        root.AddComponent<EnemyLoadout>();
 
         // --- SuppressionReceiver (враг) ---
         SuppressionReceiver receiver = root.AddComponent<SuppressionReceiver>();
@@ -252,6 +332,34 @@ public static class EnemySetupWizard
         recSo.ApplyModifiedProperties();
 
         return root;
+    }
+
+    private static void ConfigureAgent(NavMeshAgent agent)
+    {
+        agent.speed = 4.2f;
+        agent.angularSpeed = 720f;
+        agent.acceleration = 12f;
+        agent.stoppingDistance = 1.2f;
+        agent.radius = 0.4f;
+        agent.height = 2f;
+    }
+
+    private static void ConfigureMotor(EnemyMotor motor, int ownerLayer)
+    {
+        var so = new SerializedObject(motor);
+
+        so.FindProperty("allowFallbackMovement").boolValue = true;
+        so.FindProperty("arriveRadius").floatValue = 1.2f;
+        so.FindProperty("bodyRadius").floatValue = 0.4f;
+        so.FindProperty("groundOffset").floatValue = 1f; // половина высоты капсулы
+
+        // Землёй и препятствиями считаем всё, кроме слоя самих персонажей —
+        // иначе враги «спотыкаются» друг о друга и о собственные коллайдеры.
+        int exclude = ownerLayer >= 0 ? ~(1 << ownerLayer) : ~0;
+        so.FindProperty("groundMask").intValue = exclude;
+        so.FindProperty("obstacleMask").intValue = exclude;
+
+        so.ApplyModifiedProperties();
     }
 
     // =====================================================================
