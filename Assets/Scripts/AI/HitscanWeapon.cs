@@ -136,7 +136,7 @@ public sealed class HitscanWeapon : MonoBehaviour
             : ApplySpread(MuzzleForward);
         origin += direction * 0.35f;
 
-        muzzleFlash?.Play();
+        //muzzleFlash?.Play();   Пофикси ебаную остановку проекта!
 
         if (audioSource != null && shotSound != null)
             audioSource.PlayOneShot(shotSound);

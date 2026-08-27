@@ -13,17 +13,17 @@ ModelImporter:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
       name: T_Bag_01_Albedo
-    second: {fileID: 2800000, guid: 021aff1bfec127a488c6ecdc2cf38d8e, type: 3}
+    second: {fileID: 2800000, guid: 060e653cac6703b4e918d071e7bb8da7, type: 3}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
       name: T_Bag_01_MetallicSmoothness_Raw
-    second: {fileID: 2800000, guid: b2ee0e0474050544ca9434ea74ca3a28, type: 3}
+    second: {fileID: 2800000, guid: 11952f7d0c440244594eb79ebf8d2f5b, type: 3}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
       name: T_Bag_01_Normal
-    second: {fileID: 2800000, guid: 4efcd8fdb48a9e34c9aae33499847ae6, type: 3}
+    second: {fileID: 2800000, guid: 651ce265322bf4544a1434ce9959db50, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0

@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: d463197cebccf6e4fa6161d8384b66ed
+guid: d9f180f4b8e174a498ffbe00fba85b59
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -7,28 +7,43 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: Treasure Chest
-    second: {fileID: 2100000, guid: c3cf1d60e198bfa418835d59dac85076, type: 2}
+      name: Material
+    second: {fileID: 2100000, guid: 80cb8dc7200ec8e4dbb6bf118b6995e8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Material.001
+    second: {fileID: 2100000, guid: 432622e656441c24296dbe5f5c753f90, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Material.002
+    second: {fileID: 2100000, guid: fea522edeab6b0e45b558d2370497f24, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Material.003
+    second: {fileID: 2100000, guid: 88eeee8ce6bc8b54980b67a6ab243aa8, type: 2}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
-      name: Treasure Chest_Base_Color
-    second: {fileID: 2800000, guid: 5ccad23f25a770f478d513fa12783bde, type: 3}
+      name: DefaultMaterial_albedo
+    second: {fileID: 2800000, guid: 06b60b0037a42794289f75ccafc68da5, type: 3}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
-      name: Treasure Chest_Metallic
-    second: {fileID: 2800000, guid: 6e5134c752552814aa0ddc65cb81d173, type: 3}
+      name: DefaultMaterial_metallic
+    second: {fileID: 2800000, guid: 94c3c9270b6068e4d96eb4b0303e87b0, type: 3}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
-      name: Treasure Chest_Normal_OpenGL
-    second: {fileID: 2800000, guid: a1671275abf3b4042ba802787577335c, type: 3}
+      name: DefaultMaterial_normal
+    second: {fileID: 2800000, guid: 21633c7263f0f434891cc6d36592a2bc, type: 3}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
-      name: Treasure Chest_Roughness
-    second: {fileID: 2800000, guid: 0ce671170429c0a479987e50da97bef6, type: 3}
+      name: DefaultMaterial_roughness
+    second: {fileID: 2800000, guid: 0e50402093d28184e918d4a7c9a4be4d, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -60,7 +75,7 @@ ModelImporter:
     isReadable: 0
   meshes:
     lODScreenPercentages: []
-    globalScale: 0.2
+    globalScale: 1
     meshCompression: 0
     addColliders: 0
     useSRGBMaterialColor: 1
@@ -115,7 +130,7 @@ ModelImporter:
     armStretch: 0.05
     legStretch: 0.05
     feetSpacing: 0
-    globalScale: 0.002
+    globalScale: 1
     rootMotionBoneName: 
     hasTranslationDoF: 0
     hasExtraRoot: 0

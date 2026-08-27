@@ -5,8 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8ca32e3b-c2c8-42b6-a053-5a2e868378da" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/Assets/Models/Ppsh-41(High poly)/Material.001.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Models/Ppsh-41(High poly)/Material.001.mat" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Models/Ppsh-41/Material.001.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Models/Ppsh-41/Material.001.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.The Flame of History/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.The Flame of History/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/AI/HitscanWeapon.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/AI/HitscanWeapon.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
