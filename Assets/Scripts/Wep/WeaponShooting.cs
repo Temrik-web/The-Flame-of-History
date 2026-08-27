@@ -112,13 +112,43 @@ public class WeaponShooting : MonoBehaviour
                 Destroy(impact, 2f);
             }
 
-            // Когда сделаешь систему здоровья у врагов, раскомментируй:
-            // Health targetHealth = hit.collider.GetComponent<Health>();
-            // if (targetHealth != null) targetHealth.TakeDamage(damage);
+            ApplyDamage(hit, rayDirection);
         }
         else
         {
             Debug.Log("[WeaponShooting] Промах (луч ни во что не попал)");
+        }
+    }
+
+    /// <summary>
+    /// Нанести урон цели. Поддерживаются оба интерфейса урона проекта:
+    /// боевой FlameOfHistory.AI.IDamageable (враги на CharacterHealth) и
+    /// простой глобальный IDamageable (его реализуют Enemy и PlayerHealth).
+    /// GetComponentInParent, а не GetComponent: коллайдер попадания обычно
+    /// висит на дочерней кости, а здоровье — на корне персонажа.
+    /// </summary>
+    void ApplyDamage(RaycastHit hit, Vector3 direction)
+    {
+        Collider col = hit.collider;
+        if (col == null) return;
+
+        var aiTarget = col.GetComponentInParent<FlameOfHistory.AI.IDamageable>();
+        if (aiTarget != null)
+        {
+            if (!aiTarget.IsAlive) return;
+
+            aiTarget.TakeDamage(new FlameOfHistory.AI.DamageInfo(
+                damage, hit.point, direction, gameObject));
+
+            Debug.Log($"[WeaponShooting] {col.name} получил {damage} урона.");
+            return;
+        }
+
+        var simpleTarget = col.GetComponentInParent<IDamageable>();
+        if (simpleTarget != null)
+        {
+            simpleTarget.TakeDamage(damage, transform.position);
+            Debug.Log($"[WeaponShooting] {col.name} получил {damage} урона.");
         }
     }
 

@@ -4,12 +4,15 @@ using UnityEngine;
 /// Маркер оружия в сцене, которое можно взять в руки.
 /// Вешается на объект модели: Ppsh-41(GR), Rgd-33(GR), Knife и т.д.
 ///
-/// Сам ничего не делает — только объявляет свой id и умеет
-/// показываться/скрываться. Переключением занимается WeaponSlotManager.
+/// Сам ничего не делает — только объявляет свой id, умеет
+/// показываться/скрываться и следит, чтобы модель действительно висела
+/// в руках. Переключением занимается WeaponSlotManager.
 ///
 /// Важно: все такие объекты должны быть детьми одного держателя
 /// (например, WeaponHolder под камерой) и иметь корректные локальные
 /// позицию/поворот/масштаб — они не меняются при переключении.
+/// Для предметов с HeldItem (нож, граната) держатель находится и
+/// назначается автоматически: см. Attach To Holder On Start.
 /// </summary>
 [DisallowMultipleComponent]
 public class EquippableWeapon : MonoBehaviour
@@ -27,8 +30,14 @@ public class EquippableWeapon : MonoBehaviour
              "Если ни одно не помечено — руки будут пустыми.")]
     public bool equippedOnStart = false;
 
+    [Header("Держатель")]
+    [Tooltip("Перецепить модель в руки при старте, если у неё есть HeldItem " +
+             "(нож, граната). Лечит случай, когда предмет лежит в мире " +
+             "вместо рук игрока.")]
+    public bool attachToHolderOnStart = true;
+
     [Header("Скрипты оружия")]
-    [Tooltip("Скрипты, которые включаются вместе с моделью (Wep, WeaponShooting и т.п.). " +
+    [Tooltip("Скрипты, которые включаются вместе с моделью (Wep, HeldItem, WeaponShooting и т.п.). " +
              "Пусто — соберутся автоматически с этого объекта и его детей.")]
     public MonoBehaviour[] weaponScripts;
 
@@ -47,6 +56,10 @@ public class EquippableWeapon : MonoBehaviour
 
         if (weaponScripts == null || weaponScripts.Length == 0)
             weaponScripts = CollectOwnScripts();
+        else
+            weaponScripts = MergeMissingScripts(weaponScripts);
+
+        if (attachToHolderOnStart) AttachHeldItems();
     }
 
     /// <summary>
@@ -60,10 +73,42 @@ public class EquippableWeapon : MonoBehaviour
         foreach (MonoBehaviour mb in GetComponentsInChildren<MonoBehaviour>(true))
         {
             if (mb == null || mb == this) continue;
-            if (mb is Wep || mb is WeaponShooting) found.Add(mb);
+            if (IsWeaponScript(mb)) found.Add(mb);
         }
 
         return found.ToArray();
+    }
+
+    /// <summary>
+    /// Дополнить вручную заданный список скриптами, которых в нём нет.
+    /// Нужно для уже настроенных сцен: там в weaponScripts лежит один Wep,
+    /// а добавленный позже HeldItem иначе остался бы всегда включённым
+    /// и предмет управлялся бы даже спрятанным.
+    /// </summary>
+    MonoBehaviour[] MergeMissingScripts(MonoBehaviour[] existing)
+    {
+        var result = new System.Collections.Generic.List<MonoBehaviour>(existing);
+
+        foreach (MonoBehaviour mb in GetComponentsInChildren<MonoBehaviour>(true))
+        {
+            if (mb == null || mb == this) continue;
+            if (!IsWeaponScript(mb)) continue;
+            if (result.Contains(mb)) continue;
+
+            result.Add(mb);
+        }
+
+        return result.ToArray();
+    }
+
+    static bool IsWeaponScript(MonoBehaviour mb) =>
+        mb is Wep || mb is WeaponShooting || mb is HeldItem;
+
+    /// <summary>Поставить модель в руки: HeldItem сам знает свой держатель и позу.</summary>
+    void AttachHeldItems()
+    {
+        foreach (HeldItem held in GetComponentsInChildren<HeldItem>(true))
+            if (held != null) held.AttachToHolder();
     }
 
     /// <summary>Показать или спрятать оружие вместе с его скриптами.</summary>

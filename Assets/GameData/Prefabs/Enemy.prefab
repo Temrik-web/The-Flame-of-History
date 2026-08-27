@@ -320,6 +320,10 @@ MonoBehaviour:
   dropImpulse: 1.6
   dropLifetime: 30
   dropMass: 3.5
+  dropGravityDelay: 0.5
+  dropGroundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
   equipSound: {fileID: 0}
 --- !u!114 &4719919999980490642
 MonoBehaviour:

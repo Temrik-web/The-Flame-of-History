@@ -66,6 +66,24 @@ namespace FlameOfHistory.AI
         [Tooltip("Масса выброшенного оружия.")]
         [SerializeField, Min(0.1f)] private float dropMass = 3.5f;
 
+        [Tooltip("Пауза перед включением гравитации. В момент смерти оружие ещё стоит " +
+                 "внутри коллайдера тела и пола — мгновенная физика выталкивает его " +
+                 "под землю. Пауза даёт кадры на выход из чужой геометрии.")]
+        [SerializeField, Min(0f)] private float dropGravityDelay = 0.5f;
+
+        [Tooltip("Слои пола, по которым выброшенное оружие проверяет, не провалилось ли оно.")]
+        [SerializeField] private LayerMask dropGroundMask = ~0;
+
+        [Tooltip("Объект, который выпадает при смерти (например, DropMp40 с правильным " +
+                 "коллайдером). Если задан — роняется он, а не оружие из рук.")]
+        [SerializeField] private GameObject dropObject;
+
+        [Header("Коллайдер выпавшего оружия")]
+        [Tooltip("Центр BoxCollider у выпавшего оружия (в локальных координатах объекта).")]
+        [SerializeField] private Vector3 droppedColliderCenter = new(-2.402877f, 1.935332f, 0.03047342f);
+        [Tooltip("Размер BoxCollider у выпавшего оружия (в локальных координатах объекта).")]
+        [SerializeField] private Vector3 droppedColliderSize = new(12.5f, 4.2f, 0.7f);
+
         [Header("Звук экипировки")]
         [SerializeField] private AudioClip equipSound;
 
@@ -77,6 +95,7 @@ namespace FlameOfHistory.AI
 
         private EnemyVoice _voice;
         private GameObject _spawnedWeaponRoot;
+        private bool _weaponDropped;
 
         private void Awake()
         {
@@ -328,6 +347,10 @@ namespace FlameOfHistory.AI
 
         /// <summary>
         /// Вызывается EnemyAI при смерти: оружие выпадает из рук и падает на землю.
+        ///
+        /// Гравитация включается не сразу, а через dropGravityDelay: в кадре смерти
+        /// оружие ещё сидит внутри коллайдера тела, и включённая физика выталкивает
+        /// его сквозь пол. Задержку оружие проводит kinematic, зависнув в воздухе.
         /// </summary>
         public void HandleOwnerDeath()
         {
@@ -340,10 +363,112 @@ namespace FlameOfHistory.AI
             if (!dropWeaponOnDeath) return;
 
             Transform weaponRoot = weapon.transform;
+
+            if (dropObject != null)
+            {
+                SpawnDropObject(weaponRoot);
+                _spawnedWeaponRoot = null;
+                Weapon = null;
+                _weaponDropped = true;
+                return;
+            }
+
+            weaponRoot.SetParent(null, true);
+
+            // Коллайдеры в руках были выключены (disableWeaponColliders) —
+            // без них оружие пролетело бы сквозь пол независимо от гравитации
+            bool hasCollider = false;
+            foreach (Collider collider in weaponRoot.GetComponentsInChildren<Collider>(true))
+            {
+                collider.enabled = true;
+                collider.isTrigger = false;   // триггер физику не останавливает
+                hasCollider = true;
+            }
+
+            if (!hasCollider) hasCollider = AddFallbackCollider(weaponRoot.gameObject);
+
+            var body = weaponRoot.GetComponent<Rigidbody>();
+            if (body == null) body = weaponRoot.gameObject.AddComponent<Rigidbody>();
+
+            body.mass = dropMass;
+            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            body.interpolation = RigidbodyInterpolation.Interpolate;
+
+            // Слой врага исключён из рейкастов зрения, но оружие на нём
+            // может не сталкиваться с полом. Возвращаем на Default.
+            if (matchOwnerLayer)
+                foreach (Transform child in weaponRoot.GetComponentsInChildren<Transform>(true))
+                    child.gameObject.layer = 0;
+
+            if (!hasCollider)
+            {
+                Debug.LogWarning($"[EnemyLoadout] {name}: у выброшенного оружия нет ни одного " +
+                                 "коллайдера — оно провалится под пол. Добавь коллайдер на префаб оружия.",
+                                 this);
+            }
+
+            var dropper = weaponRoot.gameObject.AddComponent<DroppedWeapon>();
+            dropper.Initialize(
+                gravityDelay: dropGravityDelay,
+                launchVelocity: (transform.forward * 0.4f + Vector3.up) * dropImpulse,
+                spin: Random.insideUnitSphere * 3f,
+                groundMask: dropGroundMask,
+                lifetime: dropLifetime);
+
+            _spawnedWeaponRoot = null;
+            Weapon = null;
+            _weaponDropped = true;
+        }
+
+        /// <summary>
+        /// Страховка: если врага уничтожили без вызова HandleOwnerDeath
+        /// (Destroy по таймеру трупа, выгрузка сцены), оружие всё равно выпадет
+        /// вместо того, чтобы исчезнуть вместе с телом.
+        /// </summary>
+        private void OnDestroy()
+        {
+            if (_weaponDropped || !dropWeaponOnDeath) return;
+            if (Weapon == null) return;
+
+            // Смена сцены и выход из игры: ронять нечего, всё и так удаляется
+            if (!Application.isPlaying) return;
+
+            DropWeaponImmediate();
+        }
+
+        /// <summary>
+        /// Выбросить оружие без задержки. Используется при уничтожении врага:
+        /// корутин и Update у уже мёртвого объекта не будет, поэтому физика
+        /// включается сразу, здесь и сейчас.
+        /// </summary>
+        public void DropWeaponImmediate()
+        {
+            HitscanWeapon weapon = Weapon;
+            if (weapon == null) return;
+
+            _weaponDropped = true;
+
+            Transform weaponRoot = weapon.transform;
+            weapon.enabled = false;
+
+            if (dropObject != null)
+            {
+                SpawnDropObject(weaponRoot);
+                _spawnedWeaponRoot = null;
+                Weapon = null;
+                return;
+            }
+
             weaponRoot.SetParent(null, true);
 
             foreach (Collider collider in weaponRoot.GetComponentsInChildren<Collider>(true))
+            {
                 collider.enabled = true;
+                collider.isTrigger = false;
+            }
+
+            foreach (Transform child in weaponRoot.GetComponentsInChildren<Transform>(true))
+                child.gameObject.layer = 0;
 
             var body = weaponRoot.GetComponent<Rigidbody>();
             if (body == null) body = weaponRoot.gameObject.AddComponent<Rigidbody>();
@@ -351,13 +476,121 @@ namespace FlameOfHistory.AI
             body.isKinematic = false;
             body.useGravity = true;
             body.mass = dropMass;
-            body.velocity = (transform.forward * 0.4f + Vector3.up) * dropImpulse;
-            body.angularVelocity = Random.insideUnitSphere * 3f;
+            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
-            if (dropLifetime > 0f) Destroy(weaponRoot.gameObject, dropLifetime);
+            body.AddForce((transform.forward * 0.4f + Vector3.up) * dropImpulse, ForceMode.Impulse);
+            body.AddTorque(Random.insideUnitSphere * dropImpulse, ForceMode.Impulse);
+
+            // Даже в аварийном пути кладём оружие на бок и страхуем от провала
+            var dropper = weaponRoot.gameObject.AddComponent<DroppedWeapon>();
+            dropper.Initialize(
+                gravityDelay: 0f,
+                launchVelocity: Vector3.zero,
+                spin: Vector3.zero,
+                groundMask: dropGroundMask,
+                lifetime: dropLifetime);
 
             _spawnedWeaponRoot = null;
             Weapon = null;
+        }
+
+        /// <summary>
+        /// Выбросить заданный dropObject (например, DropMp40) вместо оружия из рук.
+        /// У объекта уже есть свой коллайдер и настройки DroppedWeapon, поэтому здесь
+        /// его только позиционируем, поднимаем в воздух и даём лёгкий подброс.
+        /// </summary>
+        private void SpawnDropObject(Transform weaponRoot)
+        {
+            // Оружие в руках больше не нужно — прячем его, чтобы не осталось дубликатов.
+            weaponRoot.gameObject.SetActive(false);
+
+            GameObject instance = Instantiate(dropObject, weaponRoot.position, weaponRoot.rotation);
+            instance.name = dropObject.name;
+            instance.transform.SetParent(null);
+            instance.SetActive(true);
+
+            // Переводим объект на слой землю/Default, чтобы физика срабатывала корректно.
+            foreach (Transform child in instance.GetComponentsInChildren<Transform>(true))
+                child.gameObject.layer = 0;
+
+            var body = instance.GetComponent<Rigidbody>();
+            if (body == null) body = instance.AddComponent<Rigidbody>();
+
+            body.mass = dropMass;
+            body.isKinematic = true;          // DroppedWeapon сам включит гравитацию
+            body.useGravity = false;
+            body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+            body.interpolation = RigidbodyInterpolation.Interpolate;
+
+            // Убеждаемся, что все коллайдеры включены — DroppedWeapon их временно глушит сам.
+            foreach (Collider c in instance.GetComponentsInChildren<Collider>(true))
+                c.enabled = true;
+
+            // Гарантируем правильный коллайдер у выпавшего оружия (после включения всех).
+            ApplyDropCollider(instance);
+
+            var dropper = instance.GetComponent<DroppedWeapon>();
+            if (dropper == null) dropper = instance.AddComponent<DroppedWeapon>();
+
+            dropper.Initialize(
+                gravityDelay: dropGravityDelay,
+                launchVelocity: (transform.forward * 0.4f + Vector3.up) * dropImpulse,
+                spin: Random.insideUnitSphere * 3f,
+                groundMask: dropGroundMask,
+                lifetime: dropLifetime);
+        }
+
+        /// <summary>
+        /// Настраивает BoxCollider выпавшего оружия на заданные центр и размер.
+        /// Все остальные коллайдеры (на корне и детях) отключаем, чтобы физическая
+        /// форма была ровно одна — заданный бокс.
+        /// </summary>
+        private void ApplyDropCollider(GameObject instance)
+        {
+            BoxCollider box = instance.GetComponent<BoxCollider>();
+            if (box == null) box = instance.AddComponent<BoxCollider>();
+
+            box.center = droppedColliderCenter;
+            box.size = droppedColliderSize;
+            box.isTrigger = false;
+
+            // Отключаем все прочие коллайдеры — оставляем только наш бокс.
+            foreach (Collider c in instance.GetComponentsInChildren<Collider>(true))
+            {
+                if (c == box) continue;
+                c.enabled = false;
+            }
+        }
+
+        /// <summary>
+        /// Коллайдер по габаритам модели, если на префабе его не было.
+        /// Без коллайдера гравитация просто уронит оружие в бездну.
+        /// </summary>
+        private static bool AddFallbackCollider(GameObject target)
+        {
+            Bounds bounds = default;
+            bool hasBounds = false;
+
+            foreach (Renderer r in target.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null) continue;
+                if (!hasBounds) { bounds = r.bounds; hasBounds = true; }
+                else bounds.Encapsulate(r.bounds);
+            }
+
+            if (!hasBounds) return false;
+
+            var box = target.AddComponent<BoxCollider>();
+            box.center = target.transform.InverseTransformPoint(bounds.center);
+            box.size = target.transform.InverseTransformVector(bounds.size);
+
+            // Отрицательный размер после инверсии масштаба ломает коллайдер
+            box.size = new Vector3(
+                Mathf.Max(0.02f, Mathf.Abs(box.size.x)),
+                Mathf.Max(0.02f, Mathf.Abs(box.size.y)),
+                Mathf.Max(0.02f, Mathf.Abs(box.size.z)));
+
+            return true;
         }
 
 #if UNITY_EDITOR

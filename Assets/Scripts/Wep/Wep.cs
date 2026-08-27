@@ -12,6 +12,29 @@ public class Wep : MonoBehaviour
     public float reloadTime = 4.5f;
     public float damage = 25f;
 
+    [Header("Баллистика")]
+    [Tooltip("Дальность выстрела в метрах.")]
+    public float range = 500f;
+
+    [Tooltip("По каким слоям пуля вообще может попасть. " +
+             "Убери отсюда слой BulletHole, чтобы пули не застревали в дырках от других пуль.")]
+    public LayerMask hitMask = ~0;
+
+    [Tooltip("Множитель урона при попадании в голову. 1 — хедшоты не выделяются.")]
+    [Min(1f)] public float headshotMultiplier = 2.5f;
+
+    [Tooltip("Имена коллайдеров, считающихся головой (регистр не важен).")]
+    public string[] headColliderNames = { "head", "golova", "skull" };
+
+    [Tooltip("Команда стрелка. Нужна, чтобы враги правильно реагировали на пролёт пули.")]
+    public FlameOfHistory.AI.Team shooterTeam = FlameOfHistory.AI.Team.Allies;
+
+    [Tooltip("Радиус, в котором враги слышат выстрел. 0 — выстрел бесшумный для ИИ.")]
+    [Min(0f)] public float shotNoiseRadius = 40f;
+
+    [Tooltip("Писать в консоль, во что попала пуля и сколько урона нанесла.")]
+    public bool logHits = false;
+
     [Header("Разброс (динамический)")]
     public float baseSpread = 4f;
     public float autoSpreadPerShot = 1.5f;
@@ -361,6 +384,12 @@ public class Wep : MonoBehaviour
 
         if (weaponModel == null) weaponModel = transform;
 
+        fpsController = FindObjectOfType<FirstPersonController>();
+        if (fpsController == null)
+            Debug.LogWarning("[Gun] FirstPersonController не найден. Отдача не будет работать.");
+
+        ExcludeSelfFromHitMask();
+
         if (bolt != null && bolt.parent != weaponModel) bolt.SetParent(weaponModel, true);
         if (lever != null && lever.parent != weaponModel) lever.SetParent(weaponModel, true);
         if (oldMagazine != null && oldMagazine.parent != weaponModel) oldMagazine.SetParent(weaponModel, true);
@@ -390,10 +419,6 @@ public class Wep : MonoBehaviour
 
         lastPosition = transform.position;
         bobTime = 0f;
-
-        fpsController = FindObjectOfType<FirstPersonController>();
-        if (fpsController == null)
-            Debug.LogWarning("[Gun] FirstPersonController не найден. Отдача не будет работать.");
 
         if (oldMagazine != null)
         {
@@ -645,38 +670,46 @@ public class Wep : MonoBehaviour
 
         float effectiveSpread = currentSpread * spreadMultiplier;
         Vector3 direction = GetSpreadDirection(effectiveSpread);
+        Vector3 rayOrigin = playerCamera.transform.position;
+        Vector3 endPoint = rayOrigin + direction * range;
+        bool hitSomething = false;
 
-        if (Physics.Raycast(playerCamera.transform.position, direction, out RaycastHit hit, 500f))
+        if (Physics.Raycast(rayOrigin, direction, out RaycastHit hit, range, hitMask,
+                            QueryTriggerInteraction.Ignore))
         {
-            Enemy enemy = hit.collider.GetComponent<Enemy>();
-            if (enemy != null) enemy.TakeDamage(damage);
+            endPoint = hit.point;
+            hitSomething = true;
 
-            if (bulletHolePrefabs != null && bulletHolePrefabs.Length > 0)
+            bool hitLiving = ApplyBulletDamage(hit, direction);
+
+            // Дырка только по неживому: на враге она висела бы поверх модели
+            if (!hitLiving && bulletHolePrefabs != null && bulletHolePrefabs.Length > 0 &&
+                (!preventOverlappingHoles || CanPlaceHole(hit.point)))
             {
-                if (preventOverlappingHoles && !CanPlaceHole(hit.point)) return;
-
                 Quaternion holeRot = Quaternion.FromToRotation(Vector3.forward, hit.normal) * Quaternion.Euler(0, 180, 0);
                 GameObject hole = Instantiate(bulletHolePrefabs[Random.Range(0, bulletHolePrefabs.Length)],
                                               hit.point + hit.normal * 0.02f, holeRot);
                 hole.tag = "BulletHole";
                 hole.transform.SetParent(hit.collider.transform);
             }
-
-            if (bulletTrailPrefab != null)
-            {
-                LineRenderer trail = Instantiate(bulletTrailPrefab, muzzlePoint.position, Quaternion.identity);
-                trail.SetPosition(0, muzzlePoint.position);
-                trail.SetPosition(1, hit.point);
-                Destroy(trail.gameObject, 0.05f);
-            }
         }
-        else if (bulletTrailPrefab != null)
+
+        if (bulletTrailPrefab != null)
         {
             LineRenderer trail = Instantiate(bulletTrailPrefab, muzzlePoint.position, Quaternion.identity);
             trail.SetPosition(0, muzzlePoint.position);
-            trail.SetPosition(1, muzzlePoint.position + direction * 500f);
+            trail.SetPosition(1, endPoint);
             Destroy(trail.gameObject, 0.05f);
         }
+
+        // Враги должны реагировать на пролетевшую пулю (подавление, поиск стрелка)
+        // и на звук выстрела, иначе игрок стреляет в полной «тишине» для ИИ.
+        GameObject shooter = fpsController != null ? fpsController.gameObject : gameObject;
+        FlameOfHistory.AI.ProjectilePass.Emit(new FlameOfHistory.AI.ProjectilePass.Shot(
+            rayOrigin, endPoint, shooter, shooterTeam, hitSomething));
+
+        if (shotNoiseRadius > 0f)
+            FlameOfHistory.AI.NoiseSystem.Emit(muzzlePoint.position, shotNoiseRadius, shooter, 1f);
 
         if (currentFireMode == FireMode.Auto)
             currentSpread = Mathf.Min(currentSpread + autoSpreadPerShot * (1 - currentSpread / maxSpread), maxSpread);
@@ -1005,6 +1038,107 @@ public class Wep : MonoBehaviour
     {
         if (shootShakeTimer > 0)
             shootShakeTimer -= Time.deltaTime;
+    }
+
+    /// <summary>
+    /// Нанести урон тому, во что попала пуля. Возвращает true, если цель живая.
+    ///
+    /// В проекте два интерфейса урона: боевой FlameOfHistory.AI.IDamageable
+    /// (враги на CharacterHealth) и простой глобальный IDamageable (его
+    /// реализуют Enemy и PlayerHealth). Раньше выстрел искал только
+    /// Enemy.GetComponent на самом коллайдере, поэтому враги на CharacterHealth
+    /// урон не получали вовсе, а попадание в дочерний коллайдер (голова, руки)
+    /// не считалось. GetComponentInParent лечит и то, и другое.
+    /// </summary>
+    bool ApplyBulletDamage(RaycastHit hit, Vector3 direction)
+    {
+        Collider col = hit.collider;
+        if (col == null) return false;
+
+        GameObject shooter = fpsController != null ? fpsController.gameObject : gameObject;
+        float finalDamage = damage * (IsHeadCollider(col) ? headshotMultiplier : 1f);
+
+        var aiTarget = col.GetComponentInParent<FlameOfHistory.AI.IDamageable>();
+        if (aiTarget != null)
+        {
+            if (!aiTarget.IsAlive) return true;   // труп: дырку на нём всё равно не рисуем
+
+            aiTarget.TakeDamage(new FlameOfHistory.AI.DamageInfo(
+                finalDamage, hit.point, direction, shooter));
+
+            if (logHits) Debug.Log($"[Gun] Попадание в {col.name}: {finalDamage:0.#} урона.");
+            return true;
+        }
+
+        var simpleTarget = col.GetComponentInParent<IDamageable>();
+        if (simpleTarget != null)
+        {
+            simpleTarget.TakeDamage(finalDamage, shooter.transform.position);
+
+            if (logHits) Debug.Log($"[Gun] Попадание в {col.name}: {finalDamage:0.#} урона.");
+            return true;
+        }
+
+        // Попали в физический объект — толкаем его, чтобы выстрел ощущался
+        Rigidbody body = col.attachedRigidbody;
+        if (body != null && !body.isKinematic)
+            body.AddForce(direction * finalDamage * 0.35f, ForceMode.Impulse);
+
+        if (logHits) Debug.Log($"[Gun] Попадание в {col.name} (не живое).");
+        return false;
+    }
+
+    /// <summary>Считается ли коллайдер головой — по имени из headColliderNames.</summary>
+    bool IsHeadCollider(Collider col)
+    {
+        if (headshotMultiplier <= 1f || headColliderNames == null) return false;
+
+        string colName = col.name.ToLowerInvariant();
+        foreach (string candidate in headColliderNames)
+        {
+            if (string.IsNullOrEmpty(candidate)) continue;
+            if (colName.Contains(candidate.ToLowerInvariant())) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Убрать из hitMask слои самого оружия, игрока и дырок от пуль.
+    ///
+    /// Зачем: луч летит из камеры, а модель оружия висит перед ней. Если её слой
+    /// остаётся в маске, первое попадание — в собственный ствол, и выстрел
+    /// никогда не доходит до врага. То же с капсулой игрока и BulletHole.
+    /// </summary>
+    void ExcludeSelfFromHitMask()
+    {
+        int excluded = 0;
+
+        // Слои модели оружия
+        foreach (Transform t in GetComponentsInChildren<Transform>(true))
+            excluded |= 1 << t.gameObject.layer;
+
+        // Слой игрока
+        if (fpsController != null)
+            excluded |= 1 << fpsController.gameObject.layer;
+
+        int playerLayer = LayerMask.NameToLayer("Player");
+        if (playerLayer >= 0) excluded |= 1 << playerLayer;
+
+        int holeLayer = LayerMask.NameToLayer("BulletHole");
+        if (holeLayer >= 0) excluded |= 1 << holeLayer;
+
+        int ignoreRaycast = LayerMask.NameToLayer("Ignore Raycast");
+        if (ignoreRaycast >= 0) excluded |= 1 << ignoreRaycast;
+
+        hitMask &= ~excluded;
+
+        if (hitMask == 0)
+        {
+            Debug.LogWarning("[Gun] Hit Mask оказалась пустой после исключения своих слоёв — " +
+                             "стрелять было бы некуда. Маска сброшена на Default.", this);
+            hitMask = 1;   // Default
+        }
     }
 
     bool CanPlaceHole(Vector3 point)

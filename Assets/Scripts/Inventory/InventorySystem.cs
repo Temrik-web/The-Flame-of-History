@@ -520,6 +520,33 @@ public class InventorySystem : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Ассет предмета, экипирующего оружие с данным id (null — такого нет).
+    /// Нужен расходуемому снаряжению: граната после броска должна пропасть
+    /// из сумки, а сама она знает только свой weaponId.
+    /// </summary>
+    public ItemData GetWeaponItem(string weaponId)
+    {
+        if (string.IsNullOrEmpty(weaponId)) return null;
+
+        foreach (Slot s in slots)
+            if (!s.IsEmpty && s.item.equipWeaponId == weaponId) return s.item;
+
+        return null;
+    }
+
+    /// <summary>Сколько предметов, экипирующих оружие с данным id, лежит в сумке.</summary>
+    public int CountWeaponItem(string weaponId)
+    {
+        if (string.IsNullOrEmpty(weaponId)) return 0;
+
+        int total = 0;
+        foreach (Slot s in slots)
+            if (!s.IsEmpty && s.item.equipWeaponId == weaponId) total += s.amount;
+
+        return total;
+    }
+
     public int CountItemByKeyId(string keyId)
     {
         if (string.IsNullOrEmpty(keyId)) return 0;
