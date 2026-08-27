@@ -181,7 +181,7 @@ namespace FlameOfHistory.AI
             if (watchTimer < watchDuration)
             {
                 watchTimer += Time.deltaTime;
-                GuardAgainstFallThrough();
+                //GuardAgainstFallThrough(); Починить остановку 
             }
 
             if (layFlatOnGround && !isLayingFlat)
