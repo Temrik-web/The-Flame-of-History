@@ -4984,11 +4984,13 @@ MonoBehaviour:
   layFlatLowerSpeed: 0.5
   alignToSurface: 1
   maxSurfaceAlignAngle: 15
+  layFlatTimeout: 4
   freezeWhenSettled: 1
   freezeAfterCalm: 0.5
   calmSpeedThreshold: 0.2
   calmAngularThreshold: 0.2
   forceFreezeAfter: 10
+  guardAgainstFallThrough: 1
   lifetime: 50
 --- !u!54 &335665460
 Rigidbody:
@@ -18087,6 +18089,10 @@ PrefabInstance:
       value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8492023427229120400, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
+      propertyPath: dropObject
+      value: 
+      objectReference: {fileID: 335665458}
+    - target: {fileID: 8492023427229120400, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: handSocket
       value: 
       objectReference: {fileID: 0}
@@ -19474,6 +19480,10 @@ PrefabInstance:
       propertyPath: dropMass
       value: 5
       objectReference: {fileID: 0}
+    - target: {fileID: 8492023427229120400, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
+      propertyPath: dropObject
+      value: 
+      objectReference: {fileID: 335665458}
     - target: {fileID: 8492023427229120400, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: handSocket
       value: 
@@ -23862,6 +23872,10 @@ PrefabInstance:
       value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8492023427229120400, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
+      propertyPath: dropObject
+      value: 
+      objectReference: {fileID: 335665458}
+    - target: {fileID: 8492023427229120400, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: handSocket
       value: 
       objectReference: {fileID: 0}
@@ -25828,6 +25842,10 @@ PrefabInstance:
       value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8492023427229120400, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
+      propertyPath: dropObject
+      value: 
+      objectReference: {fileID: 335665458}
+    - target: {fileID: 8492023427229120400, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: handSocket
       value: 
       objectReference: {fileID: 0}
@@ -27754,7 +27772,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9156347144040445546, guid: c82236c16aae9d34fbd437f8dea6e2c9, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 675.39
+      value: 773.43
       objectReference: {fileID: 0}
     - target: {fileID: 9156347144040445546, guid: c82236c16aae9d34fbd437f8dea6e2c9, type: 3}
       propertyPath: m_LocalPosition.y
@@ -27762,7 +27780,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9156347144040445546, guid: c82236c16aae9d34fbd437f8dea6e2c9, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 472.651
+      value: 543.77
       objectReference: {fileID: 0}
     - target: {fileID: 9156347144040445546, guid: c82236c16aae9d34fbd437f8dea6e2c9, type: 3}
       propertyPath: m_LocalRotation.w

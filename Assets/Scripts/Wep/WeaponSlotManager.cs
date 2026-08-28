@@ -37,6 +37,15 @@ public class WeaponSlotManager : MonoBehaviour
     [Tooltip("Спрятать оружие (пустые руки).")]
     public KeyCode holsterKey = KeyCode.Alpha0;
 
+    [Header("Прицел")]
+    [Tooltip("Скрывать перекрестие, когда в руках ничего нет. " +
+             "Владелец объекта — Wep, но при пустых руках он выключен и " +
+             "спрятать прицел больше некому.")]
+    public bool hideCrosshairWhenUnarmed = true;
+
+    [Tooltip("Объект перекрестия. Пусто — возьмётся у первого Wep в сцене.")]
+    public GameObject crosshairObject;
+
     /// <summary>Экипировано другое оружие. Параметр может быть null (пустые руки).</summary>
     public event Action<EquippableWeapon> OnEquippedChanged;
 
@@ -87,6 +96,7 @@ public class WeaponSlotManager : MonoBehaviour
 
         current = startWeapon;
         OnEquippedChanged?.Invoke(current);
+        ApplyCrosshairVisibility();
 
         if (current != null)
             Debug.Log($"[WeaponSlot] Стартовое оружие: {current.displayName}");
@@ -94,8 +104,61 @@ public class WeaponSlotManager : MonoBehaviour
             Debug.Log("[WeaponSlot] Руки пустые. Оружие появится после подбора и экипировки.");
     }
 
+    /// <summary>
+    /// Показать перекрестие только когда в руках что-то есть.
+    ///
+    /// Wep включает прицел сам, но при пустых руках он выключен вместе с моделью,
+    /// и перекрестие оставалось висеть в центре экрана без оружия.
+    ///
+    /// Решение о показе при экипированном предмете остаётся за самим предметом:
+    /// нож прицел прячет (HeldItem.HidesCrosshair), огнестрел показывает.
+    /// Иначе этот метод и MeleeItem спорили бы за один объект.
+    /// </summary>
+    void ApplyCrosshairVisibility()
+    {
+        if (!hideCrosshairWhenUnarmed) return;
+
+        GameObject cross = ResolveCrosshair();
+        if (cross == null) return;
+
+        bool show = current != null && !ItemHidesCrosshair(current);
+        if (cross.activeSelf != show) cross.SetActive(show);
+    }
+
+    /// <summary>Прячет ли экипированный предмет перекрестие сам (нож, лопата).</summary>
+    static bool ItemHidesCrosshair(EquippableWeapon weapon)
+    {
+        if (weapon == null) return false;
+
+        foreach (HeldItem held in weapon.GetComponentsInChildren<HeldItem>(true))
+            if (held != null && held.HidesCrosshair) return true;
+
+        return false;
+    }
+
+    GameObject ResolveCrosshair()
+    {
+        if (crosshairObject != null) return crosshairObject;
+
+        foreach (Wep w in FindObjectsOfType<Wep>(true))
+        {
+            if (w != null && w.crosshairObject != null)
+            {
+                crosshairObject = w.crosshairObject;
+                break;
+            }
+        }
+
+        return crosshairObject;
+    }
+
     void Update()
     {
+        // Пустые руки: прицел гасим каждый кадр. Wep при экипировке включает
+        // перекрестие в своём OnEnable, и одного вызова в Holster не хватает,
+        // если порядок включения компонентов оказался обратным.
+        if (current == null) ApplyCrosshairVisibility();
+
         // Во время диалога и при открытом инвентаре не переключаем
         if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive) return;
         if (InventorySystem.Instance != null && InventorySystem.Instance.IsOpen) return;
@@ -166,6 +229,7 @@ public class WeaponSlotManager : MonoBehaviour
         current = target;
 
         OnEquippedChanged?.Invoke(current);
+        ApplyCrosshairVisibility();
         Debug.Log($"[WeaponSlot] Экипировано: {target.displayName}");
         return true;
     }
@@ -180,6 +244,7 @@ public class WeaponSlotManager : MonoBehaviour
 
         current = null;
         OnEquippedChanged?.Invoke(null);
+        ApplyCrosshairVisibility();
         Debug.Log("[WeaponSlot] Оружие убрано.");
     }
 

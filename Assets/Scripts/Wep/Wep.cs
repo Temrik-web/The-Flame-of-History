@@ -447,6 +447,13 @@ public class Wep : MonoBehaviour
         if (boltLight != null) boltLight.enabled = false;
     }
 
+    void OnEnable()
+    {
+        // Перекрестие могло остаться спрятанным ножом или гранатой:
+        // они гасят его на время, а включить обратно должен тот, кто в руках
+        if (crosshairObject != null) crosshairObject.SetActive(true);
+    }
+
     void Update()
     {
         if (initFailed || playerCamera == null || weaponModel == null) return;
@@ -1138,6 +1145,35 @@ public class Wep : MonoBehaviour
             Debug.LogWarning("[Gun] Hit Mask оказалась пустой после исключения своих слоёв — " +
                              "стрелять было бы некуда. Маска сброшена на Default.", this);
             hitMask = 1;   // Default
+        }
+
+        WarnAboutUnreachableTargets(excluded);
+    }
+
+    /// <summary>
+    /// Предупредить, если враг стоит на слое, который мы только что исключили.
+    ///
+    /// Реальный случай: WeaponHolder и Player лежат на одном слое, и если врага
+    /// положили туда же, пули начинают проходить сквозь него молча. Ошибку
+    /// в такой ситуации искать почти невозможно, поэтому пишем в консоль сразу.
+    /// </summary>
+    void WarnAboutUnreachableTargets(int excludedMask)
+    {
+        var reported = new System.Collections.Generic.HashSet<int>();
+
+        foreach (MonoBehaviour mb in FindObjectsOfType<MonoBehaviour>())
+        {
+            if (mb is not FlameOfHistory.AI.IDamageable && mb is not IDamageable) continue;
+            if (mb is PlayerHealth) continue;                       // сам игрок — не цель
+            if (fpsController != null && mb.transform.root == fpsController.transform.root) continue;
+
+            int layer = mb.gameObject.layer;
+            if ((excludedMask & (1 << layer)) == 0) continue;
+            if (!reported.Add(layer)) continue;
+
+            Debug.LogWarning($"[Gun] «{mb.name}» стоит на слое «{LayerMask.LayerToName(layer)}», " +
+                             "который исключён из Hit Mask (это слой оружия или игрока). " +
+                             "Пули будут проходить сквозь него. Переведи врага на отдельный слой.", mb);
         }
     }
 

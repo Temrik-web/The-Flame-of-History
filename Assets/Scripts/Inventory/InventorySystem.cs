@@ -46,6 +46,25 @@ public class InventorySystem : MonoBehaviour
     public KeyCode pickupKey = KeyCode.E;
     [Tooltip("Радиус SphereCast. 0 — обычный тонкий луч (сложнее прицелиться).")]
     [Range(0f, 0.5f)] public float pickupCastRadius = 0.15f;
+
+    [Tooltip("Радиус вокруг игрока, в котором предмет считается доступным даже без " +
+             "попадания луча. Лечит случай «стою вплотную и подсказка исчезла»: " +
+             "SphereCast не видит коллайдер, внутри которого начинается сфера.")]
+    [Range(0f, 3f)] public float nearPickupRadius = 1.2f;
+
+    [Tooltip("Максимальный угол от центра экрана, при котором предмет считается " +
+             "тем, на который смотрит игрок. Больше — легче навести, но можно " +
+             "случайно подобрать предмет сбоку.")]
+    [Range(5f, 90f)] public float maxPickupAngle = 35f;
+
+    [Tooltip("Проверять, не закрыт ли предмет стеной. Выключи, если предметы " +
+             "лежат внутри сложной геометрии и подсказка мерцает.")]
+    public bool requireLineOfSight = true;
+
+    [Tooltip("Слои, которые могут заслонять предмет. Убери отсюда мелкий декор, " +
+             "чтобы трава и мусор не перекрывали подсказку.")]
+    public LayerMask occlusionMask = ~0;
+
     [Tooltip("Автоподбор при касании триггера, без нажатия клавиши.")]
     public bool autoPickupOnTouch = false;
 
@@ -238,6 +257,18 @@ public class InventorySystem : MonoBehaviour
     // =====================================================================
     // Наведение
     // =====================================================================
+    /// <summary>
+    /// Найти предмет под прицелом.
+    ///
+    /// Почему не один SphereCast: он не находит коллайдер, внутри которого уже
+    /// находится начало сферы. Стоя вплотную к предмету игрок оказывался внутри
+    /// зоны каста, и подсказка пропадала — ровно в тот момент, когда предмет
+    /// занимает пол экрана. Плюс каст останавливался на первом же коллайдере,
+    /// поэтому предмет, лежащий на столе, перекрывался столешницей.
+    ///
+    /// Теперь собираются все кандидаты (каст + сфера вокруг игрока для вплотную),
+    /// а из них выбирается тот, что ближе к центру экрана и реально виден.
+    /// </summary>
     void DetectPickup()
     {
         if (playerCamera == null)
@@ -246,20 +277,100 @@ public class InventorySystem : MonoBehaviour
             return;
         }
 
-        Vector3 origin = playerCamera.transform.position;
-        Vector3 dir = playerCamera.transform.forward;
-        RaycastHit hit;
-        bool didHit;
+        Transform cam = playerCamera.transform;
+        Vector3 origin = cam.position;
+        Vector3 dir = cam.forward;
 
-        if (pickupCastRadius > 0f)
-            didHit = Physics.SphereCast(origin, pickupCastRadius, dir, out hit, pickupRange,
-                                        pickupMask, QueryTriggerInteraction.Collide);
-        else
-            didHit = Physics.Raycast(origin, dir, out hit, pickupRange,
-                                     pickupMask, QueryTriggerInteraction.Collide);
+        Pickup best = null;
+        float bestScore = float.MaxValue;
 
-        Pickup found = didHit ? hit.collider.GetComponentInParent<Pickup>() : null;
-        SetTarget(found);
+        // 1) Всё, что задел луч прицела. SphereCastAll вместо SphereCast:
+        //    нужен весь список, а не только первое попадание.
+        float radius = Mathf.Max(0.01f, pickupCastRadius);
+        RaycastHit[] hits = Physics.SphereCastAll(origin, radius, dir, pickupRange,
+                                                  pickupMask, QueryTriggerInteraction.Collide);
+
+        foreach (RaycastHit hit in hits)
+            Consider(hit.collider, cam, ref best, ref bestScore);
+
+        // 2) Предметы вплотную: их каст не видит, потому что сфера уже внутри них
+        Collider[] near = Physics.OverlapSphere(origin, nearPickupRadius, pickupMask,
+                                                QueryTriggerInteraction.Collide);
+
+        foreach (Collider col in near)
+            Consider(col, cam, ref best, ref bestScore);
+
+        SetTarget(best);
+    }
+
+    /// <summary>
+    /// Проверить кандидата и запомнить, если он лучше текущего.
+    /// Оценка — угол от центра экрана: предмет прямо под прицелом всегда
+    /// выигрывает у того, что задет краем сферы.
+    /// </summary>
+    void Consider(Collider col, Transform cam, ref Pickup best, ref float bestScore)
+    {
+        if (col == null) return;
+
+        Pickup pickup = col.GetComponentInParent<Pickup>();
+        if (pickup == null || pickup.item == null) return;
+
+        Vector3 point = col.bounds.center;
+        Vector3 toTarget = point - cam.position;
+        float distance = toTarget.magnitude;
+
+        if (distance > pickupRange) return;
+
+        // Угол от центра экрана в градусах. Вплотную угол считать бессмысленно:
+        // предмет занимает полкадра, поэтому такие цели получают приоритет.
+        float angle = distance < nearPickupRadius
+            ? 0f
+            : Vector3.Angle(cam.forward, toTarget.normalized);
+
+        if (angle > maxPickupAngle) return;
+
+        // Оценка: сначала угол, при равном угле — что ближе
+        float score = angle * 10f + distance;
+        if (score >= bestScore) return;
+
+        if (requireLineOfSight && !HasLineOfSight(cam.position, pickup, col)) return;
+
+        best = pickup;
+        bestScore = score;
+    }
+
+    /// <summary>
+    /// Виден ли предмет: не закрыт ли он стеной. Собственные коллайдеры предмета
+    /// и коллайдеры игрока преградой не считаются.
+    /// </summary>
+    bool HasLineOfSight(Vector3 eye, Pickup pickup, Collider target)
+    {
+        Vector3 point = target.bounds.center;
+        Vector3 dir = point - eye;
+        float distance = dir.magnitude;
+
+        if (distance < 0.05f) return true;
+
+        RaycastHit[] hits = Physics.RaycastAll(eye, dir.normalized, distance,
+                                              occlusionMask, QueryTriggerInteraction.Ignore);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+        Transform pickupRoot = pickup.transform;
+
+        foreach (RaycastHit hit in hits)
+        {
+            if (hit.collider == null) continue;
+            if (hit.collider == target) return true;
+            if (hit.collider.transform.IsChildOf(pickupRoot)) return true;
+
+            // Сам игрок и его оружие в руках не заслоняют предмет
+            if (hit.collider.transform.IsChildOf(transform)) continue;
+            if (playerCamera != null && hit.collider.transform.IsChildOf(playerCamera.transform)) continue;
+
+            return false;
+        }
+
+        return true;
     }
 
     void SetTarget(Pickup next)
@@ -824,10 +935,29 @@ public class InventorySystem : MonoBehaviour
         Camera cam = playerCamera != null ? playerCamera : Camera.main;
         if (cam == null) return;
 
-        Gizmos.color = Color.green;
         Vector3 origin = cam.transform.position;
         Vector3 end = origin + cam.transform.forward * pickupRange;
+
+        // Луч прицела
+        Gizmos.color = Color.green;
         Gizmos.DrawLine(origin, end);
         if (pickupCastRadius > 0f) Gizmos.DrawWireSphere(end, pickupCastRadius);
+
+        // Зона «вплотную»: здесь предмет берётся без попадания луча
+        Gizmos.color = new Color(0.3f, 0.8f, 1f, 0.35f);
+        Gizmos.DrawWireSphere(origin, nearPickupRadius);
+
+        // Конус допустимого угла наведения
+        Gizmos.color = new Color(1f, 0.85f, 0.3f, 0.4f);
+        float rad = maxPickupAngle * Mathf.Deg2Rad;
+        float coneRadius = Mathf.Tan(rad) * pickupRange;
+
+        for (int i = 0; i < 8; i++)
+        {
+            float a = i / 8f * Mathf.PI * 2f;
+            Vector3 offset = cam.transform.right * Mathf.Cos(a) * coneRadius
+                             + cam.transform.up * Mathf.Sin(a) * coneRadius;
+            Gizmos.DrawLine(origin, end + offset);
+        }
     }
 }

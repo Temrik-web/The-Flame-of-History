@@ -430,8 +430,23 @@ public class InventoryUI : MonoBehaviour
             if (item != null)
             {
                 string hex = ColorUtility.ToHtmlStringRGB(item.RarityColor);
+                string keyHex = ColorUtility.ToHtmlStringRGB(accentColor);
                 string amount = target.amount > 1 ? $" <color=#8a8f99>x{target.amount}</color>" : "";
-                pickupHintText.text = $"<color=#8a8f99>[E]</color>  <color=#{hex}>{item.itemName}</color>{amount}";
+
+                // Клавиша берётся из инвентаря, а не хардкодится: игрок мог
+                // переназначить Pickup Key, и подсказка «[E]» врала бы
+                string key = inventory.pickupKey.ToString();
+
+                pickupHintText.text = $"<color=#{keyHex}><b>[{key}]</b></color>  " +
+                                      $"<color=#{hex}>{item.itemName}</color>{amount}";
+
+                // Полоска в цвет редкости — предмет опознаётся до подбора
+                Transform edge = pickupHintRoot.transform.Find("AccentEdge");
+                if (edge != null)
+                {
+                    Image edgeImg = edge.GetComponent<Image>();
+                    if (edgeImg != null) edgeImg.color = item.RarityColor;
+                }
             }
             else
             {
@@ -1431,20 +1446,42 @@ public class InventoryUI : MonoBehaviour
         RectTransform rect = (RectTransform)hint.transform;
         rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 1f);
-        rect.anchoredPosition = new Vector2(0f, -56f);
-        rect.sizeDelta = new Vector2(460f, 46f);
+
+        // Ниже центра экрана: на уровне прицела подсказка перекрывалась
+        // самим предметом, когда игрок стоит вплотную
+        rect.anchoredPosition = new Vector2(0f, -96f);
+        rect.sizeDelta = new Vector2(460f, 52f);
 
         Image bg = hint.AddComponent<Image>();
         bg.sprite = roundSprite;
         bg.type = Image.Type.Sliced;
-        bg.color = new Color(0.03f, 0.035f, 0.045f, 0.72f);
+
+        // Плотнее прежнего: полупрозрачная плашка тонула на светлом фоне
+        bg.color = new Color(0.02f, 0.025f, 0.035f, 0.88f);
         bg.raycastTarget = false;
 
+        // Акцентная полоска слева — плашка читается даже поверх яркой текстуры
+        GameObject edge = CreateUIObject("AccentEdge", hint.transform);
+        RectTransform edgeRect = (RectTransform)edge.transform;
+        edgeRect.anchorMin = new Vector2(0f, 0f);
+        edgeRect.anchorMax = new Vector2(0f, 1f);
+        edgeRect.pivot = new Vector2(0f, 0.5f);
+        edgeRect.offsetMin = new Vector2(0f, 10f);
+        edgeRect.offsetMax = new Vector2(3f, -10f);
+        Image edgeImg = edge.AddComponent<Image>();
+        edgeImg.color = accentColor;
+        edgeImg.raycastTarget = false;
+
         pickupHintText = CreateLabel("Text", hint.transform);
-        Stretch((RectTransform)pickupHintText.transform, 12f, 5f);
-        pickupHintText.fontSize = 21f;
+        Stretch((RectTransform)pickupHintText.transform, 14f, 6f);
+        pickupHintText.fontSize = 22f;
         pickupHintText.color = textColor;
         pickupHintText.alignment = TextAlignmentOptions.Center;
+
+        // Обводка: текст не сливается со светлым фоном за плашкой
+        pickupHintText.fontMaterial.EnableKeyword("OUTLINE_ON");
+        pickupHintText.outlineWidth = 0.18f;
+        pickupHintText.outlineColor = new Color32(0, 0, 0, 220);
 
         pickupHintRoot = hint;
         hint.SetActive(false);

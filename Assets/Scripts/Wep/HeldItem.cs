@@ -119,6 +119,13 @@ public abstract class HeldItem : MonoBehaviour
     public bool manageCrosshair = true;
     public GameObject crosshairObject;
 
+    /// <summary>
+    /// Прячет ли предмет перекрестие насовсем (нож, лопата — им прицел не нужен).
+    /// Наследник переопределяет, WeaponSlotManager это читает, чтобы не спорить
+    /// с предметом за один и тот же объект прицела.
+    /// </summary>
+    public virtual bool HidesCrosshair => false;
+
     // =====================================================================
     // Состояние
     // =====================================================================
@@ -265,11 +272,22 @@ public abstract class HeldItem : MonoBehaviour
     protected virtual void OnDisable()
     {
         if (manageCrosshair) ApplyCrosshair(false);
+
+        // Сбрасываем позу и толчки: иначе при следующей экипировке предмет
+        // на кадр появится в позе недоигранной анимации
+        ClearPoseOverride();
+        kickPosition = Vector3.zero;
+        kickRotation = Vector3.zero;
     }
 
     protected virtual void Update()
     {
         if (initFailed || playerCamera == null || itemModel == null) return;
+
+        // Игра на паузе (инвентарь с pauseGameWhenOpen): deltaTime = 0,
+        // экспоненты в сглаживании обнуляются, а Input продолжает читаться.
+        // Просто выходим, чтобы предмет не «залипал» и не реагировал на клики.
+        if (Time.deltaTime <= 0f) return;
 
         InputBlocked = PlayerInputLock.WeaponsLocked
                        || (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive);
@@ -406,11 +424,19 @@ public abstract class HeldItem : MonoBehaviour
 
     Transform FindHolder()
     {
-        // 1) Тот же родитель, что у ППШ: позы описаны в одной системе координат
+        // 1) Тот же родитель, что у ППШ: позы описаны в одной системе координат.
+        //    Берём только оружие игрока: у врагов тоже есть модели в руках,
+        //    и без проверки нож мог прицепиться к руке трупа.
         foreach (Wep w in FindObjectsOfType<Wep>(true))
         {
             if (w == null || w.transform.parent == null) continue;
-            if (w.gameObject.scene.IsValid()) return w.transform.parent;
+            if (!w.gameObject.scene.IsValid()) continue;
+
+            // Оружие игрока висит под камерой — у врага такого родителя нет
+            if (w.GetComponentInParent<Camera>() == null &&
+                w.GetComponentInParent<FirstPersonController>() == null) continue;
+
+            return w.transform.parent;
         }
 
         // 2) Явный держатель по имени

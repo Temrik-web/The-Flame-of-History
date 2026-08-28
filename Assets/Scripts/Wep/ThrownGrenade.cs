@@ -162,15 +162,15 @@ public class ThrownGrenade : MonoBehaviour
     /// <summary>
     /// Поднять гранату на поверхность, если она утонула в полу.
     ///
-    /// Луч пускается сверху вниз через саму гранату: если начинать из её центра,
-    /// уже провалившийся объект не увидит пол над собой. Смещение считается от
-    /// нижней точки коллайдера, а не от радиуса: у меша и повёрнутой капсулы
-    /// радиус не совпадает с реальным низом, поэтому часть модели уходила
-    /// в текстуру.
+    /// Берётся не первая поверхность сверху, а самая высокая из тех, что лежат
+    /// НЕ ВЫШЕ низа гранаты. Иначе граната, закатившаяся под стол или стеллаж,
+    /// телепортировалась бы на его столешницу: первый луч сверху попадал именно
+    /// в неё.
     /// </summary>
     void SnapAboveGround()
     {
         Collider col = FindOwnCollider();
+        float bottomY = col != null ? col.bounds.min.y : transform.position.y;
 
         // Старт заведомо выше гранаты: иначе луч начнётся внутри пола
         float lift = Mathf.Max(0.5f, GetColliderHeight(col));
@@ -178,7 +178,9 @@ public class ThrownGrenade : MonoBehaviour
 
         RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, lift + groundSearchDistance,
                                                groundMask, QueryTriggerInteraction.Ignore);
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+        bool found = false;
+        float bestY = 0f;
 
         foreach (RaycastHit hit in hits)
         {
@@ -186,9 +188,18 @@ public class ThrownGrenade : MonoBehaviour
             if (hit.collider.transform.IsChildOf(transform)) continue;   // свой коллайдер
             if (Thrower != null && hit.collider.transform.IsChildOf(Thrower.transform.root)) continue;
 
-            PlaceAboveSurface(hit.point.y, col);
-            return;
+            // Поверхности выше низа гранаты — это потолок/полка над ней, не пол.
+            // Небольшой допуск, чтобы поймать пол, в который граната уже влезла.
+            if (hit.point.y > bottomY + groundClearance + 0.02f) continue;
+
+            if (!found || hit.point.y > bestY)
+            {
+                bestY = hit.point.y;
+                found = true;
+            }
         }
+
+        if (found) PlaceAboveSurface(bestY, col);
     }
 
     /// <summary>
@@ -323,6 +334,16 @@ public class ThrownGrenade : MonoBehaviour
         hasExploded = true;
 
         Vector3 center = transform.position;
+
+        // Коллайдеры гасим до раздачи урона: иначе OverlapSphere находит саму
+        // гранату, а рейкаст укрытия может принять её корпус за стену
+        foreach (Collider c in GetComponentsInChildren<Collider>())
+            if (c != null) c.enabled = false;
+
+        // Модель прячем сразу: Destroy сработает только в конце кадра,
+        // и граната была бы видна внутри вспышки взрыва
+        foreach (Renderer r in GetComponentsInChildren<Renderer>())
+            if (r != null) r.enabled = false;
 
         SpawnEffects(center);
         ApplyDamage(center);

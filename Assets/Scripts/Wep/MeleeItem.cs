@@ -131,6 +131,9 @@ public class MeleeItem : HeldItem
     /// <summary>Идёт ли удар прямо сейчас.</summary>
     public bool IsStriking => isStriking;
 
+    /// <summary>Ножу прицел не нужен: перекрестие только мешает в ближнем бою.</summary>
+    public override bool HidesCrosshair => true;
+
     // =====================================================================
     protected override void Awake()
     {
@@ -184,6 +187,9 @@ public class MeleeItem : HeldItem
     /// <summary>Вернуть перекрестие при смене ножа на огнестрел.</summary>
     void RestoreCrosshair()
     {
+        // При выходе из Play и выгрузке сцены объект уже мог быть уничтожен
+        if (!Application.isPlaying) return;
+
         GameObject cross = ResolveCrosshair();
         if (cross != null && !cross.activeSelf) cross.SetActive(true);
     }

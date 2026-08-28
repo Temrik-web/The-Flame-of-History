@@ -18,6 +18,9 @@ namespace FlameOfHistory.AI
         [SerializeField, Min(1f)] private float groundSearchHeight = 30f;
 
         [Header("Физика")]
+        [Tooltip("Материал трения. Пусто — используется материал по умолчанию из " +
+                 "Project Settings -> Physics. Задай скользкий/шершавый, если оружие " +
+                 "слишком долго скользит по полу.")]
         [SerializeField] private PhysicMaterial physicMaterial;
         [SerializeField] private bool autoCenterOfMass = true;
         [SerializeField] private Vector3 centerOfMassOffset = Vector3.zero;
@@ -34,12 +37,22 @@ namespace FlameOfHistory.AI
         [SerializeField] private bool alignToSurface = true;
         [SerializeField, Range(0f, 30f)] private float maxSurfaceAlignAngle = 15f;
 
+        [Tooltip("Аварийный предел на всю укладку. Если фазы почему-то не сходятся " +
+                 "(нет пола под оружием, застряло в геометрии) — процесс обрывается, " +
+                 "и оружие не остаётся висеть kinematic в воздухе.")]
+        [SerializeField, Min(0.5f)] private float layFlatTimeout = 4f;
+
         [Header("Заморозка")]
         [SerializeField] private bool freezeWhenSettled = true;
         [SerializeField, Min(0f)] private float freezeAfterCalm = 0.5f;
         [SerializeField, Min(0f)] private float calmSpeedThreshold = 0.2f;
         [SerializeField, Min(0f)] private float calmAngularThreshold = 0.2f;
         [SerializeField, Min(1f)] private float forceFreezeAfter = 10f;
+
+        [Header("Страховка от провала")]
+        [Tooltip("Возвращать оружие наверх, если оно ушло под пол. " +
+                 "Выключи, если карта многоуровневая и оружие должно падать в проёмы.")]
+        [SerializeField] private bool guardAgainstFallThrough = true;
 
         [Header("Жизнь")]
         [SerializeField, Min(0f)] private float lifetime = 30f;
@@ -58,6 +71,7 @@ namespace FlameOfHistory.AI
         private Collider[] ownColliders;
         private Vector3[] groundCheckPoints;
         private int rescueAttempts;
+        private bool initialized;
 
         // Принудительная укладка
         private bool isLayingFlat;
@@ -66,10 +80,9 @@ namespace FlameOfHistory.AI
         private Quaternion startLayRotation;
         private Quaternion targetLayRotation;
         private float layFlatTimer;
+        private float layFlatElapsed;
         private bool targetSideChosen;
         private bool layRightSide;
-        private Vector3 barrelAxisWorld;   // длинная горизонтальная ось
-        private Vector3 thicknessAxisWorld; // короткая ось, становится вертикальной
 
         public void Initialize(float gravityDelay, Vector3 launchVelocity, Vector3 spin,
                                LayerMask groundMask, float lifetime)
@@ -81,6 +94,7 @@ namespace FlameOfHistory.AI
             initialVelocity = launchVelocity;
             initialSpin = spin;
             actualDelay = this.gravityDelay + Random.Range(0f, gravityDelayRandom);
+            initialized = true;
 
             PrepareBody();
             CacheGroundPoints();
@@ -89,6 +103,23 @@ namespace FlameOfHistory.AI
         }
 
         private void Awake() => PrepareBody();
+
+        /// <summary>
+        /// Если Initialize не позвали (компонент положили на префаб вручную),
+        /// доинициализируемся сами. Без этого PrepareBody оставил бы оружие
+        /// kinematic и с выключенными коллайдерами — оно навсегда зависло бы
+        /// в воздухе, потому что гравитацию включает только Initialize.
+        /// </summary>
+        private void Start()
+        {
+            if (initialized) return;
+
+            actualDelay = gravityDelay + Random.Range(0f, gravityDelayRandom);
+            initialized = true;
+
+            CacheGroundPoints();
+            if (lifetime > 0f) Destroy(gameObject, lifetime);
+        }
 
         private void PrepareBody()
         {
@@ -178,10 +209,14 @@ namespace FlameOfHistory.AI
 
             aliveSinceGravity += Time.deltaTime;
 
-            if (watchTimer < watchDuration)
+            // Раньше вызов был закомментирован, потому что старая версия метода
+            // при первом же ложном срабатывании глушила физику и оружие «вставало».
+            // Теперь провал определяется по нижней точке коллайдера и не мешает
+            // укладке, поэтому проверку можно вернуть.
+            if (guardAgainstFallThrough && watchTimer < watchDuration && !isLayingFlat)
             {
                 watchTimer += Time.deltaTime;
-                //GuardAgainstFallThrough(); Починить остановку 
+                GuardAgainstFallThrough();
             }
 
             if (layFlatOnGround && !isLayingFlat)
@@ -274,6 +309,9 @@ namespace FlameOfHistory.AI
                 if (Physics.Raycast(worldPoint + Vector3.up * 0.1f, Vector3.down, out RaycastHit hit,
                                     0.25f, groundMask, QueryTriggerInteraction.Ignore))
                 {
+                    // Собственный коллайдер полом не считается: без проверки
+                    // оружие всегда «на земле» и заморозка срабатывает в воздухе
+                    if (hit.collider.transform.IsChildOf(transform)) continue;
                     return true;
                 }
             }
@@ -286,12 +324,17 @@ namespace FlameOfHistory.AI
             normal = Vector3.up;
             float minDist = float.MaxValue;
             bool found = false;
+
+            if (groundCheckPoints == null) CacheGroundPoints();
+
             foreach (var localPoint in groundCheckPoints)
             {
                 Vector3 worldPoint = transform.TransformPoint(localPoint);
                 if (Physics.Raycast(worldPoint + Vector3.up * 0.2f, Vector3.down, out RaycastHit hit,
                                     0.5f, groundMask, QueryTriggerInteraction.Ignore))
                 {
+                    if (hit.collider.transform.IsChildOf(transform)) continue;
+
                     if (hit.distance < minDist)
                     {
                         minDist = hit.distance;
@@ -340,6 +383,7 @@ namespace FlameOfHistory.AI
             if (isLayingFlat) return;
             isLayingFlat = true;
             layFlatPhase = 1;
+            layFlatElapsed = 0f;
             startLayPosition = transform.position;
             startLayRotation = transform.rotation;
 
@@ -349,6 +393,27 @@ namespace FlameOfHistory.AI
             body.useGravity = false;
             body.velocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
+        }
+
+        /// <summary>
+        /// Прервать укладку и вернуть оружие обычной физике.
+        ///
+        /// Нужно как аварийный выход: во время укладки тело kinematic, и если
+        /// фаза не завершится (нет пола, застряло в стене), оружие навсегда
+        /// осталось бы висеть в воздухе неподвижным.
+        /// </summary>
+        private void AbortLayFlat()
+        {
+            isLayingFlat = false;
+            layFlatPhase = 0;
+            layFlatTimer = 0f;
+
+            if (body == null) return;
+
+            body.isKinematic = false;
+            body.useGravity = true;
+            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            body.WakeUp();
         }
 
         /// <summary>
@@ -470,6 +535,16 @@ namespace FlameOfHistory.AI
 
         private void UpdateLayFlatProcess()
         {
+            // Аварийный предел: если фазы зациклились, отдаём оружие физике
+            layFlatElapsed += Time.deltaTime;
+            if (layFlatElapsed > layFlatTimeout)
+            {
+                Debug.LogWarning($"[DroppedWeapon] {name}: укладка на бок не завершилась за " +
+                                 $"{layFlatTimeout:0.#} с — возвращаю обычную физику.", this);
+                AbortLayFlat();
+                return;
+            }
+
             switch (layFlatPhase)
             {
                 case 1: // Подъём
@@ -507,12 +582,18 @@ namespace FlameOfHistory.AI
                                 transform.rotation = Quaternion.Slerp(transform.rotation, limited, 0.5f);
                             }
 
-                            float targetY = groundPoint.y + 0.01f;
+                            // Опускаем до касания НИЗОМ коллайдера, а не центром объекта.
+                            // Раньше на землю ставился origin, и половина модели
+                            // уходила в пол — тот же баг, что был у гранаты.
+                            float bottomOffset = transform.position.y - GetBottomY();
+                            float targetY = groundPoint.y + bottomOffset + 0.01f;
+
                             Vector3 targetPos = new Vector3(transform.position.x, targetY, transform.position.z);
                             transform.position = Vector3.MoveTowards(transform.position, targetPos, layFlatLowerSpeed * Time.deltaTime);
 
-                            if (Mathf.Abs(transform.position.y - targetY) < 0.01f || IsGrounded())
+                            if (Mathf.Abs(transform.position.y - targetY) < 0.01f)
                             {
+                                transform.position = targetPos;
                                 FinishLayFlat();
                             }
                         }
@@ -553,19 +634,35 @@ namespace FlameOfHistory.AI
                 Vector3 normal;
                 if (IsNearGround(out groundPoint, out normal))
                 {
-                    Vector3 targetPos = new Vector3(transform.position.x, groundPoint.y + 0.02f, transform.position.z);
+                    // Низом коллайдера на поверхность, а не центром объекта
+                    float bottomOffset = transform.position.y - GetBottomY();
+                    Vector3 targetPos = new Vector3(transform.position.x,
+                                                    groundPoint.y + bottomOffset + 0.02f,
+                                                    transform.position.z);
                     transform.position = Vector3.MoveTowards(transform.position, targetPos, 0.05f);
                     grounded = IsGrounded();
                 }
             }
 
             bool isLaying = Vector3.Angle(transform.up, Vector3.up) > 45f;
-            bool settled = grounded && calmLinear && calmAngular && isLaying;
-            calmTimer = settled ? calmTimer + Time.deltaTime : 0f;
+
+            // freezeAfterCalm раньше не использовался: заморозка срабатывала
+            // в первый же спокойный кадр, и оружие замирало, не докатившись
+            bool calmLongEnough;
+            if (grounded && calmLinear && calmAngular && isLaying)
+            {
+                calmTimer += Time.deltaTime;
+                calmLongEnough = calmTimer >= freezeAfterCalm;
+            }
+            else
+            {
+                calmTimer = 0f;
+                calmLongEnough = false;
+            }
 
             bool timedOut = aliveSinceGravity >= forceFreezeAfter;
 
-            if (!settled && !timedOut) return;
+            if (!calmLongEnough && !timedOut) return;
 
             body.velocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
@@ -576,57 +673,105 @@ namespace FlameOfHistory.AI
         private void GuardAgainstFallThrough()
         {
             if (body == null || body.isKinematic) return;
+            if (rescueAttempts >= 3) return;
 
-            float avgGroundY = GetAverageGroundY();
+            if (!TryGetGroundY(out float groundY)) return;
 
-            if (transform.position.y < avgGroundY - fallThroughTolerance)
+            // Сравниваем нижнюю точку коллайдера, а не центр объекта: у длинного
+            // автомата центр висит высоко над полом, и сравнение по нему давало
+            // ложные «провалы» либо, наоборот, пропускало настоящие.
+            float bottomY = GetBottomY();
+            if (bottomY >= groundY - fallThroughTolerance)
             {
-                rescueAttempts++;
-                Vector3 targetPos = new Vector3(transform.position.x,
-                                                avgGroundY + 0.15f,
-                                                transform.position.z);
-                transform.position = Vector3.MoveTowards(transform.position, targetPos, 0.5f);
-                body.velocity = Vector3.zero;
-                body.angularVelocity = Vector3.zero;
-
-                if (rescueAttempts >= 3)
-                {
-                    hasTouchedGround = true;
-                    body.isKinematic = true;
-                    body.useGravity = false;
-                    isFrozen = true;
-                }
+                CheckStuckInAir(groundY);
                 return;
             }
 
-            if (!hasTouchedGround)
+            rescueAttempts++;
+
+            float lift = groundY + (transform.position.y - bottomY) + 0.05f;
+            transform.position = new Vector3(transform.position.x, lift, transform.position.z);
+            body.velocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+
+            if (rescueAttempts >= 3)
             {
-                bool stuck = body.velocity.magnitude < 0.05f && body.angularVelocity.magnitude < 0.05f;
-                bool highAbove = transform.position.y > avgGroundY + 0.4f;
-                if (stuck && highAbove && aliveSinceGravity > 0.4f)
-                {
-                    body.WakeUp();
-                    Vector3 randomForce = Vector3.down * 3f + Random.insideUnitSphere * 0.8f;
-                    body.AddForce(randomForce * body.mass, ForceMode.Impulse);
-                }
+                // Три попытки — физика не держит. Кладём намертво, но на поверхности.
+                hasTouchedGround = true;
+                body.velocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+                body.Sleep();
+                isFrozen = true;
+
+                Debug.LogWarning($"[DroppedWeapon] {name} трижды провалилось под пол — " +
+                                 "закреплено на месте. Проверь коллайдер и Ground Mask.", this);
             }
         }
 
-        private float GetAverageGroundY()
+        /// <summary>
+        /// Оружие не двигается, но до земли далеко — значит застряло в геометрии
+        /// или зависло на «спящем» теле. Толкаем вниз, пока не коснётся пола.
+        /// </summary>
+        private void CheckStuckInAir(float groundY)
         {
+            if (hasTouchedGround) return;
+            if (aliveSinceGravity < 0.4f) return;
+
+            bool stuck = body.velocity.magnitude < 0.05f && body.angularVelocity.magnitude < 0.05f;
+            bool highAbove = GetBottomY() > groundY + 0.4f;
+
+            if (!stuck || !highAbove) return;
+
+            body.WakeUp();
+            body.AddForce((Vector3.down * 3f + Random.insideUnitSphere * 0.8f) * body.mass,
+                          ForceMode.Impulse);
+        }
+
+        /// <summary>Нижняя точка всех коллайдеров оружия в мировых координатах.</summary>
+        private float GetBottomY()
+        {
+            if (ownColliders == null || ownColliders.Length == 0) return transform.position.y;
+
+            float lowest = float.MaxValue;
+            foreach (Collider c in ownColliders)
+            {
+                if (c == null || !c.enabled) continue;
+                lowest = Mathf.Min(lowest, c.bounds.min.y);
+            }
+
+            return lowest < float.MaxValue ? lowest : transform.position.y;
+        }
+
+        /// <summary>
+        /// Высота пола под оружием. Возвращает false, если пола нет вовсе:
+        /// тогда трогать оружие нельзя — оно может законно падать в пропасть,
+        /// и телепорт «наверх» отправил бы его в случайное место.
+        /// </summary>
+        private bool TryGetGroundY(out float groundY)
+        {
+            groundY = 0f;
+
+            if (groundCheckPoints == null) CacheGroundPoints();
+
             float sum = 0f;
             int count = 0;
+
             foreach (var localPoint in groundCheckPoints)
             {
                 Vector3 worldPoint = transform.TransformPoint(localPoint);
                 if (Physics.Raycast(worldPoint + Vector3.up * 0.5f, Vector3.down, out RaycastHit hit,
                                     groundSearchHeight, groundMask, QueryTriggerInteraction.Ignore))
                 {
+                    if (hit.collider.transform.IsChildOf(transform)) continue;
                     sum += hit.point.y;
                     count++;
                 }
             }
-            return count > 0 ? sum / count : transform.position.y;
+
+            if (count == 0) return false;
+
+            groundY = sum / count;
+            return true;
         }
     }
 }

@@ -424,6 +424,11 @@ namespace FlameOfHistory.AI
         /// Страховка: если врага уничтожили без вызова HandleOwnerDeath
         /// (Destroy по таймеру трупа, выгрузка сцены), оружие всё равно выпадет
         /// вместо того, чтобы исчезнуть вместе с телом.
+        ///
+        /// Важно: перевешивать оружие из иерархии здесь нельзя — Unity уже
+        /// помечает детей на уничтожение вместе с родителем, и SetParent(null)
+        /// не спасёт объект. Поэтому создаётся новый экземпляр, а не переносится
+        /// существующий.
         /// </summary>
         private void OnDestroy()
         {
@@ -433,7 +438,19 @@ namespace FlameOfHistory.AI
             // Смена сцены и выход из игры: ронять нечего, всё и так удаляется
             if (!Application.isPlaying) return;
 
-            DropWeaponImmediate();
+            _weaponDropped = true;
+
+            if (dropObject == null)
+            {
+                Debug.LogWarning($"[EnemyLoadout] {name} уничтожен без HandleOwnerDeath, " +
+                                 "а Drop Object не задан — оружие пропало вместе с телом. " +
+                                 "Задай Drop Object, чтобы выпадение работало и в этом случае.", this);
+                return;
+            }
+
+            SpawnDropObject(Weapon.transform);
+            Weapon = null;
+            _spawnedWeaponRoot = null;
         }
 
         /// <summary>
@@ -501,10 +518,15 @@ namespace FlameOfHistory.AI
         /// </summary>
         private void SpawnDropObject(Transform weaponRoot)
         {
+            // Позицию берём до выключения: у неактивного объекта transform
+            // читается нормально, но так надёжнее и понятнее.
+            Vector3 spawnPosition = weaponRoot.position;
+            Quaternion spawnRotation = weaponRoot.rotation;
+
             // Оружие в руках больше не нужно — прячем его, чтобы не осталось дубликатов.
             weaponRoot.gameObject.SetActive(false);
 
-            GameObject instance = Instantiate(dropObject, weaponRoot.position, weaponRoot.rotation);
+            GameObject instance = Instantiate(dropObject, spawnPosition, spawnRotation);
             instance.name = dropObject.name;
             instance.transform.SetParent(null);
             instance.SetActive(true);

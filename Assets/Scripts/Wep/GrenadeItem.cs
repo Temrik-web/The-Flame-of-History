@@ -156,10 +156,46 @@ public class GrenadeItem : HeldItem
             throwRoutine = null;
         }
 
+        // Спрятать гранату с выдернутым запалом — не способ отменить запал.
+        // Раньше это давало бесплатный сброс: выдернул кольцо, нажал 0, взял снова.
+        if (pinPulled && !isThrowing) DropLiveGrenade();
+
         isThrowing = false;
         pinPulled = false;
         cookTimer = 0f;
         ClearPoseOverride();
+    }
+
+    /// <summary>
+    /// Уронить «горящую» гранату под ноги. Вызывается, когда игрок убирает
+    /// из рук гранату с выдернутым запалом.
+    /// </summary>
+    void DropLiveGrenade()
+    {
+        // Выгрузка сцены и выход из Play: создавать объекты нельзя
+        if (!Application.isPlaying) return;
+        if (!gameObject.scene.isLoaded) return;
+
+        float remainingFuse = Mathf.Max(0.3f, fuseTime - cookTimer);
+
+        Transform cam = playerCamera != null ? playerCamera.transform : transform;
+        Vector3 dropPoint = cam.position + cam.forward * 0.4f - cam.up * 0.35f;
+
+        GameObject instance = grenadePrefab != null
+            ? Instantiate(grenadePrefab, dropPoint, Quaternion.identity)
+            : BuildRuntimeGrenade(dropPoint, cam.forward);
+
+        ThrownGrenade thrown = instance.GetComponent<ThrownGrenade>();
+        if (thrown == null) thrown = instance.AddComponent<ThrownGrenade>();
+
+        GameObject thrower = Controller != null ? Controller.gameObject : gameObject;
+        thrown.Launch(cam.forward * 1.2f, Vector3.zero, thrower, remainingFuse);
+
+        ConsumeGrenade();
+
+        if (logActions)
+            Debug.LogWarning($"[Grenade] Убрал гранату с выдернутым запалом — она упала под ноги " +
+                             $"(до взрыва {remainingFuse:0.##} с).");
     }
 
     // =====================================================================
@@ -221,6 +257,13 @@ public class GrenadeItem : HeldItem
     IEnumerator ThrowSequence(float force)
     {
         isThrowing = true;
+
+        // Первый бросок после экипировки: модель ещё едет к позе «в руках»,
+        // и замах стартовал бы с произвольной точки (тот же баг был у ножа)
+        Transform model = itemModel != null ? itemModel : transform;
+        model.localPosition = hipPosition;
+        model.localRotation = Quaternion.Euler(hipRotation);
+        SetPoseOverride(hipPosition, hipRotation, 1f);
 
         // --- замах ---
         float t = 0f;
