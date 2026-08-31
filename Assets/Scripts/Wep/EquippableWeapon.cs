@@ -8,6 +8,10 @@ using UnityEngine;
 /// показываться/скрываться и следит, чтобы модель действительно висела
 /// в руках. Переключением занимается WeaponSlotManager.
 ///
+/// Модель оружия в руках кладётся на слой HeldObjects, чтобы фонарик
+/// (и при желании другие источники) не подсвечивал её и не считал
+/// препятствием для ближней засветки.
+///
 /// Важно: все такие объекты должны быть детьми одного держателя
 /// (например, WeaponHolder под камерой) и иметь корректные локальные
 /// позицию/поворот/масштаб — они не меняются при переключении.
@@ -36,6 +40,10 @@ public class EquippableWeapon : MonoBehaviour
              "вместо рук игрока.")]
     public bool attachToHolderOnStart = true;
 
+    [Tooltip("Класть модель оружия на слой HeldObjects, чтобы фонарик её не " +
+             "подсвечивал и не считал препятствием для засветки.")]
+    public bool putOnHeldLayer = true;
+
     [Header("Скрипты оружия")]
     [Tooltip("Скрипты, которые включаются вместе с моделью (Wep, HeldItem, WeaponShooting и т.п.). " +
              "Пусто — соберутся автоматически с этого объекта и его детей.")]
@@ -60,6 +68,12 @@ public class EquippableWeapon : MonoBehaviour
             weaponScripts = MergeMissingScripts(weaponScripts);
 
         if (attachToHolderOnStart) AttachHeldItems();
+    }
+
+    void Start()
+    {
+        if (putOnHeldLayer && equippedOnStart)
+            SetLayerRecursively(gameObject, LayerMask.NameToLayer("HeldObjects"));
     }
 
     /// <summary>
@@ -124,10 +138,22 @@ public class EquippableWeapon : MonoBehaviour
                 if (mb != null) mb.enabled = equipped;
         }
 
+        if (equipped && putOnHeldLayer)
+            SetLayerRecursively(gameObject, LayerMask.NameToLayer("HeldObjects"));
+
         gameObject.SetActive(equipped);
 
         if (equipped && playSound && equipSound != null)
             AudioSource.PlayClipAtPoint(equipSound, transform.position, 0.8f);
+    }
+
+    /// <summary>Проставить слой рекурсивно на все дочерние меши и коллайдеры.</summary>
+    static void SetLayerRecursively(GameObject root, int layer)
+    {
+        if (layer < 0) return;
+        root.layer = layer;
+        foreach (Transform child in root.transform)
+            SetLayerRecursively(child.gameObject, layer);
     }
 
 #if UNITY_EDITOR

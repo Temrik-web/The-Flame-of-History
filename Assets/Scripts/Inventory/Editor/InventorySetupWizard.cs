@@ -107,7 +107,14 @@ public static class InventorySetupWizard
                 itemName: "Металлолом",
                 description: "Пригодится. Когда-нибудь.",
                 type: ItemType.Misc, rarity: ItemRarity.Common,
-                useValue: 0f, stackable: true, maxStack: 30, consumeOnUse: false)
+                useValue: 0f, stackable: true, maxStack: 30, consumeOnUse: false),
+
+            CreateOrUpdateItem(
+                id: "flashlight", fileName: "Item_Flashlight",
+                itemName: "Фонарь",
+                description: "Армейский фонарь с тёплым жёлтым светом. Включается клавишей F.",
+                type: ItemType.Misc, rarity: ItemRarity.Uncommon,
+                useValue: 0f, stackable: false, maxStack: 1, consumeOnUse: false)
         };
 
         GameObject pickupPrefab = CreateGenericPickupPrefab();
@@ -400,7 +407,60 @@ public static class InventorySetupWizard
             blocker.blockMovement = true;
         }
 
+        SetupFlashlight(player, inv.playerCamera);
+
         return inv;
+    }
+
+    /// <summary>
+    /// Фонарик: компонент на игроке + Spot Light под камерой.
+    /// Свет создаётся здесь, а не в рантайме, чтобы его можно было
+    /// покрутить в инспекторе до запуска сцены.
+    /// </summary>
+    private static void SetupFlashlight(GameObject player, Camera camera)
+    {
+        if (player.GetComponent<Flashlight>() != null) return;
+
+        Transform parent = camera != null ? camera.transform : player.transform;
+
+        Transform existing = parent.Find("FlashlightSpot");
+        GameObject lightObj;
+
+        if (existing != null)
+        {
+            lightObj = existing.gameObject;
+        }
+        else
+        {
+            lightObj = new GameObject("FlashlightSpot");
+            Undo.RegisterCreatedObjectUndo(lightObj, "Create flashlight light");
+            lightObj.transform.SetParent(parent, false);
+        }
+
+        Light light = lightObj.GetComponent<Light>();
+        if (light == null) light = Undo.AddComponent<Light>(lightObj);
+
+        light.type = LightType.Spot;
+        light.spotAngle = 55f;
+        light.innerSpotAngle = 55f * Mathf.Lerp(1f, 0.55f, 0.55f); // innerConeBlend = 0.55
+        light.range = 45f;
+        light.useColorTemperature = true;
+        light.colorTemperature = 2850f;
+        light.color = new Color(1f, 0.87f, 0.7f);
+        light.shadows = LightShadows.Soft;
+        light.shadowStrength = 0.55f;
+        light.enabled = false;
+
+        AudioSource audio = lightObj.GetComponent<AudioSource>();
+        if (audio == null) audio = Undo.AddComponent<AudioSource>(lightObj);
+        audio.playOnAwake = false;
+        audio.spatialBlend = 1f;
+
+        Flashlight flashlight = Undo.AddComponent<Flashlight>(player);
+        flashlight.ConfigureFromEditor(light, player.transform, audio, "flashlight");
+
+        EditorUtility.SetDirty(flashlight);
+        Debug.Log($"[InventorySetup] Фонарик настроен: свет под {parent.name}, клавиша F.");
     }
 
     /// <summary>Повесить красивый интерфейс диалогов на существующий DialogueManager.</summary>
