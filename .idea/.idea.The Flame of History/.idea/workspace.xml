@@ -4,7 +4,102 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8ca32e3b-c2c8-42b6-a053-5a2e868378da" name="Changes" comment="" />
+    <list default="true" id="8ca32e3b-c2c8-42b6-a053-5a2e868378da" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset Equirect.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset Equirect.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset Equirect.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset Equirect.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_0_Front+Z.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_0_Front+Z.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_1_Back-Z.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_1_Back-Z.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_2_Left+X.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_2_Left+X.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_3_Right-X.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_3_Right-X.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_4_Up+Y.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_4_Up+Y.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_5_Down-Y.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Cold Sunset__Cam_5_Down-Y.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Materials.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Materials/Cold Sunset Equirect.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Day/Materials/Cold Sunset Equirect.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/AllSky_Night_MoonBurst Equirect.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/AllSky_Night_MoonBurst Equirect.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/AllSky_Night_MoonBurst Equirect.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/AllSky_Night_MoonBurst Equirect.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Materials.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Materials/AllSky_Night_MoonBurst Equirect.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Materials/AllSky_Night_MoonBurst Equirect.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst.unity" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst.unity.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon BurstSettings.lighting" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon BurstSettings.lighting.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_0_Front+Z.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_0_Front+Z.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_1_Back-Z.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_1_Back-Z.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_2_Left+X.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_2_Left+X.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_3_Right-X.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_3_Right-X.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_4_Up+Y.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_4_Up+Y.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_5_Down-Y.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Night/Night Moon Burst_Cam_5_Down-Y.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink Equirect.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink Equirect.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink.unity" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink.unity.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPinkSettings.lighting" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPinkSettings.lighting.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_0_Front+Z.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_0_Front+Z.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_1_Back-Z.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_1_Back-Z.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_2_Left+X.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_2_Left+X.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_3_Right-X.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_3_Right-X.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_4_Up+Y.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_4_Up+Y.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_5_Down-Y.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_Cam_5_Down-Y.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_EquiRect.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Epic_GloriousPink_EquiRect.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Materials.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Materials/Epic_GloriousPink_EquiRect.mat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/From AssetStore/AllSkyFree/Sunset/Materials/Epic_GloriousPink_EquiRect.mat.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_Bitmap-Custom-Atlas.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_Bitmap-Custom-Atlas.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_Bitmap-Mobile.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_Bitmap-Mobile.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_Bitmap.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_Bitmap.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF Overlay.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF Overlay.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF SSD.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF SSD.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Mobile Masking.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Mobile Masking.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Mobile Overlay.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Mobile Overlay.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Mobile SSD.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Mobile SSD.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Mobile.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Mobile.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Surface-Mobile.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Surface-Mobile.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Surface.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF-Surface.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_SDF.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_Sprite.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMP_Sprite.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMPro.cginc" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMPro.cginc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMPro_Mobile.cginc" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMPro_Mobile.cginc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMPro_Properties.cginc" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMPro_Properties.cginc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMPro_Surface.cginc" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Settings/TextMesh Pro/Shaders/TMPro_Surface.cginc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Packages/manifest.json" beforeDir="false" afterPath="$PROJECT_DIR$/Packages/manifest.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Packages/packages-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/Packages/packages-lock.json" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -94,6 +189,7 @@
       <workItem from="1786760273804" duration="78000" />
       <workItem from="1787580018838" duration="870000" />
       <workItem from="1788307024059" duration="21000" />
+      <workItem from="1788319011296" duration="458000" />
     </task>
     <servers />
   </component>
