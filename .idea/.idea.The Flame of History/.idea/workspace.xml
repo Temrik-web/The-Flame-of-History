@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8ca32e3b-c2c8-42b6-a053-5a2e868378da" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.The Flame of History/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.The Flame of History/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/AI/HitscanWeapon.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/AI/HitscanWeapon.cs" afterDir="false" />
-    </list>
+    <list default="true" id="8ca32e3b-c2c8-42b6-a053-5a2e868378da" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -96,6 +93,7 @@
       <workItem from="1786756551351" duration="253000" />
       <workItem from="1786760273804" duration="78000" />
       <workItem from="1787580018838" duration="870000" />
+      <workItem from="1788307024059" duration="21000" />
     </task>
     <servers />
   </component>
