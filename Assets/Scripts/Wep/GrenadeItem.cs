@@ -85,6 +85,32 @@ public class GrenadeItem : HeldItem
     public Vector3 throwKickPosition = new Vector3(-0.05f, 0.03f, -0.12f);
     public Vector3 throwKickRotation = new Vector3(-9f, 4f, 0f);
 
+    [Header("Взрыв")]
+    [Tooltip("Префаб эффекта взрыва: партиклы, свет, дым. Например BigExplosion " +
+             "из ParticlePack. Настройки этого блока применяются к брошенной " +
+             "гранате и перекрывают значения на ThrownGrenade.")]
+    public GameObject explosionEffectPrefab;
+
+    [Tooltip("Через сколько секунд удалить эффект взрыва.")]
+    public float explosionEffectLifetime = 2.5f;
+
+    [Tooltip("Звук взрыва.")]
+    public AudioClip explosionSound;
+    [Range(0f, 1f)] public float explosionVolume = 1f;
+
+    [Tooltip("Звук удара гранаты о землю.")]
+    public AudioClip bounceSound;
+    [Range(0f, 1f)] public float bounceVolume = 0.5f;
+
+    [Tooltip("Урон в центре взрыва. У игрока 100 HP: 150 убивает примерно в 2.6 м.")]
+    public float explosionDamage = 150f;
+
+    [Tooltip("Радиус поражения, метры.")]
+    public float explosionDamageRadius = 6f;
+
+    [Tooltip("Доля урона на границе радиуса. 0.35 при уроне 150 — это 52 урона на краю.")]
+    [Range(0f, 1f)] public float explosionEdgeDamageFactor = 0.35f;
+
     [Header("Расход из инвентаря")]
     [Tooltip("Списывать одну гранату из инвентаря при броске.")]
     public bool consumeFromInventory = true;
@@ -187,6 +213,7 @@ public class GrenadeItem : HeldItem
 
         ThrownGrenade thrown = instance.GetComponent<ThrownGrenade>();
         if (thrown == null) thrown = instance.AddComponent<ThrownGrenade>();
+        ApplyExplosionSettings(thrown);
 
         GameObject thrower = Controller != null ? Controller.gameObject : gameObject;
         thrown.Launch(cam.forward * 1.2f, Vector3.zero, thrower, remainingFuse);
@@ -342,6 +369,7 @@ public class GrenadeItem : HeldItem
 
         ThrownGrenade thrown = instance.GetComponent<ThrownGrenade>();
         if (thrown == null) thrown = instance.AddComponent<ThrownGrenade>();
+        ApplyExplosionSettings(thrown);
 
         Vector3 velocity = direction * force;
         if (inheritPlayerVelocity) velocity += PlayerVelocity;
@@ -354,6 +382,44 @@ public class GrenadeItem : HeldItem
 
         if (logActions)
             Debug.Log($"[Grenade] Брошена: сила {force:0.#}, запал {remainingFuse:0.##} с.");
+    }
+
+    /// <summary>
+    /// Перенести настройки взрыва из инспектора гранаты на созданный снаряд.
+    ///
+    /// Нужно потому, что ThrownGrenade обычно навешивается через AddComponent
+    /// на копию модели из рук: такой компонент получает только значения по
+    /// умолчанию из кода, и ни эффекта, ни звука, ни настроенного урона у него
+    /// нет — задать их в инспекторе было негде.
+    ///
+    /// Ссылки на эффект и звуки переносим только если они заданы здесь: иначе
+    /// пустое поле стирало бы то, что уже настроено на префабе снаряда.
+    /// </summary>
+    void ApplyExplosionSettings(ThrownGrenade thrown)
+    {
+        if (thrown == null) return;
+
+        if (explosionEffectPrefab != null)
+        {
+            thrown.explosionEffectPrefab = explosionEffectPrefab;
+            thrown.effectLifetime = explosionEffectLifetime;
+        }
+
+        if (explosionSound != null)
+        {
+            thrown.explosionSound = explosionSound;
+            thrown.explosionVolume = explosionVolume;
+        }
+
+        if (bounceSound != null)
+        {
+            thrown.bounceSound = bounceSound;
+            thrown.bounceVolume = bounceVolume;
+        }
+
+        thrown.damage = explosionDamage;
+        thrown.damageRadius = explosionDamageRadius;
+        thrown.edgeDamageFactor = explosionEdgeDamageFactor;
     }
 
     /// <summary>
@@ -495,6 +561,7 @@ public class GrenadeItem : HeldItem
 
         ThrownGrenade thrown = instance.GetComponent<ThrownGrenade>();
         if (thrown == null) thrown = instance.AddComponent<ThrownGrenade>();
+        ApplyExplosionSettings(thrown);
 
         // Thrower не указываем: игрок должен получить урон от своей же ошибки
         thrown.Launch(Vector3.zero, Vector3.zero, null, 0.01f);
