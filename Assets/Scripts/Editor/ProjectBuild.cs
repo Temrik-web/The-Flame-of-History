@@ -11,6 +11,7 @@ public static class ProjectBuild
     [MenuItem("Tools/Сборка/Windows x64")]
     public static void Windows()
     {
+        TerrainBuildRepair.RepairAll();
         string[] scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
         if (scenes.Length == 0 || scenes.Any(s => !File.Exists(s)))
             throw new BuildFailedException("В Build Settings отсутствуют доступные включённые сцены.");
