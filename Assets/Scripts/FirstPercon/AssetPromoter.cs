@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
 
@@ -123,3 +124,4 @@ namespace EasyPeasyFirstPersonController.EditorScripts
         }
     }
 }
+#endif
