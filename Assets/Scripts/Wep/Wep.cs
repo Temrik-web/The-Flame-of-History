@@ -712,8 +712,10 @@ public class Wep : MonoBehaviour
         // Враги должны реагировать на пролетевшую пулю (подавление, поиск стрелка)
         // и на звук выстрела, иначе игрок стреляет в полной «тишине» для ИИ.
         GameObject shooter = fpsController != null ? fpsController.gameObject : gameObject;
+        var shooterHealth = shooter.GetComponentInParent<FlameOfHistory.AI.CharacterHealth>();
+        var team = shooterHealth != null ? shooterHealth.Team : shooterTeam;
         FlameOfHistory.AI.ProjectilePass.Emit(new FlameOfHistory.AI.ProjectilePass.Shot(
-            rayOrigin, endPoint, shooter, shooterTeam, hitSomething));
+            rayOrigin, endPoint, shooter, team, hitSomething));
 
         if (shotNoiseRadius > 0f)
             FlameOfHistory.AI.NoiseSystem.Emit(muzzlePoint.position, shotNoiseRadius, shooter, 1f);
@@ -1050,12 +1052,8 @@ public class Wep : MonoBehaviour
     /// <summary>
     /// Нанести урон тому, во что попала пуля. Возвращает true, если цель живая.
     ///
-    /// В проекте два интерфейса урона: боевой FlameOfHistory.AI.IDamageable
-    /// (враги на CharacterHealth) и простой глобальный IDamageable (его
-    /// реализуют Enemy и PlayerHealth). Раньше выстрел искал только
-    /// Enemy.GetComponent на самом коллайдере, поэтому враги на CharacterHealth
-    /// урон не получали вовсе, а попадание в дочерний коллайдер (голова, руки)
-    /// не считалось. GetComponentInParent лечит и то, и другое.
+    /// Все персонажи получают урон через FlameOfHistory.AI.IDamageable.
+    /// Поиск в родителях поддерживает коллайдеры на дочерних костях.
     /// </summary>
     bool ApplyBulletDamage(RaycastHit hit, Vector3 direction)
     {
@@ -1072,15 +1070,6 @@ public class Wep : MonoBehaviour
 
             aiTarget.TakeDamage(new FlameOfHistory.AI.DamageInfo(
                 finalDamage, hit.point, direction, shooter));
-
-            if (logHits) Debug.Log($"[Gun] Попадание в {col.name}: {finalDamage:0.#} урона.");
-            return true;
-        }
-
-        var simpleTarget = col.GetComponentInParent<IDamageable>();
-        if (simpleTarget != null)
-        {
-            simpleTarget.TakeDamage(finalDamage, shooter.transform.position);
 
             if (logHits) Debug.Log($"[Gun] Попадание в {col.name}: {finalDamage:0.#} урона.");
             return true;
@@ -1163,9 +1152,8 @@ public class Wep : MonoBehaviour
 
         foreach (MonoBehaviour mb in FindObjectsOfType<MonoBehaviour>())
         {
-            if (mb is not FlameOfHistory.AI.IDamageable && mb is not IDamageable) continue;
-            if (mb is PlayerHealth) continue;                       // сам игрок — не цель
-            if (fpsController != null && mb.transform.root == fpsController.transform.root) continue;
+            if (mb is not FlameOfHistory.AI.IDamageable) continue;
+            if (fpsController != null && mb.transform.IsChildOf(fpsController.transform)) continue;
 
             int layer = mb.gameObject.layer;
             if ((excludedMask & (1 << layer)) == 0) continue;

@@ -6,9 +6,21 @@ public sealed class PatrolRoute : MonoBehaviour
 {
     [SerializeField] private Transform[] points;
     [SerializeField] private bool loop = true;
+    [SerializeField] private bool randomOrder;
 
     public int Count => points != null ? points.Length : 0;
     public bool Loop => loop;
+
+    public int NextIndex(int current)
+    {
+        if (Count <= 1) return 0;
+        if (randomOrder)
+        {
+            int next = Random.Range(0, Count - 1);
+            return next >= current ? next + 1 : next;
+        }
+        return current + 1 < Count ? current + 1 : (loop ? 0 : Count - 1);
+    }
 
     public Transform GetPoint(int index)
     {

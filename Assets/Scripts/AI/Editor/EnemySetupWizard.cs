@@ -3,11 +3,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using FlameOfHistory.AI;
 
-// ВАЖНО: в проекте есть второй, старый класс EnemyAI в глобальном пространстве имён
-// (Assets/Scripts/Wep/Enemyai.cs). Правила C# отдают приоритет типу из глобального
-// namespace перед типом из using-директивы, поэтому без псевдонима мастер молча
-// работал бы со старым ИИ и не находил бы его поля. Псевдонимы фиксируют,
-// что настраивается именно боевая система из папки AI.
+// Единственная боевая система проекта.
 using CombatEnemyAI = FlameOfHistory.AI.EnemyAI;
 using CombatTeam = FlameOfHistory.AI.Team;
 
@@ -138,6 +134,13 @@ public static class EnemySetupWizard
                 "Ок");
             return;
         }
+
+        // Игрок и новые враги используют одну систему команд и здоровья.
+        CharacterHealth playerHealth = player.GetComponent<CharacterHealth>();
+        if (playerHealth == null) playerHealth = Undo.AddComponent<CharacterHealth>(player);
+        var healthSettings = new SerializedObject(playerHealth);
+        healthSettings.FindProperty("team").enumValueIndex = (int)CombatTeam.Allies;
+        healthSettings.ApplyModifiedProperties();
 
         // Ищем камеру игрока
         Camera cam = player.GetComponentInChildren<Camera>();
@@ -375,7 +378,7 @@ public static class EnemySetupWizard
     private static GameObject FindPlayer()
     {
         // 1) Явный компонент боевой системы из этой папки
-        var pc = Object.FindObjectOfType<PlayerCharacter>();
+        var pc = Object.FindObjectOfType<PlayerHealth>();
         if (pc != null) return pc.gameObject;
 
         // 2) Тег Player

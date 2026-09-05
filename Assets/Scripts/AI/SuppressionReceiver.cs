@@ -46,7 +46,7 @@ public sealed class SuppressionReceiver : MonoBehaviour
 
         // Не реагируем на собственные выстрелы.
         if (shot.Shooter != null &&
-            shot.Shooter.transform.root == transform.root) return;
+            shot.Shooter.GetComponentInParent<CharacterHealth>() == _health) return;
 
         float distance = shot.DistanceToPoint(transform.position);
         if (distance > nearMissRadius) return;

@@ -1,17 +1,18 @@
 using UnityEngine;
 using System;
+using FlameOfHistory.AI;
 
 /// <summary>
-/// Здоровье и смерть врага.
-/// Обновлено: добавлены события OnDeath / OnDamaged и реализация IDamageable,
-/// чтобы EnemyAI (и оружие игрока) могли получать урон/смерть единым способом.
-/// Старый вызов TakeDamage(float) по-прежнему работает — обратная совместимость сохранена.
+/// Эффекты смерти и совместимые события. HP принадлежат только CharacterHealth.
 /// </summary>
-public class Enemy : MonoBehaviour, IDamageable
+[RequireComponent(typeof(CharacterHealth))]
+[DisallowMultipleComponent]
+public class Enemy : MonoBehaviour
 {
-    [Header("Здоровье")]
-    public float maxHealth = 100f;
-    private float currentHealth;
+    private CharacterHealth combatHealth;
+    private CharacterHealth Health => combatHealth != null
+        ? combatHealth : combatHealth = GetComponent<CharacterHealth>();
+    public float maxHealth => Health.MaximumHealth;
 
     [Header("Смерть")]
     public GameObject deathEffectPrefab;   // частицы крови/взрыва (необязательно)
@@ -24,13 +25,12 @@ public class Enemy : MonoBehaviour, IDamageable
     public event Action OnDeath;
     public event Action<float, Vector3> OnDamaged; // (урон, позиция атакующего)
 
-    public bool IsDead => currentHealth <= 0f;
-    public float CurrentHealth => currentHealth;
-    public float HealthPercent => maxHealth > 0f ? currentHealth / maxHealth : 0f;
+    public bool IsDead => !Health.IsAlive;
+    public float CurrentHealth => Health.CurrentHealth;
+    public float HealthPercent => Health.NormalizedHealth;
 
-    void Start()
+    void Awake()
     {
-        currentHealth = maxHealth;
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null && deathSound != null)
         {
@@ -38,6 +38,23 @@ public class Enemy : MonoBehaviour, IDamageable
             audioSource.spatialBlend = 1f; // 3D звук
         }
     }
+
+    void OnEnable()
+    {
+        Health.Damaged += HandleDamage;
+        Health.Died += HandleDeath;
+    }
+
+    void OnDisable()
+    {
+        if (combatHealth == null) return;
+        combatHealth.Damaged -= HandleDamage;
+        combatHealth.Died -= HandleDeath;
+    }
+
+    void HandleDamage(DamageInfo damage) => OnDamaged?.Invoke(damage.Amount,
+        damage.Attacker != null ? damage.Attacker.transform.position : damage.Point - damage.Direction);
+    void HandleDeath(DamageInfo damage) => Die();
 
     // Старый метод — оставлен для совместимости с уже написанным оружием игрока
     public void TakeDamage(float damage)
@@ -49,16 +66,8 @@ public class Enemy : MonoBehaviour, IDamageable
     // чтобы понимать, откуда стреляют, даже если он не видит игрока.
     public void TakeDamage(float damage, Vector3 attackerPosition)
     {
-        if (currentHealth <= 0) return; // уже мёртв
-
-        currentHealth -= damage;
-        OnDamaged?.Invoke(damage, attackerPosition);
-        Debug.Log($"{gameObject.name} получил {damage} урона. Осталось: {currentHealth}");
-
-        if (currentHealth <= 0)
-        {
-            Die();
-        }
+        Health.TakeDamage(new DamageInfo(damage, transform.position,
+            (transform.position - attackerPosition).normalized, null));
     }
 
     void Die()

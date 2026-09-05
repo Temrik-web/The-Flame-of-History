@@ -471,12 +471,7 @@ namespace FlameOfHistory.AI
         {
             if (patrolRoute == null || patrolRoute.Count == 0) return;
 
-            int next = _patrolIndex + 1;
-
-            if (next >= patrolRoute.Count)
-                next = patrolRoute.Loop ? 0 : patrolRoute.Count - 1;
-
-            _patrolIndex = next;
+            _patrolIndex = patrolRoute.NextIndex(_patrolIndex);
         }
 
         private void UpdateWander()
@@ -901,7 +896,7 @@ namespace FlameOfHistory.AI
             if (noise.Source != null)
             {
                 // Свои крики и шаги игнорируем полностью.
-                if (noise.Source.transform.root == transform.root) return;
+                if (noise.Source.GetComponentInParent<CharacterHealth>() == _health) return;
 
                 var srcHealth = noise.Source.GetComponentInParent<CharacterHealth>();
                 if (srcHealth != null && srcHealth.Team == _health.Team) return;

@@ -45,7 +45,7 @@ public class EquippableWeapon : MonoBehaviour
     public bool putOnHeldLayer = true;
 
     [Header("Скрипты оружия")]
-    [Tooltip("Скрипты, которые включаются вместе с моделью (Wep, HeldItem, WeaponShooting и т.п.). " +
+    [Tooltip("Скрипты, которые включаются вместе с моделью (Wep, HeldItem и т.п.). " +
              "Пусто — соберутся автоматически с этого объекта и его детей.")]
     public MonoBehaviour[] weaponScripts;
 
@@ -116,7 +116,7 @@ public class EquippableWeapon : MonoBehaviour
     }
 
     static bool IsWeaponScript(MonoBehaviour mb) =>
-        mb is Wep || mb is WeaponShooting || mb is HeldItem;
+        mb is Wep || mb is HeldItem;
 
     /// <summary>Поставить модель в руки: HeldItem сам знает свой держатель и позу.</summary>
     void AttachHeldItems()

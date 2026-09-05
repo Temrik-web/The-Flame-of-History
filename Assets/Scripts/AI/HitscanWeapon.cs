@@ -118,8 +118,8 @@ public sealed class HitscanWeapon : MonoBehaviour
 
         if (owner != null)
         {
-            _ownerRoot = owner.transform.root.gameObject;
             var ownerHealth = owner.GetComponentInParent<CharacterHealth>();
+            _ownerRoot = ownerHealth != null ? ownerHealth.gameObject : owner;
             if (ownerHealth != null) _ownerTeam = ownerHealth.Team;
         }
         else _ownerRoot = null;
@@ -151,7 +151,7 @@ public sealed class HitscanWeapon : MonoBehaviour
 
         foreach (var hit in hits)
         {
-            if (_ownerRoot != null && hit.collider.transform.root.gameObject == _ownerRoot)
+            if (_ownerRoot != null && hit.collider.transform.IsChildOf(_ownerRoot.transform))
                 continue;
 
             endPoint = hit.point;

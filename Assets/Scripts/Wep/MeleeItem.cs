@@ -340,9 +340,10 @@ public class MeleeItem : HeldItem
         {
             if (hit.collider == null) continue;
 
-            GameObject root = hit.collider.transform.root.gameObject;
-            if (root == self) continue;                  // сам себя не режем
-            if (root == transform.root.gameObject) continue;
+            var target = hit.collider.GetComponentInParent<FlameOfHistory.AI.CharacterHealth>();
+            GameObject root = target != null ? target.gameObject : hit.collider.gameObject;
+            if (hit.collider.transform.IsChildOf(self.transform)) continue;
+            if (hit.collider.transform.IsChildOf(transform)) continue;
             if (touchedRoots.Contains(root)) continue;
 
             touchedRoots.Add(root);
@@ -436,7 +437,7 @@ public class MeleeItem : HeldItem
     }
 
     /// <summary>
-    /// Нанести урон обоими поддерживаемыми интерфейсами.
+    /// Нанести урон через единый боевой интерфейс.
     /// Возвращает true, если цель живая (значит, эффект — кровь, а не пыль).
     /// </summary>
     bool DealDamage(Collider col, float amount, Vector3 point, Vector3 direction)
@@ -451,13 +452,6 @@ public class MeleeItem : HeldItem
             return true;
         }
 
-        var simpleTarget = col.GetComponentInParent<global::IDamageable>();
-        if (simpleTarget != null)
-        {
-            simpleTarget.TakeDamage(amount, attacker.transform.position);
-            return true;
-        }
-
         return false;
     }
 
@@ -466,7 +460,8 @@ public class MeleeItem : HeldItem
     {
         if (backstabMultiplier <= 1f) return false;
 
-        Transform target = col.transform.root;
+        var health = col.GetComponentInParent<FlameOfHistory.AI.CharacterHealth>();
+        Transform target = health != null ? health.transform : col.transform;
         Vector3 toPlayer = transform.position - target.position;
         toPlayer.y = 0f;
         if (toPlayer.sqrMagnitude < 0.001f) return false;

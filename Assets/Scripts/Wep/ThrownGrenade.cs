@@ -384,14 +384,16 @@ public class ThrownGrenade : MonoBehaviour
         Collider[] overlapped = Physics.OverlapSphere(center, damageRadius, targetMask,
                                                      QueryTriggerInteraction.Collide);
 
-        // root -> (лучший коллайдер, лучший урон)
-        var best = new Dictionary<GameObject, KeyValuePair<Collider, float>>();
+        // Получатель урона, а не transform.root: несколько врагов могут
+        // находиться под одним организационным объектом сцены.
+        var best = new Dictionary<FlameOfHistory.AI.IDamageable, KeyValuePair<Collider, float>>();
 
         foreach (Collider col in overlapped)
         {
             if (col == null) continue;
 
-            GameObject root = col.transform.root.gameObject;
+            var target = col.GetComponentInParent<FlameOfHistory.AI.IDamageable>();
+            if (target == null || !target.IsAlive) continue;
 
             // Ближайшая точка коллайдера, а не его центр: у крупной капсулы
             // центр может лежать далеко, и урон занижался бы вдвое
@@ -401,9 +403,9 @@ public class ThrownGrenade : MonoBehaviour
             float dealt = DamageAtDistance(Vector3.Distance(center, targetPoint));
             if (dealt <= 0.01f) continue;
 
-            if (best.TryGetValue(root, out var current) && current.Value >= dealt) continue;
+            if (best.TryGetValue(target, out var current) && current.Value >= dealt) continue;
 
-            best[root] = new KeyValuePair<Collider, float>(col, dealt);
+            best[target] = new KeyValuePair<Collider, float>(col, dealt);
         }
 
         foreach (var pair in best)
@@ -413,14 +415,12 @@ public class ThrownGrenade : MonoBehaviour
             Vector3 targetPoint = col.ClosestPoint(center);
 
             if (DealDamage(col, dealt, center, targetPoint) && logDamage)
-                Debug.Log($"[Grenade] {pair.Key.name} получил {dealt:0.#} урона.");
+                Debug.Log($"[Grenade] {col.name} получил {dealt:0.#} урона.");
         }
     }
 
     /// <summary>
-    /// Нанести урон через любой из двух интерфейсов урона, которые есть в проекте:
-    /// боевой FlameOfHistory.AI.IDamageable (враги на CharacterHealth) и
-    /// простой глобальный IDamageable (его реализуют Enemy и PlayerHealth).
+    /// Нанести урон через единый боевой интерфейс.
     /// </summary>
     bool DealDamage(Collider col, float amount, Vector3 center, Vector3 targetPoint)
     {
@@ -431,13 +431,6 @@ public class ThrownGrenade : MonoBehaviour
         {
             if (!aiTarget.IsAlive) return false;
             aiTarget.TakeDamage(new DamageInfo(amount, targetPoint, direction, Thrower));
-            return true;
-        }
-
-        var simpleTarget = col.GetComponentInParent<global::IDamageable>();
-        if (simpleTarget != null)
-        {
-            simpleTarget.TakeDamage(amount, center);
             return true;
         }
 
@@ -467,7 +460,7 @@ public class ThrownGrenade : MonoBehaviour
         // порядке, и без неё далёкая стена «закрывала» бы цель, стоящую ближе
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
-        Transform targetRoot = target.transform.root;
+        var targetHealth = target.GetComponentInParent<FlameOfHistory.AI.IDamageable>();
 
         foreach (RaycastHit hit in hits)
         {
@@ -475,11 +468,12 @@ public class ThrownGrenade : MonoBehaviour
             if (hit.collider == target) return false;
 
             // Любая часть той же цели (голова, руки) — это уже сама цель
-            if (hit.collider.transform.IsChildOf(targetRoot)) return false;
+            if (targetHealth != null &&
+                hit.collider.GetComponentInParent<FlameOfHistory.AI.IDamageable>() == targetHealth) return false;
 
             // Сама граната и рука бросавшего преградой не считаются
             if (hit.collider.transform.IsChildOf(transform)) continue;
-            if (Thrower != null && hit.collider.transform.IsChildOf(Thrower.transform.root)) continue;
+            if (Thrower != null && hit.collider.transform.IsChildOf(Thrower.transform)) continue;
 
             return true;
         }

@@ -20079,7 +20079,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3684448795484694151, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: enemyTeam
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3684448795484694151, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: corpseLifetime
@@ -20091,7 +20091,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5868507627079902295, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: team
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6745415742342313503, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: m_LocalPosition.x
@@ -21556,7 +21556,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3684448795484694151, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: enemyTeam
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3684448795484694151, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: corpseLifetime
@@ -21568,7 +21568,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5868507627079902295, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: team
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6745415742342313503, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: m_LocalPosition.x
@@ -23714,7 +23714,12 @@ GameObject:
   - component: {fileID: 1237369529}
   - component: {fileID: 1237369528}
   - component: {fileID: 1237369527}
-  m_Layer: 7
+  - component: {fileID: 8800000001}
+  - component: {fileID: 8800000002}
+  - component: {fileID: 8800000003}
+  - component: {fileID: 8800000004}
+  - component: {fileID: 8800000005}
+  m_Layer: 8
   m_Name: Enemy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -23807,6 +23812,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 8800000007}
   - {fileID: 904202608}
   m_Father: {fileID: 1446102274}
   m_LocalEulerAnglesHint: {x: 0, y: -182.669, z: 0}
@@ -23819,74 +23825,46 @@ MonoBehaviour:
   m_GameObject: {fileID: 1237369521}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cec9f30aecbed6146881f72001825b01, type: 3}
+  m_Script: {fileID: 11500000, guid: c67071ed8c436f74e8b700b6e4d2335a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 1743753188}
-  health: {fileID: 1237369528}
+  eyePoint: {fileID: 8800000007}
+  weapon: {fileID: 8800000004}
+  patrolRoute: {fileID: 8800000003}
   animator: {fileID: 0}
-  eyes: {fileID: 0}
-  gunMuzzle: {fileID: 0}
-  muzzleFlashPrefab: {fileID: 0}
-  walkSpeed: 2
-  runSpeed: 4.5
-  turnSpeed: 8
-  patrolPoints:
-  - {fileID: 726360983}
-  - {fileID: 1656016772}
-  patrolWaitTime: 2
-  patrolLoop: 1
-  patrolRandom: 1
-  viewRadius: 15
-  viewAngle: 110
-  closeRangeRadius: 3
+  voice: {fileID: 8800000005}
+  loadout: {fileID: 0}
+  enemyTeam: 0
   targetMask:
     serializedVersion: 2
-    m_Bits: 0
-  obstacleMask:
+    m_Bits: 64
+  visibilityMask:
     serializedVersion: 2
-    m_Bits: 0
-  hearingRadius: 10
-  suspicionBuildRate: 1
-  suspicionDecayRate: 0.5
-  suspicionThreshold: 3
-  reactionDelay: 0.4
-  attackRange: 20
+    m_Bits: 4294967163
+  viewDistance: 15
+  fieldOfView: 110
+  timeToDetect: 3
+  awarenessDecay: 0.16666667
+  reactionTime: 0.4
+  targetMemoryDuration: 2.5
+  patrolSpeed: 2
+  pointWaitDuration: 2
+  wanderWhenNoRoute: 0
+  chaseSpeed: 4.5
   preferredCombatDistance: 10
-  minCombatDistance: 5
-  fireRate: 1.5
-  damagePerShot: 10
-  accuracy: 0.85
-  hittableMask:
-    serializedVersion: 2
-    m_Bits: 0
-  predictMovement: 1
-  assumedBulletSpeed: 120
-  loseSightGrace: 2.5
-  searchDuration: 6
-  searchRadius: 6
-  useCover: 1
-  coverPoints:
-  - {fileID: 0}
-  lowHealthCoverThreshold: 0.35
-  coverSearchRadius: 12
-  hideDuration: 2.5
-  peekDuration: 1.5
-  peekDistance: 2
-  hitsToBecomeAggressive: 2
-  aggressiveDistanceReduction: 4
-  debugLogging: 1
-  alertRadius: 20
-  enemyMask:
-    serializedVersion: 2
-    m_Bits: 0
-  spottedSounds:
-  - {fileID: 8300000, guid: d7d91519d868e634ead549c4af90213e, type: 3}
-  alertSounds: []
-  loseTargetSounds: []
-  shootSounds:
-  - {fileID: 8300000, guid: d7d91519d868e634ead549c4af90213e, type: 3}
-  drawGizmos: 1
+  maximumCombatDistance: 20
+  minimumBurstSize: 1
+  maximumBurstSize: 1
+  minimumBurstPause: 0
+  maximumBurstPause: 0
+  baseSpread: 0
+  spreadPerTenMeters: 0
+  leadAccuracy: 0.6
+  retreatHealthThreshold: 0.35
+  retreatDistance: 12
+  retreatSpeed: 4.5
+  retreatDuration: 2.5
+  corpseLifetime: 0
 --- !u!114 &1237369528
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -23899,7 +23877,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54199b29e3369da4a982b87ff0b21ac5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHealth: 100
   deathEffectPrefab: {fileID: 0}
   deathSound: {fileID: 0}
   destroyOnDeath: 1
@@ -26203,7 +26180,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3684448795484694151, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: enemyTeam
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3684448795484694151, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: corpseLifetime
@@ -26215,7 +26192,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5868507627079902295, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: team
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6745415742342313503, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: m_LocalPosition.x
@@ -28577,7 +28554,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3684448795484694151, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: enemyTeam
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3684448795484694151, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: corpseLifetime
@@ -28589,7 +28566,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5868507627079902295, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: team
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6745415742342313503, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: m_LocalPosition.x
@@ -34251,7 +34228,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 80c11472a59dfb941bb0a8f380163bb7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHealth: 100
 --- !u!114 &1743753190
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -34432,7 +34408,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ada7027cce7199342a9717419d7f28c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  team: 1
+  team: 0
   maximumHealth: 100
 --- !u!114 &1743753206
 MonoBehaviour:
@@ -41385,3 +41361,119 @@ SceneRoots:
   - {fileID: 559174870}
   - {fileID: 517655057}
   - {fileID: 671030371}
+--- !u!114 &8800000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1237369521}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ada7027cce7199342a9717419d7f28c9, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  team: 1
+  maximumHealth: 100
+--- !u!114 &8800000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1237369521}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fc800aa7c6f29347bd633e5082a1b0b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  turnSpeed: 458.36624
+  allowFallbackMovement: 0
+--- !u!114 &8800000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1237369521}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0250ac124ac23d448619edd3caf0d3f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  points:
+  - {fileID: 726360983}
+  - {fileID: 1656016772}
+  loop: 1
+  randomOrder: 1
+--- !u!114 &8800000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1237369521}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b0ba7ea7f21c8141a2ea54185a90aaa, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  muzzle: {fileID: 8800000007}
+  shotSound: {fileID: 8300000, guid: d7d91519d868e634ead549c4af90213e, type: 3}
+  damage: 10
+  range: 20
+  spreadAngle: 1.5
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 4294967163
+  magazineCapacity: 30
+  startingReserve: 120
+  reloadDuration: 2.4
+  roundsPerMinute: 90
+  shotNoiseRadius: 20
+--- !u!114 &8800000005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1237369521}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77210080c2e5af34e8df31191c1bac7e, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  spottedLines:
+  - {fileID: 8300000, guid: d7d91519d868e634ead549c4af90213e, type: 3}
+  shoutNoiseRadius: 20
+--- !u!1 &8800000006
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8800000007}
+  m_Layer: 8
+  m_Name: CombatEye
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8800000007
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8800000006}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.7, z: 0.3}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1237369526}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

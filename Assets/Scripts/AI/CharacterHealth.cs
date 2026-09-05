@@ -20,12 +20,12 @@ public sealed class CharacterHealth : MonoBehaviour, IDamageable
     public float LastDamageTime { get; private set; } = float.NegativeInfinity;
 
     private void Awake()  => ResetHealth();
-    private void OnEnable() => ResetHealth();
 
     public void ResetHealth()
     {
         CurrentHealth = maximumHealth;
         IsAlive = true;
+        LastDamageTime = float.NegativeInfinity;
     }
 
     public void TakeDamage(DamageInfo damage)
@@ -35,13 +35,12 @@ public sealed class CharacterHealth : MonoBehaviour, IDamageable
 
         CurrentHealth = Mathf.Max(0f, CurrentHealth - damage.Amount);
         LastDamageTime = Time.time;
+        // Событие урона уже видит смерть: вложенный урон или лечение
+        // из обработчика не могут повторно убить или оживить цель.
+        bool died = CurrentHealth <= 0f;
+        IsAlive = !died;
         Damaged?.Invoke(damage);
-
-        if (CurrentHealth <= 0f)
-        {
-            IsAlive = false;
-            Died?.Invoke(damage);
-        }
+        if (died) Died?.Invoke(damage);
     }
 
     public void RestoreHealth(float amount)
