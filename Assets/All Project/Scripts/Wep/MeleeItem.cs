@@ -3,94 +3,67 @@ using System.Collections.Generic;
 using UnityEngine;
 using FlameOfHistory.AI;
 
-/// <summary>
-/// Холодное оружие в руках: нож, штык, лопата.
-///
-/// Управление:
-///   ЛКМ — тычок: короткий, быстрый, узкая зона попадания, бьёт одну цель;
-///   ПКМ — размах: медленный, сильный, широкая дуга, задевает несколько целей;
-///   F (настраивается) — удар в спину: полный урон, если цель не смотрит на игрока.
-///
-/// Тычок проверяется сферой по траектории (SphereCast) в момент контакта.
-/// Размах проверяется веером лучей по дуге: одиночный луч пропускал бы цели
-/// сбоку, а именно по ним и должен попадать размах.
-///
-/// Прицела нет: холодным оружием не целятся, перекрестие только мешает.
-///
-/// Вешается на модель ножа рядом с EquippableWeapon.
-/// </summary>
 [DisallowMultipleComponent]
 public class MeleeItem : HeldItem
 {
-    // =====================================================================
+    [System.Serializable]
+    public class AttackPhase
+    {
+        [Tooltip("Название фазы")]
+        public string phaseName = "Фаза";
+
+        [Header("Поза")]
+        public Vector3 position;
+        [Tooltip("Углы Эйлера (градусы)")]
+        public Vector3 rotation;
+
+        [Header("Время выполнения")]
+        [Tooltip("Время перехода к этой фазе от предыдущей (в секундах)")]
+        public float duration = 0.2f;
+        [Tooltip("Кривая интерполяции на этом сегменте")]
+        public AnimationCurve interpolationCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
+        [Header("Урон")]
+        public bool dealDamage = false;
+    }
+
     [Header("Урон")]
-    [Tooltip("Тычок (ЛКМ).")]
     public float lightDamage = 40f;
-    [Tooltip("Размах (ПКМ).")]
     public float heavyDamage = 85f;
-
-    [Tooltip("Множитель урона при ударе со спины. Урон = heavyDamage * этот множитель.")]
     public float backstabMultiplier = 4f;
-
-    [Tooltip("Считать удар со спины, если угол между взглядом цели и направлением " +
-             "на игрока больше этого значения (градусы).")]
     [Range(0f, 180f)] public float backstabAngle = 100f;
 
     [Header("Досягаемость")]
-    [Tooltip("Дальность тычка (ЛКМ).")]
     public float range = 2.1f;
-    [Tooltip("Радиус проверки попадания тычком. Больше — легче попасть по краю силуэта.")]
     public float hitRadius = 0.28f;
     public LayerMask hitMask = ~0;
-
-    [Header("Досягаемость размаха (ПКМ)")]
-    [Tooltip("Дальность размаха. Обычно чуть короче тычка: рука идёт по дуге.")]
     public float swingRange = 1.9f;
-    [Tooltip("Ширина дуги размаха в градусах — сколько градусов заметает клинок.")]
     [Range(10f, 180f)] public float swingArcAngle = 100f;
-    [Tooltip("Сколько лучей проверяет дугу. Больше — точнее, но дороже.")]
     [Range(3, 15)] public int swingRayCount = 7;
-    [Tooltip("Радиус каждого луча дуги.")]
     public float swingRayRadius = 0.22f;
+    [Min(1)] public int maxTargetsPerLight = 1;
+    [Min(1)] public int maxTargetsPerHeavy = 3;
 
-    [Tooltip("Сколько целей может задеть один тычок. 1 — только первая.")]
-    [Min(1)] public int maxTargetsPerSwing = 1;
+    [Header("Фазы тычка (ЛКМ)")]
+    public List<AttackPhase> lightAttackPhases = new List<AttackPhase>
+    {
+        new AttackPhase { phaseName = "Замах", position = new Vector3(0.34f, -0.3f, 0.3f), rotation = new Vector3(-10f, 26f, 10f), duration = 0.2f },
+        new AttackPhase { phaseName = "Контакт", position = new Vector3(0.06f, -0.2f, 0.9f), rotation = new Vector3(4f, -8f, -4f), duration = 0.2f, dealDamage = true }
+    };
 
-    [Tooltip("Сколько целей может задеть один размах. Смысл размаха — бить нескольких.")]
-    [Min(1)] public int maxTargetsPerHeavySwing = 3;
+    [Header("Фазы размаха (ПКМ)")]
+    public List<AttackPhase> heavyAttackPhases = new List<AttackPhase>
+    {
+        new AttackPhase { phaseName = "Замах", position = new Vector3(0.62f, 0.02f, 0.1f), rotation = new Vector3(-40f, 62f, 34f), duration = 0.35f },
+        new AttackPhase { phaseName = "Контакт", position = new Vector3(-0.3f, -0.26f, 0.66f), rotation = new Vector3(24f, -58f, -34f), duration = 0.3f, dealDamage = true }
+    };
 
-    [Header("Тайминги: тычок (ЛКМ)")]
-    [Tooltip("Замах до момента контакта.")]
-    public float lightWindup = 0.09f;
-    [Tooltip("Проводка после контакта.")]
-    public float lightRecovery = 0.16f;
-    [Tooltip("Пауза до следующего удара.")]
-    public float lightCooldown = 0.12f;
-
-    [Header("Тайминги: размах (ПКМ)")]
-    public float heavyWindup = 0.28f;
-    public float heavyRecovery = 0.3f;
-    public float heavyCooldown = 0.35f;
+    [Header("Возврат")]
+    [Tooltip("Время возврата к базовой позе после завершения всех фаз")]
+    public float returnDuration = 0.25f;
 
     [Header("Клавиши")]
-    [Tooltip("Удар со спины. None — механика выключена, тихий убой идёт обычным ударом.")]
     public KeyCode backstabKey = KeyCode.F;
-
-    [Header("Поза тычка (ЛКМ)")]
-    [Tooltip("Замах: нож уходит назад к плечу.")]
-    public Vector3 lightWindupPosition = new Vector3(0.34f, -0.3f, 0.3f);
-    public Vector3 lightWindupRotation = new Vector3(-10f, 26f, 10f);
-    [Tooltip("Контакт: нож выброшен вперёд по прямой.")]
-    public Vector3 lightStrikePosition = new Vector3(0.06f, -0.2f, 0.9f);
-    public Vector3 lightStrikeRotation = new Vector3(4f, -8f, -4f);
-
-    [Header("Поза размаха (ПКМ)")]
-    [Tooltip("Замах: рука уходит далеко вправо и вверх.")]
-    public Vector3 heavyWindupPosition = new Vector3(0.62f, 0.02f, 0.1f);
-    public Vector3 heavyWindupRotation = new Vector3(-40f, 62f, 34f);
-    [Tooltip("Контакт: клинок прошёл дугу и оказался слева.")]
-    public Vector3 heavyStrikePosition = new Vector3(-0.3f, -0.26f, 0.66f);
-    public Vector3 heavyStrikeRotation = new Vector3(24f, -58f, -34f);
 
     [Header("Отдача руки")]
     public Vector3 hitKickPosition = new Vector3(-0.04f, 0.02f, -0.09f);
@@ -98,29 +71,27 @@ public class MeleeItem : HeldItem
     public Vector3 missKickPosition = new Vector3(-0.015f, 0.01f, -0.03f);
     public Vector3 missKickRotation = new Vector3(-3f, 1.5f, 0f);
 
-    [Header("Эффекты попадания")]
-    [Tooltip("Эффект удара по живому.")]
+    [Header("Эффекты")]
     public GameObject fleshImpactPrefab;
-    [Tooltip("Эффект удара по стене/земле.")]
     public GameObject surfaceImpactPrefab;
     public float impactLifetime = 3f;
 
-    [Header("Шум для ИИ")]
-    [Tooltip("Радиус слышимости удара. Нож тихий: враги рядом всё же реагируют.")]
-    public float swingNoiseRadius = 3f;
-    public float hitNoiseRadius = 6f;
-
-    [Header("Звуки")]
+    [Header("Звук и шум")]
     public AudioClip swingSound;
     public AudioClip hitFleshSound;
     public AudioClip hitSurfaceSound;
     [Range(0f, 1f)] public float soundVolume = 0.9f;
+    public float swingNoiseRadius = 3f;
+    public float hitNoiseRadius = 6f;
 
     [Header("Отладка")]
     public bool logActions = true;
     public bool drawHitGizmo = false;
 
-    // =====================================================================
+    [Header("Кулдауны")]
+    public float lightCooldown = 0.12f;
+    public float heavyCooldown = 0.35f;
+
     private Coroutine strikeRoutine;
     private bool isStriking;
     private float nextStrikeTime;
@@ -128,22 +99,15 @@ public class MeleeItem : HeldItem
     private Vector3 lastHitOrigin;
     private Vector3 lastHitDirection;
 
-    /// <summary>Идёт ли удар прямо сейчас.</summary>
     public bool IsStriking => isStriking;
-
-    /// <summary>Ножу прицел не нужен: перекрестие только мешает в ближнем бою.</summary>
     public override bool HidesCrosshair => true;
 
-    // =====================================================================
     protected override void Awake()
     {
         base.Awake();
-
-        // Ножом не целятся: ПКМ занят размахом, а перекрестие только мешает
         useRightMouseAsAim = false;
         manageCrosshair = false;
         HideCrosshair();
-
         DisableHeldColliders();
     }
 
@@ -152,44 +116,31 @@ public class MeleeItem : HeldItem
         base.OnEnable();
         isStriking = false;
         nextStrikeTime = 0f;
-
-        // OnEnable базового класса мог включить перекрестие обратно
         HideCrosshair();
     }
 
     protected override void OnDisable()
     {
         base.OnDisable();
-
         if (strikeRoutine != null)
         {
             StopCoroutine(strikeRoutine);
             strikeRoutine = null;
         }
-
         isStriking = false;
         ClearPoseOverride();
-
         RestoreCrosshair();
     }
 
-    /// <summary>
-    /// Спрятать перекрестие ППШ, пока в руках нож.
-    /// Перекрестие принадлежит Wep, и никто, кроме нас, его сейчас не трогает:
-    /// Wep выключен вместе со своей моделью.
-    /// </summary>
     void HideCrosshair()
     {
         GameObject cross = ResolveCrosshair();
         if (cross != null && cross.activeSelf) cross.SetActive(false);
     }
 
-    /// <summary>Вернуть перекрестие при смене ножа на огнестрел.</summary>
     void RestoreCrosshair()
     {
-        // При выходе из Play и выгрузке сцены объект уже мог быть уничтожен
         if (!Application.isPlaying) return;
-
         GameObject cross = ResolveCrosshair();
         if (cross != null && !cross.activeSelf) cross.SetActive(true);
     }
@@ -197,7 +148,6 @@ public class MeleeItem : HeldItem
     GameObject ResolveCrosshair()
     {
         if (crosshairObject != null) return crosshairObject;
-
         foreach (Wep w in FindObjectsOfType<Wep>(true))
         {
             if (w != null && w.crosshairObject != null)
@@ -206,11 +156,9 @@ public class MeleeItem : HeldItem
                 break;
             }
         }
-
         return crosshairObject;
     }
 
-    // =====================================================================
     protected override void HandleInput()
     {
         if (isStriking || Time.time < nextStrikeTime) return;
@@ -221,8 +169,6 @@ public class MeleeItem : HeldItem
             return;
         }
 
-        // ЛКМ — тычок, ПКМ — размах. Раздельно, без модификаторов:
-        // держать ПКМ и жать ЛКМ в ближнем бою неудобно.
         if (Input.GetMouseButtonDown(0))
         {
             Strike(heavy: false);
@@ -230,27 +176,22 @@ public class MeleeItem : HeldItem
         }
 
         if (Input.GetMouseButtonDown(1))
+        {
             Strike(heavy: true);
+        }
     }
 
-    /// <summary>Ударить. heavy — размах (ПКМ), иначе тычок (ЛКМ).</summary>
     public void Strike(bool heavy, bool forceBackstabAttempt = false)
     {
         if (isStriking || Time.time < nextStrikeTime) return;
         strikeRoutine = StartCoroutine(StrikeSequence(heavy, forceBackstabAttempt));
     }
 
-    /// <summary>
-    /// Поставить модель точно в позу «в руках» без сглаживания.
-    /// Нужно перед началом удара: анимация интерполирует от текущей позиции,
-    /// и если модель ещё не доехала до hipPosition, траектория удара искажается.
-    /// </summary>
     void SnapToHipPose()
     {
         Transform model = itemModel != null ? itemModel : transform;
         model.localPosition = hipPosition;
         model.localRotation = Quaternion.Euler(hipRotation);
-
         SetPoseOverride(hipPosition, hipRotation, 1f);
     }
 
@@ -258,65 +199,85 @@ public class MeleeItem : HeldItem
     {
         isStriking = true;
 
-        float windup = heavy ? heavyWindup : lightWindup;
-        float recovery = heavy ? heavyRecovery : lightRecovery;
-        float cooldown = heavy ? heavyCooldown : lightCooldown;
+        List<AttackPhase> phases = heavy ? heavyAttackPhases : lightAttackPhases;
+        if (phases == null || phases.Count == 0)
+        {
+            Debug.LogWarning($"[Melee] Нет фаз для удара {(heavy ? "размах" : "тычок")}");
+            isStriking = false;
+            yield break;
+        }
 
-        Vector3 windupPos = heavy ? heavyWindupPosition : lightWindupPosition;
-        Vector3 windupRot = heavy ? heavyWindupRotation : lightWindupRotation;
-        Vector3 strikePos = heavy ? heavyStrikePosition : lightStrikePosition;
-        Vector3 strikeRot = heavy ? heavyStrikeRotation : lightStrikeRotation;
-
-        // Первый удар после экипировки: модель ещё едет к позе «в руках»,
-        // и анимация тычка стартовала с произвольной точки — из-за этого он
-        // выглядел широким замахом. Ставим базовую позу мгновенно.
         SnapToHipPose();
 
         PlaySound(swingSound, soundVolume);
         if (swingNoiseRadius > 0f)
             NoiseSystem.Emit(transform.position, swingNoiseRadius, gameObject, 0.3f);
 
-        // --- замах ---
-        float t = 0f;
-        while (t < windup)
+        Vector3 currentPos = hipPosition;
+        Vector3 currentRot = hipRotation;
+
+        // Проходим по всем фазам, каждая длится ровно столько, сколько указано в duration
+        foreach (AttackPhase phase in phases)
         {
-            t += Time.deltaTime;
-            float k = Mathf.SmoothStep(0f, 1f, t / Mathf.Max(0.01f, windup));
-            SetPoseOverride(
-                Vector3.Lerp(hipPosition, windupPos, k),
-                Vector3.Lerp(hipRotation, windupRot, k),
-                k);
-            yield return null;
+            float effectiveDuration = Mathf.Max(0.001f, phase.duration); // минимум 1 мс
+
+            float t = 0f;
+            while (t < effectiveDuration)
+            {
+                t += Time.deltaTime;
+                float normalized = Mathf.Clamp01(t / effectiveDuration);
+                float curveValue = phase.interpolationCurve != null ? phase.interpolationCurve.Evaluate(normalized) : normalized;
+
+                Vector3 newPos = Vector3.Lerp(currentPos, phase.position, curveValue);
+                Vector3 newRot = new Vector3(
+                    Mathf.LerpAngle(currentRot.x, phase.rotation.x, curveValue),
+                    Mathf.LerpAngle(currentRot.y, phase.rotation.y, curveValue),
+                    Mathf.LerpAngle(currentRot.z, phase.rotation.z, curveValue)
+                );
+
+                SetPoseOverride(newPos, newRot, curveValue);
+                yield return null;
+            }
+
+            // Точно выставляем позу фазы
+            SetPoseOverride(phase.position, phase.rotation, 1f);
+            currentPos = phase.position;
+            currentRot = phase.rotation;
+
+            if (phase.dealDamage)
+            {
+                int hits = ResolveHits(heavy, forceBackstabAttempt);
+                if (hits > 0) AddKick(hitKickPosition, hitKickRotation);
+                else AddKick(missKickPosition, missKickRotation);
+            }
         }
 
-        // --- контакт ---
-        SetPoseOverride(strikePos, strikeRot, 1f);
-        int hits = ResolveHits(heavy, forceBackstabAttempt);
+        // Возврат к базовой позе
+        float returnT = 0f;
+        Vector3 startPos = currentPos;
+        Vector3 startRot = currentRot;
 
-        if (hits > 0) AddKick(hitKickPosition, hitKickRotation);
-        else AddKick(missKickPosition, missKickRotation);
-
-        // --- проводка ---
-        t = 0f;
-        while (t < recovery)
+        while (returnT < returnDuration)
         {
-            t += Time.deltaTime;
-            float k = Mathf.SmoothStep(0f, 1f, t / Mathf.Max(0.01f, recovery));
-            SetPoseOverride(
-                Vector3.Lerp(strikePos, hipPosition, k),
-                Vector3.Lerp(strikeRot, hipRotation, k),
-                1f - k);
+            returnT += Time.deltaTime;
+            float k = Mathf.SmoothStep(0f, 1f, returnT / Mathf.Max(0.001f, returnDuration));
+            Vector3 pos = Vector3.Lerp(startPos, hipPosition, k);
+            Vector3 rot = new Vector3(
+                Mathf.LerpAngle(startRot.x, hipRotation.x, k),
+                Mathf.LerpAngle(startRot.y, hipRotation.y, k),
+                Mathf.LerpAngle(startRot.z, hipRotation.z, k)
+            );
+            SetPoseOverride(pos, rot, 1f - k);
             yield return null;
         }
 
         ClearPoseOverride();
-        nextStrikeTime = Time.time + cooldown;
+        nextStrikeTime = Time.time + (heavy ? heavyCooldown : lightCooldown);
         isStriking = false;
         strikeRoutine = null;
     }
 
-    // =====================================================================
-    /// <summary>Найти цели и нанести урон. Возвращает число задетых объектов.</summary>
+    // ==================== Боевая логика (без изменений) ====================
     int ResolveHits(bool heavy, bool forceBackstabAttempt)
     {
         Transform cam = playerCamera != null ? playerCamera.transform : transform;
@@ -332,7 +293,7 @@ public class MeleeItem : HeldItem
 
         var touchedRoots = new HashSet<GameObject>();
         GameObject self = Controller != null ? Controller.gameObject : gameObject;
-        int limit = heavy ? maxTargetsPerHeavySwing : maxTargetsPerSwing;
+        int limit = heavy ? maxTargetsPerHeavy : maxTargetsPerLight;
         int applied = 0;
         bool blockedBySurface = false;
 
@@ -340,7 +301,7 @@ public class MeleeItem : HeldItem
         {
             if (hit.collider == null) continue;
 
-            var target = hit.collider.GetComponentInParent<FlameOfHistory.AI.CharacterHealth>();
+            var target = hit.collider.GetComponentInParent<CharacterHealth>();
             GameObject root = target != null ? target.gameObject : hit.collider.gameObject;
             if (hit.collider.transform.IsChildOf(self.transform)) continue;
             if (hit.collider.transform.IsChildOf(transform)) continue;
@@ -371,8 +332,6 @@ public class MeleeItem : HeldItem
 
             if (!damagedLiving)
             {
-                // Тычок гасится стеной: клинок идёт по прямой и упирается.
-                // Размах — нет: он заметает дугу и может достать цель мимо угла.
                 if (!heavy) { blockedBySurface = true; break; }
                 continue;
             }
@@ -389,7 +348,6 @@ public class MeleeItem : HeldItem
         return applied;
     }
 
-    /// <summary>Тычок: одна сфера строго вперёд, ближние цели первыми.</summary>
     List<RaycastHit> GatherThrustHits(Vector3 origin, Vector3 direction)
     {
         RaycastHit[] hits = Physics.SphereCastAll(origin, hitRadius, direction, range, hitMask,
@@ -398,13 +356,6 @@ public class MeleeItem : HeldItem
         return new List<RaycastHit>(hits);
     }
 
-    /// <summary>
-    /// Размах: веер лучей по дуге справа налево — так же, как идёт рука.
-    ///
-    /// Один луч вперёд для размаха не годится: цель, стоящая сбоку, попадала бы
-    /// в анимацию удара, но не в проверку. Лучи идут в порядке прохождения
-    /// клинка, поэтому первым задевается тот, кто оказался в начале дуги.
-    /// </summary>
     List<RaycastHit> GatherArcHits(Transform cam, Vector3 origin)
     {
         var result = new List<RaycastHit>();
@@ -415,10 +366,8 @@ public class MeleeItem : HeldItem
 
         for (int i = 0; i < rays; i++)
         {
-            // От +half (справа) к -half (слева): направление движения руки
             float t = rays == 1 ? 0.5f : i / (float)(rays - 1);
             float angle = Mathf.Lerp(half, -half, t);
-
             Vector3 dir = Quaternion.AngleAxis(angle, cam.up) * cam.forward;
 
             RaycastHit[] hits = Physics.SphereCastAll(origin, swingRayRadius, dir, swingRange,
@@ -436,15 +385,11 @@ public class MeleeItem : HeldItem
         return result;
     }
 
-    /// <summary>
-    /// Нанести урон через единый боевой интерфейс.
-    /// Возвращает true, если цель живая (значит, эффект — кровь, а не пыль).
-    /// </summary>
     bool DealDamage(Collider col, float amount, Vector3 point, Vector3 direction)
     {
         GameObject attacker = Controller != null ? Controller.gameObject : gameObject;
 
-        var aiTarget = col.GetComponentInParent<FlameOfHistory.AI.IDamageable>();
+        var aiTarget = col.GetComponentInParent<IDamageable>();
         if (aiTarget != null)
         {
             if (!aiTarget.IsAlive) return false;
@@ -455,12 +400,11 @@ public class MeleeItem : HeldItem
         return false;
     }
 
-    /// <summary>Стоит ли игрок за спиной цели.</summary>
     bool IsBackstab(Collider col)
     {
         if (backstabMultiplier <= 1f) return false;
 
-        var health = col.GetComponentInParent<FlameOfHistory.AI.CharacterHealth>();
+        var health = col.GetComponentInParent<CharacterHealth>();
         Transform target = health != null ? health.transform : col.transform;
         Vector3 toPlayer = transform.position - target.position;
         toPlayer.y = 0f;
@@ -481,10 +425,6 @@ public class MeleeItem : HeldItem
         Destroy(fx, impactLifetime);
     }
 
-    /// <summary>
-    /// Коллайдеры клинка в руках выключаем: удар считается рейкастом от камеры,
-    /// а физический коллайдер у лица только толкал бы игрока и цеплял стены.
-    /// </summary>
     void DisableHeldColliders()
     {
         foreach (Collider c in GetComponentsInChildren<Collider>(true))
@@ -507,12 +447,10 @@ public class MeleeItem : HeldItem
         Vector3 origin = Application.isPlaying ? lastHitOrigin : cam.position;
         Vector3 dir = Application.isPlaying ? lastHitDirection : cam.forward;
 
-        // Тычок — прямая линия со сферой на конце
         Gizmos.color = new Color(0.9f, 0.3f, 0.3f, 0.6f);
         Gizmos.DrawWireSphere(origin + dir * range, hitRadius);
         Gizmos.DrawLine(origin, origin + dir * range);
 
-        // Размах — веер по дуге
         Gizmos.color = new Color(0.95f, 0.75f, 0.25f, 0.5f);
         int rays = Mathf.Max(3, swingRayCount);
         float half = swingArcAngle * 0.5f;
@@ -528,32 +466,34 @@ public class MeleeItem : HeldItem
         }
     }
 
-    [ContextMenu("Запомнить текущую позу как замах тычка (ЛКМ)")]
-    void CaptureLightWindup()
+    [ContextMenu("Захватить текущую позу как фазу тычка")]
+    void CaptureCurrentPoseAsLightPhase()
     {
-        lightWindupPosition = transform.localPosition;
-        lightWindupRotation = transform.localEulerAngles;
+        if (lightAttackPhases == null) lightAttackPhases = new List<AttackPhase>();
+        lightAttackPhases.Add(new AttackPhase
+        {
+            phaseName = "Захваченная фаза",
+            position = transform.localPosition,
+            rotation = transform.localEulerAngles,
+            duration = 0.2f,
+            dealDamage = false
+        });
+        Debug.Log("Добавлена фаза тычка из текущей позы");
     }
 
-    [ContextMenu("Запомнить текущую позу как контакт тычка (ЛКМ)")]
-    void CaptureLightStrike()
+    [ContextMenu("Захватить текущую позу как фазу размаха")]
+    void CaptureCurrentPoseAsHeavyPhase()
     {
-        lightStrikePosition = transform.localPosition;
-        lightStrikeRotation = transform.localEulerAngles;
-    }
-
-    [ContextMenu("Запомнить текущую позу как замах размаха (ПКМ)")]
-    void CaptureHeavyWindup()
-    {
-        heavyWindupPosition = transform.localPosition;
-        heavyWindupRotation = transform.localEulerAngles;
-    }
-
-    [ContextMenu("Запомнить текущую позу как контакт размаха (ПКМ)")]
-    void CaptureHeavyStrike()
-    {
-        heavyStrikePosition = transform.localPosition;
-        heavyStrikeRotation = transform.localEulerAngles;
+        if (heavyAttackPhases == null) heavyAttackPhases = new List<AttackPhase>();
+        heavyAttackPhases.Add(new AttackPhase
+        {
+            phaseName = "Захваченная фаза",
+            position = transform.localPosition,
+            rotation = transform.localEulerAngles,
+            duration = 0.2f,
+            dealDamage = false
+        });
+        Debug.Log("Добавлена фаза размаха из текущей позы");
     }
 #endif
 }

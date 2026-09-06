@@ -1586,7 +1586,7 @@ GameObject:
   - component: {fileID: 99324900}
   m_Layer: 1
   m_Name: Terrain
-  m_TagString: Untagged
+  m_TagString: Grass
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
@@ -14505,12 +14505,12 @@ MonoBehaviour:
   holder: {fileID: 746973023}
   autoAttachToHolder: 1
   holderObjectName: WeaponHolder
-  playerCamera: {fileID: 0}
-  itemModel: {fileID: 0}
+  playerCamera: {fileID: 746973025}
+  itemModel: {fileID: 836048293}
   audioSource: {fileID: 0}
   useCustomPose: 1
-  customPos: {x: 0.348, y: -0.422, z: 0.837}
-  customRot: {x: -0.471, y: -200.006, z: 84.643}
+  customPos: {x: 0.394, y: -0.421, z: 0.71}
+  customRot: {x: 4.629, y: -389.91, z: 112.522}
   hipPosition: {x: 0.28, y: -0.32, z: 0.55}
   hipRotation: {x: 0, y: -15, z: 0}
   aimPosition: {x: 0.12, y: -0.2, z: 0.45}
@@ -14556,23 +14556,128 @@ MonoBehaviour:
   swingArcAngle: 100
   swingRayCount: 7
   swingRayRadius: 0.22
-  maxTargetsPerSwing: 1
-  maxTargetsPerHeavySwing: 3
-  lightWindup: 0.09
-  lightRecovery: 0.16
-  lightCooldown: 0.12
-  heavyWindup: 0.28
-  heavyRecovery: 0.3
-  heavyCooldown: 0.35
-  backstabKey: 102
-  lightWindupPosition: {x: 0.4, y: -0.26, z: 0.34}
-  lightWindupRotation: {x: -16, y: 34, z: 18}
-  lightStrikePosition: {x: 0.02, y: -0.16, z: 0.78}
-  lightStrikeRotation: {x: 12, y: -22, z: -14}
-  heavyWindupPosition: {x: 0.5, y: -0.06, z: 0.16}
-  heavyWindupRotation: {x: -44, y: 44, z: 26}
-  heavyStrikePosition: {x: -0.04, y: -0.24, z: 0.86}
-  heavyStrikeRotation: {x: 28, y: -30, z: -20}
+  maxTargetsPerLight: 1
+  maxTargetsPerHeavy: 3
+  lightAttackPhases:
+  - phaseName: "\u0417\u0430\u043C\u0430\u0445"
+    position: {x: 0.279, y: -0.28, z: 0.499}
+    rotation: {x: 79.579, y: -385.474, z: 76.165}
+    duration: 0.1
+    interpolationCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    dealDamage: 0
+  - phaseName: "\u0417\u0430\u043C\u0430\u0445"
+    position: {x: 0.229, y: -0.24, z: 0.745}
+    rotation: {x: 79.579, y: -385.474, z: 76.165}
+    duration: 0
+    interpolationCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    dealDamage: 1
+  heavyAttackPhases:
+  - phaseName: "\u0420\u0430\u0437\u0432\u043E\u0440\u043E\u0442"
+    position: {x: 0.154, y: -0.325, z: 0.936}
+    rotation: {x: 4.629, y: -389.91, z: 196.128}
+    duration: 0.7
+    interpolationCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    dealDamage: 0
+  - phaseName: "\u0411\u043E\u043A"
+    position: {x: 0.69, y: 0.072, z: 0.815}
+    rotation: {x: -6.407, y: -352.427, z: 219.126}
+    duration: 0
+    interpolationCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    dealDamage: 1
+  returnDuration: 0.6
+  backstabKey: 118
   hitKickPosition: {x: -0.04, y: 0.02, z: -0.09}
   hitKickRotation: {x: -7, y: 3, z: 0}
   missKickPosition: {x: -0.015, y: 0.01, z: -0.03}
@@ -14580,14 +14685,16 @@ MonoBehaviour:
   fleshImpactPrefab: {fileID: 0}
   surfaceImpactPrefab: {fileID: 0}
   impactLifetime: 3
-  swingNoiseRadius: 3
-  hitNoiseRadius: 6
   swingSound: {fileID: 0}
   hitFleshSound: {fileID: 0}
   hitSurfaceSound: {fileID: 0}
   soundVolume: 0.9
+  swingNoiseRadius: 3
+  hitNoiseRadius: 6
   logActions: 1
   drawHitGizmo: 0
+  lightCooldown: 0.12
+  heavyCooldown: 0.35
 --- !u!4 &836585719 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 8c089c73d82aa5e49bf232cf5f648c23, type: 3}
@@ -15871,7 +15978,7 @@ GameObject:
   - component: {fileID: 893684141}
   m_Layer: 1
   m_Name: Terrain_(150.00, 0.00, 150.00)
-  m_TagString: Untagged
+  m_TagString: Grass
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
@@ -17394,7 +17501,7 @@ GameObject:
   - component: {fileID: 951190345}
   m_Layer: 1
   m_Name: Terrain_(150.00, 0.00, 0.00)
-  m_TagString: Untagged
+  m_TagString: Grass
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
@@ -25255,6 +25362,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Floor
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 7a38a34ccd1721e47acaf621e1188390, type: 3}
+      propertyPath: m_TagString
+      value: Wood
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -27629,7 +27740,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1362413225976120729, guid: a2224366c24f10749b1f519b0d729f30, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 771.70856
+      value: 758.9
       objectReference: {fileID: 0}
     - target: {fileID: 1362413225976120729, guid: a2224366c24f10749b1f519b0d729f30, type: 3}
       propertyPath: m_LocalPosition.y
@@ -27637,7 +27748,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1362413225976120729, guid: a2224366c24f10749b1f519b0d729f30, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 545.94415
+      value: 575.92
       objectReference: {fileID: 0}
     - target: {fileID: 1362413225976120729, guid: a2224366c24f10749b1f519b0d729f30, type: 3}
       propertyPath: m_LocalRotation.w
@@ -28604,7 +28715,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2635380279492669597, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2737640904577118978, guid: e52a9ba211731aa4ba4ba466514bfd45, type: 3}
       propertyPath: m_BaseOffset
@@ -30526,15 +30637,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: da050f0b067f12c459e221731f728443, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.09613529
+      value: 0.05931259
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: da050f0b067f12c459e221731f728443, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.09613529
+      value: 0.05931259
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: da050f0b067f12c459e221731f728443, type: 3}
       propertyPath: m_LocalScale.z
-      value: 0.09613529
+      value: 0.05931259
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: da050f0b067f12c459e221731f728443, type: 3}
       propertyPath: m_LocalPosition.x
@@ -30582,7 +30693,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: da050f0b067f12c459e221731f728443, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -30743,6 +30854,10 @@ PrefabInstance:
     - target: {fileID: 9156347144040445544, guid: c82236c16aae9d34fbd437f8dea6e2c9, type: 3}
       propertyPath: standingCameraHeight
       value: 1.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 9156347144040445544, guid: c82236c16aae9d34fbd437f8dea6e2c9, type: 3}
+      propertyPath: footstepSounds.Array.size
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 9156347144040445546, guid: c82236c16aae9d34fbd437f8dea6e2c9, type: 3}
       propertyPath: m_LocalScale.y
@@ -34230,6 +34345,7 @@ GameObject:
   - component: {fileID: 1743753197}
   - component: {fileID: 1743753202}
   - component: {fileID: 1743753206}
+  - component: {fileID: 1743753210}
   m_Layer: 6
   m_Name: FPS
   m_TagString: Player
@@ -34592,6 +34708,14 @@ MonoBehaviour:
   useCameraTilt: 1
   useClimbTilt: 1
   currentStateDebug: 1
+  footstepSource: {fileID: 0}
+  footstepSounds:
+  - material: {fileID: 0}
+    clips: []
+  footstepVolume: 0.5
+  sprintPitchMultiplier: 1.2
+  crouchVolumeMultiplier: 0.7
+  footstepInterval: 0.4
   cameraShakeDirection: {x: 0, y: 0, z: 0}
 --- !u!143 &1743753209
 CharacterController:
@@ -34619,6 +34743,38 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0.9, z: 0}
+--- !u!114 &1743753210
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1743753184}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5be3dc9e9377fbc4388e5a8473e28428, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  audioSource: {fileID: 746973029}
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  rayDistance: 1.5
+  walkInterval: 0.45
+  sprintInterval: 0.3
+  crouchInterval: 0.6
+  baseVolume: 0.7
+  sprintVolumeMultiplier: 1.2
+  crouchVolumeMultiplier: 0.6
+  basePitch: 1
+  sprintPitchMultiplier: 1.1
+  crouchPitchMultiplier: 0.9
+  randomPitchRange: 0.1
+  defaultSound: {fileID: 0}
+  surfaceSounds:
+  - tag: Wood
+    clips:
+    - {fileID: 8300000, guid: 9bc31c04c3686e14a815e10617573e4c, type: 3}
 --- !u!1 &1750569848
 GameObject:
   m_ObjectHideFlags: 0
@@ -40696,7 +40852,7 @@ GameObject:
   - component: {fileID: 2115337700}
   m_Layer: 1
   m_Name: Terrain_(0.00, 0.00, 150.00)
-  m_TagString: Untagged
+  m_TagString: Grass
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 2147483647
@@ -41475,43 +41631,43 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b3f936b389820e24eacbd3c76f058adf, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.348
+      value: 0.69
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b3f936b389820e24eacbd3c76f058adf, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.422
+      value: 0.072
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b3f936b389820e24eacbd3c76f058adf, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.837
+      value: 0.815
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b3f936b389820e24eacbd3c76f058adf, type: 3}
       propertyPath: m_LocalRotation.w
-      value: -0.1257048
+      value: 0.3370645
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b3f936b389820e24eacbd3c76f058adf, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0.6625237
+      value: -0.08079867
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b3f936b389820e24eacbd3c76f058adf, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.7286118
+      value: -0.03046253
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b3f936b389820e24eacbd3c76f058adf, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0.11993905
+      value: -0.9375133
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b3f936b389820e24eacbd3c76f058adf, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: -0.471
+      value: -6.407
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b3f936b389820e24eacbd3c76f058adf, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: -200.006
+      value: -352.427
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b3f936b389820e24eacbd3c76f058adf, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 84.643
+      value: 219.126
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: b3f936b389820e24eacbd3c76f058adf, type: 3}
       propertyPath: m_Name

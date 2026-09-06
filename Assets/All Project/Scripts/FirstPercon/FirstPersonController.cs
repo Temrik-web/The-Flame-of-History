@@ -100,6 +100,27 @@ namespace EasyPeasyFirstPersonController
         [Header("Debug")]
         public bool currentStateDebug = true;
 
+        // ========== НОВЫЙ БЛОК: ЗВУКИ ШАГОВ ==========
+        [Header("Footstep Audio")]
+        public AudioSource footstepSource;               // Источник звука
+        public FootstepSound[] footstepSounds;           // Таблица: материал → клипы
+        public float footstepVolume = 0.5f;              // Базовая громкость
+        public float sprintPitchMultiplier = 1.2f;       // Повышение тона при беге
+        public float crouchVolumeMultiplier = 0.7f;      // Приглушение при приседе
+        public float footstepInterval = 0.4f;            // Мин. интервал между шагами
+
+        // Вспомогательные для определения момента шага
+        private float lastBobSign = 1f;
+        private float lastFootstepTime = 0f;
+        // ============================================
+
+        [System.Serializable]   // <-- NEW: структура для настройки в инспекторе
+        public struct FootstepSound
+        {
+            public PhysicMaterial material;   // Материал, на котором будет играть звук
+            public AudioClip[] clips;         // Массив клипов (выбирается случайный)
+        }
+
         void OnGUI()
         {
             if (currentState != null && Application.isEditor && currentStateDebug)
@@ -167,7 +188,9 @@ namespace EasyPeasyFirstPersonController
             originalCamY = Mathf.Lerp(originalCamY, targetCameraY, Time.deltaTime * 8f);
 
             float targetBobOffset = 0f;
-            if (useHeadBob && characterController.velocity.magnitude > 0.1f && isGrounded)
+            bool isMoving = characterController.velocity.magnitude > 0.1f && isGrounded;
+
+            if (useHeadBob && isMoving)
             {
                 bobTimer += Time.deltaTime * currentBobSpeed;
                 targetBobOffset = Mathf.Sin(bobTimer) * currentBobIntensity;
@@ -178,34 +201,56 @@ namespace EasyPeasyFirstPersonController
                 bobTimer = Mathf.Lerp(bobTimer, 0, Time.deltaTime * 10f);
             }
 
+            // ========== НОВЫЙ БЛОК: определение момента шага ==========
+            if (useHeadBob && isMoving)
+            {
+                float currentBobSign = Mathf.Sign(Mathf.Sin(bobTimer));
+                // Шаг происходит при переходе синуса через ноль сверху вниз
+                if (lastBobSign > 0 && currentBobSign < 0)
+                {
+                    if (Time.time - lastFootstepTime > footstepInterval)
+                    {
+                        PlayFootstep();
+                        lastFootstepTime = Time.time;
+                    }
+                }
+                lastBobSign = currentBobSign;
+            }
+            else
+            {
+                // Сбрасываем знак, когда стоим
+                lastBobSign = 1f;
+            }
+            // =========================================================
+
             // Smoothly transition the actual camera Y to include the bob offset
             float desiredY = originalCamY + targetBobOffset;
-            
+
             // Apply Camera Shake (Realistic Directional Impact)
             if (cameraShakeTimer > 0)
             {
                 cameraShakeTimer -= Time.deltaTime;
-                
-                float normalizedTime = cameraShakeTimer / 0.4f; 
-                float shakeFactor = normalizedTime * normalizedTime * normalizedTime; 
-                
+
+                float normalizedTime = cameraShakeTimer / 0.4f;
+                float shakeFactor = normalizedTime * normalizedTime * normalizedTime;
+
                 // 1. Sharp dip downwards based on frontal impact
                 float frontalImpact = Mathf.Abs(cameraShakeDirection.z) + 0.5f;
                 float dipY = -cameraShakeIntensity * shakeFactor * frontalImpact;
-                
+
                 // 2. Sharp rotational roll towards the impact side
                 float sideImpact = cameraShakeDirection.x;
                 float dipTilt = (cameraShakeIntensity * 15f) * sideImpact * shakeFactor;
-                
+
                 // If it's purely a frontal crash with no side impact, add a slight random tilt
-                if (Mathf.Abs(sideImpact) < 0.1f) 
+                if (Mathf.Abs(sideImpact) < 0.1f)
                     dipTilt = (cameraShakeIntensity * 5f) * shakeFactor * (Mathf.PerlinNoise(Time.time, 0) > 0.5f ? 1 : -1);
-                
+
                 // 3. Organic rattle (much lighter now)
                 float rattle = (Mathf.PerlinNoise(Time.time * 30f, 0f) - 0.5f) * (cameraShakeIntensity * 0.2f) * shakeFactor;
 
                 desiredY += dipY + rattle;
-                currentTilt += dipTilt + (rattle * 5f); 
+                currentTilt += dipTilt + (rattle * 5f);
             }
 
             float smoothedY = Mathf.Lerp(cameraParent.localPosition.y, desiredY, Time.deltaTime * 15f);
@@ -220,13 +265,71 @@ namespace EasyPeasyFirstPersonController
             cameraShakeTimer = duration;
             cameraShakeDirection = direction.normalized;
         }
-        public void AddRecoil(float verticalRecoil, float horizontalRecoil) //сделал темрик
+        public void AddRecoil(float verticalRecoil, float horizontalRecoil)
         {
-            // Отнимаем вертикальную отдачу, чтобы ствол подбрасывало ВВЕРХ
-            xRotation -= verticalRecoil; 
-            
+            xRotation -= verticalRecoil;
             transform.Rotate(Vector3.up * Random.Range(-horizontalRecoil, horizontalRecoil));
-        }  // дальше не я
+        }
+
+        // ========== НОВЫЙ МЕТОД: воспроизведение звука шага ==========
+        private void PlayFootstep()
+        {
+            if (footstepSource == null || footstepSounds.Length == 0)
+                return;
+
+            // Бросаем луч вниз от groundCheck
+            RaycastHit hit;
+            if (Physics.Raycast(groundCheck.position, Vector3.down, out hit, 0.3f, groundMask))
+            {
+                PhysicMaterial mat = hit.collider.sharedMaterial;
+                AudioClip selectedClip = null;
+
+                // Ищем подходящий материал в нашем массиве
+                foreach (var entry in footstepSounds)
+                {
+                    if (entry.material == mat)
+                    {
+                        if (entry.clips != null && entry.clips.Length > 0)
+                            selectedClip = entry.clips[Random.Range(0, entry.clips.Length)];
+                        break;
+                    }
+                }
+
+                // Если не нашли – берём первый элемент как дефолтный
+                if (selectedClip == null && footstepSounds.Length > 0)
+                {
+                    var defaultEntry = footstepSounds[0];
+                    if (defaultEntry.clips != null && defaultEntry.clips.Length > 0)
+                        selectedClip = defaultEntry.clips[Random.Range(0, defaultEntry.clips.Length)];
+                }
+
+                if (selectedClip != null)
+                {
+                    // Настраиваем громкость и тон в зависимости от состояния
+                    float volume = footstepVolume;
+                    float pitch = 1f;
+
+                    // Определяем режим движения по скорости и вводу
+                    bool isSprinting = input.sprint && characterController.velocity.magnitude > walkSpeed * 0.8f;
+                    bool isCrouching = input.crouch; // если у тебя есть такая переменная
+
+                    if (isSprinting)
+                    {
+                        volume *= 1.2f;
+                        pitch = sprintPitchMultiplier;
+                    }
+                    else if (isCrouching)
+                    {
+                        volume *= crouchVolumeMultiplier;
+                        pitch = 0.9f;
+                    }
+
+                    footstepSource.pitch = pitch;
+                    footstepSource.PlayOneShot(selectedClip, volume);
+                }
+            }
+        }
+        // =============================================================
 
         public bool HasCeiling()
         {
@@ -276,6 +379,5 @@ namespace EasyPeasyFirstPersonController
                 isInWater = false;
             }
         }
-
     }
 }
