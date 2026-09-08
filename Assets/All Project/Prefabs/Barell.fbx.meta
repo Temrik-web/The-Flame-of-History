@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: d4bebf13af0d80a4b950efe4d2378945
+guid: 665128dd4c061394c8e8841ddca79971
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -7,13 +7,28 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: M_Material
-    second: {fileID: 2100000, guid: 5f2275925678461448046e9c0788f380, type: 2}
+      name: Material
+    second: {fileID: 2100000, guid: 8ea93d514fbe9384884d093da7bd9827, type: 2}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
-      name: M_Material_BaseColor
-    second: {fileID: 2800000, guid: c68b38d8007e3194aa4aa3afb58cdcd9, type: 3}
+      name: Bochka_Metallic.tga
+    second: {fileID: 2800000, guid: ec8a2a4d8664ae44c87c0409445ed877, type: 3}
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: Bochka_Normal.tga
+    second: {fileID: 2800000, guid: 9f87293fb68acac439d20f7f4c90111a, type: 3}
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: Bochka_Roughness.tga
+    second: {fileID: 2800000, guid: 21bbb2f39547125448001686bf83827d, type: 3}
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: Bockha_BaseColor.tga
+    second: {fileID: 2800000, guid: 81e620dd541237642a35780a8dea3f67, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0
