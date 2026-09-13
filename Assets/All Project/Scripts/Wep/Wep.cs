@@ -351,6 +351,19 @@ public class Wep : MonoBehaviour
     public bool interruptOnReload = true;
     public bool interruptOnRun = true;
 
+    [Header("Эффекты попадания")]
+    [Tooltip("Правила спавна эффектов в точке попадания пули. " +
+             "Проверяются по очереди: сначала тегом поверхности, затем физическим материалом. " +
+             "Первое совпадение используется. Если ничего не совпало — берётся Default Impact Prefab.")]
+    public ImpactEffectEntry[] impactEffects;
+    [Tooltip("Префаб по умолчанию, если поверхность не совпала ни с одним правилом. " +
+             "Пусто — эффект не спавнится.")]
+    public GameObject defaultImpactPrefab;
+    [Tooltip("Смещение эффекта от поверхности, чтобы он не утонул в геометрии.")]
+    public float impactOffset = 0.03f;
+    [Tooltip("Время жизни эффекта попадания (сек).")]
+    public float impactLifetime = 3f;
+
     private bool isInspecting = false;
     private Coroutine inspectRoutine;
     private bool isCinematicReload = false;
@@ -360,6 +373,23 @@ public class Wep : MonoBehaviour
     private Quaternion newMagOriginalLocalRot;
 
     public enum FireMode { Semi, Auto }
+
+    [System.Serializable]
+    public class ImpactEffectEntry
+    {
+        [Tooltip("Тег поверхности (например Metal, Wood, Concrete). " +
+                 "Если заполнен — проверяется только тег, материал игнорируется.")]
+        public string surfaceTag;
+
+        [Tooltip("Физический материал поверхности. Проверяется, если surfaceTag пуст.")]
+        public PhysicMaterial surfaceMaterial;
+
+        [Tooltip("Префаб эффекта (Particle System, Decal и т.д.).")]
+        public GameObject effectPrefab;
+
+        [Tooltip("Опциональный звук попадания в эту поверхность.")]
+        public AudioClip impactSound;
+    }
 
     void Start()
     {
@@ -699,6 +729,8 @@ public class Wep : MonoBehaviour
                 hole.tag = "BulletHole";
                 hole.transform.SetParent(hit.collider.transform);
             }
+
+            SpawnImpactEffect(hit);
         }
 
         if (bulletTrailPrefab != null)
@@ -1170,6 +1202,55 @@ public class Wep : MonoBehaviour
         foreach (Collider col in Physics.OverlapSphere(point, holeMinDistance, holeCheckMask))
             if (col.CompareTag("BulletHole")) return false;
         return true;
+    }
+
+    /// <summary>
+    /// Спавн визуального эффекта в точке попадания пули.
+    /// Эффект подбирается по тегу/материалу поверхности, поворачивается
+    /// по нормали и уничтожается через impactLifetime.
+    /// </summary>
+    void SpawnImpactEffect(RaycastHit hit)
+    {
+        GameObject prefab = FindImpactPrefab(hit);
+        if (prefab == null) return;
+
+        Vector3 spawnPos = hit.point + hit.normal * impactOffset;
+        Quaternion spawnRot = Quaternion.LookRotation(hit.normal);
+
+        GameObject fx = Instantiate(prefab, spawnPos, spawnRot);
+        Destroy(fx, impactLifetime);
+    }
+
+    /// <summary>
+    /// Подобрать префаб и звук для поверхности попадания.
+    /// Порядок проверки: тег объекта — затем PhysicsMaterial коллайдера.
+    /// Если ничего не совпало — возвращается defaultImpactPrefab.
+    /// </summary>
+    GameObject FindImpactPrefab(RaycastHit hit)
+    {
+        if (impactEffects != null)
+        {
+            foreach (ImpactEffectEntry entry in impactEffects)
+            {
+                if (entry == null) continue;
+
+                bool matches = false;
+
+                if (!string.IsNullOrEmpty(entry.surfaceTag))
+                    matches = hit.collider.CompareTag(entry.surfaceTag);
+                else if (entry.surfaceMaterial != null)
+                    matches = hit.collider.sharedMaterial == entry.surfaceMaterial;
+
+                if (!matches) continue;
+
+                if (entry.impactSound != null && audioSource != null)
+                    audioSource.PlayOneShot(entry.impactSound);
+
+                return entry.effectPrefab;
+            }
+        }
+
+        return defaultImpactPrefab;
     }
 
     Vector3 GetSpreadDirection(float spreadDegrees)

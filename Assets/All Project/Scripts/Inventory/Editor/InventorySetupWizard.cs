@@ -473,6 +473,14 @@ public static class InventorySetupWizard
             return;
         }
 
+        // Новый кнопочный канвас (Tools -> Диалоги -> Создать канвас) уже подключён —
+        // старый кодо-собираемый интерфейс не вешаем, чтобы не было наложения.
+        if (dm.GetComponent<DialogueCanvasUI>() != null)
+        {
+            Debug.Log("[InventorySetup] Диалог уже на кнопочном канвасе (DialogueCanvasUI) — старый UI пропущен.");
+            return;
+        }
+
         DialogueUI ui = dm.GetComponent<DialogueUI>();
         if (ui == null) ui = Undo.AddComponent<DialogueUI>(dm.gameObject);
 

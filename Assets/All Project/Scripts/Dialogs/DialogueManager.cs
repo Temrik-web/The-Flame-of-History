@@ -418,7 +418,11 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    void CompleteTyping()
+    /// <summary>
+    /// Мгновенно допечатать текущую реплику. Вызывается кнопкой продолжения
+    /// (клик по тексту) или пробелом.
+    /// </summary>
+    public void CompleteTyping()
     {
         if (typingCoroutine != null)
         {
@@ -446,7 +450,11 @@ public class DialogueManager : MonoBehaviour
             StartCoroutine(ShowChoicesAfterDelay(0f));
     }
 
-    void AdvanceDialogue()
+    /// <summary>
+    /// Двигает диалог дальше (следующий узел или показ вариантов).
+    /// Вызывается кнопкой продолжения, Space или автоматически.
+    /// </summary>
+    public void AdvanceDialogue()
     {
         if (isTyping) return;
         if (isShowingChoices) return;
