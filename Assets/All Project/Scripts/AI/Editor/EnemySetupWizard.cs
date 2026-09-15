@@ -311,13 +311,16 @@ public static class EnemySetupWizard
         aiSo.FindProperty("eyePoint").objectReferenceValue = eye.transform;
         aiSo.FindProperty("weapon").objectReferenceValue = weapon;
         aiSo.FindProperty("voice").objectReferenceValue = voice;
-        aiSo.FindProperty("enemyTeam").enumValueIndex = (int)CombatTeam.Allies;
+        aiSo.FindProperty("enemyTeam").enumValueIndex = (int)CombatTeam.Axis;
 
-        // targetMask -> Characters, если слой есть; иначе Everything
+        // Враг ищет цели и «видит» на всех слоях, кроме собственного: свой же коллайдер
+        // (глаза внутри тела) не должен закрывать обзор, а стены и игрок — должны.
+        int selfLayerMask = charLayer >= 0 ? (1 << charLayer) : 0;
+
         SerializedProperty targetMask = aiSo.FindProperty("targetMask");
-        targetMask.intValue = charLayer >= 0 ? (1 << charLayer) : ~0;
-
-        aiSo.FindProperty("visibilityMask").intValue = ~0;
+        SerializedProperty visibilityMask = aiSo.FindProperty("visibilityMask");
+        targetMask.intValue = selfLayerMask != 0 ? ~selfLayerMask : ~0;
+        visibilityMask.intValue = selfLayerMask != 0 ? ~selfLayerMask : ~0;
         aiSo.ApplyModifiedProperties();
 
         // --- Выдача оружия в руки ---

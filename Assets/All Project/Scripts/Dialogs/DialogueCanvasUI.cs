@@ -7,11 +7,13 @@ using UnityEngine.UI;
 /// («Tools -> Диалоги -> Создать канвас») и подключает его элементы к
 /// DialogueManager.
 ///
-/// Раскладка окна:
-///  - одно поле «DialogueBox» (объект сцены, можно таскать и крутить);
-///  - сверху — имя говорящего (красная надпись);
-///  - ниже — текст реплики (клик по нему = продолжить);
-///  - чуть ниже — кнопки вариантов ответа и «Отмена».
+/// Раскладка (всё внутри одного окна DialogueBox, поверх игры):
+///  - слева снизу — имя говорящего;
+///  - слева — текст реплики (клик по нему = продолжить);
+///  - справа — кнопки вариантов ответа и «Отмена».
+///
+/// DialogueBox — плавающее окно не на весь экран; двигается в Scene view,
+/// и весь интерфейс диалога переезжает вместе с ним.
 ///
 /// Все кнопки настраиваются в инспекторе: стандартный Button + компонент
 /// DialogueCanvasButton на каждом элементе (цвета наведения/нажатия и масштаб).
@@ -25,6 +27,12 @@ public class DialogueCanvasUI : MonoBehaviour
     [Header("Менеджер")]
     [Tooltip("Если пусто — берётся DialogueManager.Instance.")]
     public DialogueManager manager;
+
+    [Header("Оформление")]
+    [Tooltip("Фон меню: вставь сюда спрайт своего фонового фото/арта.")]
+    public Image backgroundImage;
+    [Tooltip("Шрифт всех надписей канваса. Поменяй на свой красивый — применится на всё при запуске.")]
+    public TMP_FontAsset fontAsset;
 
     [Header("Окно диалога")]
     [Tooltip("Корень окна. Диалоговый панель для DialogueManager.")]
@@ -76,6 +84,8 @@ public class DialogueCanvasUI : MonoBehaviour
         // Если мастер не разложил ссылки — найдём элементы по именам
         AutoDiscover();
 
+        ApplyFont();
+
         WireToManager();
 
         if (continueButton != null)
@@ -109,6 +119,20 @@ public class DialogueCanvasUI : MonoBehaviour
         }
 
         UpdateContinuePrompt();
+    }
+
+    // =====================================================================
+    // Применение оформления
+    // =====================================================================
+    /// <summary>Перекрасить все надписи канваса выбранным в инспекторе шрифтом.</summary>
+    void ApplyFont()
+    {
+        if (fontAsset == null) return;
+
+        foreach (TextMeshProUGUI label in GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            if (label != null) label.font = fontAsset;
+        }
     }
 
     // =====================================================================
@@ -180,6 +204,13 @@ public class DialogueCanvasUI : MonoBehaviour
     {
         Transform t = null;
 
+        if (backgroundImage == null)
+        {
+            t = FindChild("DialogueBox");
+            if (t == null) t = FindChild("Background");
+            if (t != null) backgroundImage = t.GetComponent<Image>();
+        }
+
         if (windowRoot == null)
         {
             t = FindChild("DialogueWindow");
@@ -188,7 +219,7 @@ public class DialogueCanvasUI : MonoBehaviour
 
         if (speakerNameText == null)
         {
-            t = FindChild("SpeakerName");
+            t = FindChild("SpeakerPlate");
             if (t != null) speakerNameText = t.GetComponentInChildren<TextMeshProUGUI>(true);
         }
 

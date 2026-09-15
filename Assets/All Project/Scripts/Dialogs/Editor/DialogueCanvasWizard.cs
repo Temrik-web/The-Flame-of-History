@@ -10,11 +10,13 @@ using UnityEngine.UI;
 /// Мастер создания кнопочного диалогового канваса.
 /// Меню: Tools -> Диалоги -> Создать канвас.
 ///
-/// Создаёт в сцене Canvas «DialogueCanvas» с окном диалога:
-///  - одно большое поле «DialogueBox» (можно таскать в сцене);
-///  - сверху на поле — красная надпись имени говорящего;
-///  - ниже — текст реплики (клик по тексту = продолжить);
-///  - чуть ниже — кнопки вариантов ответа и «Отмена» внутри того же поля.
+/// Создаёт в сцене Canvas «DialogueCanvas» с окном диалога (DialogueBox):
+///  - плавающее окно ПОВЕРХ игры, не на весь экран;
+///  - внутри окна прежняя раскладка: слева снизу — имя говорящего,
+///    слева — текст реплики, справа — варианты ответа и «Отмена».
+///
+/// Всё собирается объектами сцены. DialogueBox двигается в Scene view,
+/// и весь интерфейс диалога переезжает вместе с ним.
 ///
 /// Каждая кнопка — стандартный Button + компонент DialogueCanvasButton,
 /// поэтому её цвета наведения/нажатия и масштаб правятся в инспекторе.
@@ -57,7 +59,13 @@ public static class DialogueCanvasWizard
         hoverSprite = GetOrCreateVariant("RoundedButtonHover", 64, 12, RoundedVariant.Hover);
         pressedSprite = GetOrCreateVariant("RoundedButtonPressed", 64, 12, RoundedVariant.Pressed);
 
-        TMP_FontAsset font = Resources.Load<TMP_FontAsset>("InventoryFont SDF");
+        // Стандартный TMP-шрифт (есть кириллица); свой красивый можно вписать
+        // в DialogueCanvasUI -> Шрифт, и он применится на весь канвас в Awake.
+        TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+            "Assets/All Project/From Unity(Base)/Settings 1/TextMesh Pro/Resources/Fonts & Materials/" +
+            "LiberationSans SDF.asset");
+        if (font == null)
+            font = Resources.Load<TMP_FontAsset>("InventoryFont SDF");
 
         Canvas canvas = BuildCanvas(out DialogueCanvasUI ui, out DialogueManager dm, font);
         if (canvas == null)
@@ -135,6 +143,61 @@ public static class DialogueCanvasWizard
 
         Debug.Log("[DialogueCanvas] Тест-куб готов: подойди к кубу и нажми E. " +
                   "Запусти игру (Ctrl+P).");
+    }
+
+    // =====================================================================
+    // Кубы под все диалоги из Assets/All Project/Dialog (D1–D8)
+    // =====================================================================
+    [MenuItem("Tools/Диалоги/Создать кубы с диалогами (D1-D8)", false, 11)]
+    public static void CreateDialogueCubes()
+    {
+        // Без канваса и менеджера диалог некому показывать — собираем их тоже
+        if (GameObject.Find("DialogueCanvas") == null)
+            CreateCanvas();
+
+        string dialogFolder = "Assets/All Project/Dialog";
+        string[] guids = AssetDatabase.FindAssets("t:DialogueData", new[] { dialogFolder });
+        if (guids.Length == 0)
+        {
+            EditorUtility.DisplayDialog("Диалоги",
+                "Диалоги не найдены в папке " + dialogFolder, "Ок");
+            return;
+        }
+
+        GameObject root = new GameObject("DialogueCubes");
+        Undo.RegisterCreatedObjectUndo(root, "Create dialogue cubes");
+
+        int index = 0;
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            DialogueData data = AssetDatabase.LoadAssetAtPath<DialogueData>(path);
+            if (data == null) continue;
+            if (data.name == "OldManDialogue") continue; // старый тест не трогаем
+
+            string cubeName = string.IsNullOrEmpty(data.dialogueName) ? data.name : data.dialogueName;
+
+            GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cube.name = cubeName;
+            cube.transform.SetParent(root.transform);
+            cube.transform.position = new Vector3(index * 3f, 1f, 0f);
+            cube.transform.localScale = Vector3.one * 0.8f;
+
+            DialogueTrigger trigger = cube.GetComponent<DialogueTrigger>();
+            if (trigger == null) trigger = cube.AddComponent<DialogueTrigger>();
+            trigger.dialogue = data;
+            trigger.interactDistance = 3f;
+            trigger.interactKey = KeyCode.E;
+            trigger.interactMessage = "Нажмите E для разговора";
+
+            index++;
+        }
+
+        Selection.activeGameObject = root;
+        EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+
+        Debug.Log("[DialogueCanvas] Создано кубов с диалогами: " + index +
+                  ". Подойди к кубу и нажми E (Ctrl+P).");
     }
 
     static DialogueData GetOrCreateTestDialogue()
@@ -244,65 +307,65 @@ public static class DialogueCanvasWizard
         CanvasGroup group = window.AddComponent<CanvasGroup>();
         group.alpha = 0f;
 
-        // Затемнение фона
-        GameObject dim = NewUi("Dim", window.transform);
-        Stretch((RectTransform)dim.transform);
-        Image dimImg = AddImage(dim, solidSprite, new Color(0.03f, 0.035f, 0.045f, 0.55f));
-        dimImg.type = Image.Type.Simple;
-        dimImg.raycastTarget = false;
-
-        // ---- Одно поле диалога: единая плашка, которую можно таскать в сцене ----
+        // Окно интерфейса — одна плашка ПОВЕРХ игры, не на весь экран.
+        // Выдели DialogueBox и двигай его в Scene view, чтобы поставить куда нужно.
         GameObject box = NewUi("DialogueBox", window.transform);
         RectTransform boxRect = (RectTransform)box.transform;
-        boxRect.anchorMin = new Vector2(0.5f, 0.42f);
-        boxRect.anchorMax = new Vector2(0.5f, 0.42f);
+        boxRect.anchorMin = boxRect.anchorMax = new Vector2(0.5f, 0.5f);
         boxRect.pivot = new Vector2(0.5f, 0.5f);
         boxRect.anchoredPosition = Vector2.zero;
-        boxRect.sizeDelta = new Vector2(1320f, 680f);
+        boxRect.sizeDelta = new Vector2(1580f, 860f);
 
-        Image boxBg = AddImage(box, buttonSprite, new Color(0.055f, 0.065f, 0.085f, 0.97f));
-        boxBg.type = Image.Type.Sliced;
+        // Фон окна: сюда вставляешь своё фото/арт —
+        // спрайт меняется на DialogueCanvasUI -> «Фон меню».
+        Image boxBg = AddImage(box, GetOrCreateGradientSprite("MenuBackground", 256,
+            new Color(0.08f, 0.11f, 0.17f), new Color(0.23f, 0.14f, 0.11f)), Color.white);
+        boxBg.type = Image.Type.Simple;
 
-        VerticalLayoutGroup boxLayout = box.AddComponent<VerticalLayoutGroup>();
-        boxLayout.padding = new RectOffset(44, 44, 36, 34);
-        boxLayout.spacing = 20f;
-        boxLayout.childControlWidth = true;
-        boxLayout.childForceExpandWidth = true;
-        boxLayout.childControlHeight = true;
-        boxLayout.childForceExpandHeight = false;
-        boxLayout.childAlignment = TextAnchor.UpperLeft;
+        // Тонкая рамка по краю окна (не участвует в раскладке)
+        Sprite ringSprite = GetOrCreateSprite("RoundedRing", 64, 12, 3);
+        GameObject edge = NewUi("RoundedEdge", box.transform);
+        Stretch((RectTransform)edge.transform);
+        Image edgeImg = AddImage(edge, ringSprite, new Color(1f, 1f, 1f, 0.30f));
+        edgeImg.type = Image.Type.Sliced;
+        edgeImg.raycastTarget = false;
+        edge.AddComponent<LayoutElement>().ignoreLayout = true;
 
-        // ---- Сверху: красная надпись имени говорящего ----
-        GameObject nameRow = NewUi("SpeakerName", box.transform);
-        LayoutElement nameRowEl = nameRow.AddComponent<LayoutElement>();
-        nameRowEl.minHeight = 44f;
-        nameRowEl.preferredHeight = 44f;
+        // ---- Слева снизу окна: имя говорящего ----
+        GameObject plate = NewUi("SpeakerPlate", box.transform);
+        RectTransform plateRect = (RectTransform)plate.transform;
+        plateRect.anchorMin = new Vector2(0f, 0f);
+        plateRect.anchorMax = new Vector2(0f, 0f);
+        plateRect.pivot = new Vector2(0f, 0f);
+        plateRect.anchoredPosition = new Vector2(70f, 58f);
 
-        HorizontalLayoutGroup nameLayout = nameRow.AddComponent<HorizontalLayoutGroup>();
-        nameLayout.spacing = 14f;
-        nameLayout.childAlignment = TextAnchor.MiddleLeft;
-        nameLayout.childControlWidth = false;
-        nameLayout.childForceExpandWidth = false;
-        nameLayout.childControlHeight = true;
-        nameLayout.childForceExpandHeight = false;
+        Image plateBg = AddImage(plate, buttonSprite, new Color(0.07f, 0.075f, 0.10f, 0.96f));
+        plateBg.type = Image.Type.Sliced;
+        plateBg.raycastTarget = false;
 
-        GameObject accentBar = NewUi("Accent", nameRow.transform);
-        Image accentImg = accentBar.AddComponent<Image>();
-        accentImg.sprite = solidSprite;
-        accentImg.color = new Color(0.96f, 0.30f, 0.24f, 1f);
-        LayoutElement accentEl = accentBar.AddComponent<LayoutElement>();
-        accentEl.preferredWidth = 6f;
+        HorizontalLayoutGroup plateLayout = plate.AddComponent<HorizontalLayoutGroup>();
+        plateLayout.padding = new RectOffset(20, 20, 8, 8);
+        plateLayout.childControlWidth = false;
+        plateLayout.childForceExpandWidth = false;
+        plateLayout.childForceExpandHeight = true;
+        plateLayout.childAlignment = TextAnchor.MiddleLeft;
+
+        ContentSizeFitter plateFitter = plate.AddComponent<ContentSizeFitter>();
+        plateFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        plateFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         TextMeshProUGUI nameLabel = AddLabel(
-            NewUi("Text", nameRow.transform), font, "Игрок", 30,
-            new Color(0.99f, 0.33f, 0.27f, 1f), TextAlignmentOptions.Left);
-        nameLabel.fontStyle = FontStyles.Bold;
+            NewUi("Text", plate.transform), font, "Собеседник", 24,
+            new Color(1f, 0.78f, 0.42f), TextAlignmentOptions.Left);
         nameLabel.raycastTarget = false;
 
-        // ---- Чуть ниже: текст реплики (кликается по всей площади) ----
+        // ---- Слева: текст реплики (клик по нему = продолжить) ----
         GameObject textArea = NewUi("TextArea", box.transform);
-        LayoutElement areaEl = textArea.AddComponent<LayoutElement>();
-        areaEl.flexibleHeight = 1f;
+        RectTransform areaRect = (RectTransform)textArea.transform;
+        areaRect.anchorMin = new Vector2(0f, 0f);
+        areaRect.anchorMax = new Vector2(0.53f, 1f);
+        areaRect.offsetMin = new Vector2(70f, 190f);  // снизу выше плашки имени
+        areaRect.offsetMax = new Vector2(0f, -56f);   // сверху отступ
 
         // Невидимая кнопка-продолжение под текстом
         GameObject continueBtn = NewUi("ContinueButton", textArea.transform);
@@ -321,19 +384,19 @@ public static class DialogueCanvasWizard
         contStyle.pressedScale = 0.998f;
 
         GameObject body = NewUi("DialogueText", textArea.transform);
-        Stretch((RectTransform)body.transform, 0f, 0f, 0f, 0f);
+        Stretch((RectTransform)body.transform, 24f, 14f, 34f, 18f);
         TextMeshProUGUI bodyLabel = AddLabel(
-            body, font, "", 27, new Color(0.94f, 0.95f, 0.97f), TextAlignmentOptions.TopLeft);
+            body, font, "", 26, new Color(0.94f, 0.95f, 0.97f), TextAlignmentOptions.TopLeft);
         bodyLabel.enableWordWrapping = true;
         bodyLabel.lineSpacing = 10f;
         bodyLabel.raycastTarget = false;
 
-        // Подсказка «жми, чтобы продолжить» — правый нижний угол текста
+        // Подсказка «жми, чтобы продолжить»
         GameObject prompt = NewUi("ContinuePrompt", textArea.transform);
         RectTransform promptRect = (RectTransform)prompt.transform;
         promptRect.anchorMin = promptRect.anchorMax = new Vector2(1f, 0f);
         promptRect.pivot = new Vector2(1f, 0f);
-        promptRect.anchoredPosition = new Vector2(-8f, 10f);
+        promptRect.anchoredPosition = new Vector2(-16f, 22f);
         promptRect.sizeDelta = new Vector2(250f, 28f);
         TextMeshProUGUI promptLabel = AddLabel(
             NewUi("Text", prompt.transform), font, "Продолжить >", 17,
@@ -342,13 +405,19 @@ public static class DialogueCanvasWizard
         promptLabel.raycastTarget = false;
         prompt.SetActive(false);
 
-        // ---- Выбор чуть ниже: варианты ответа + отмена внутри того же поля ----
+        // ---- Справа: колонка вариантов и отмены ----
         GameObject column = NewUi("AnswersColumn", box.transform);
+        RectTransform columnRect = (RectTransform)column.transform;
+        columnRect.anchorMin = columnRect.anchorMax = new Vector2(1f, 1f);
+        columnRect.pivot = new Vector2(1f, 1f);
+        columnRect.anchoredPosition = new Vector2(-64f, -64f);
+        columnRect.sizeDelta = new Vector2(580f, 220f);
+
         VerticalLayoutGroup columnLayout = column.AddComponent<VerticalLayoutGroup>();
         columnLayout.spacing = 14f;
         columnLayout.childAlignment = TextAnchor.UpperRight;
         columnLayout.childControlWidth = true;
-        columnLayout.childForceExpandWidth = true;
+        columnLayout.childForceExpandWidth = false;
         columnLayout.childControlHeight = true;
         columnLayout.childForceExpandHeight = false;
 
@@ -357,8 +426,12 @@ public static class DialogueCanvasWizard
 
         // Контейнер кнопок вариантов — в него DialogueManager кладёт шаблон
         GameObject choices = NewUi("ChoicesPanel", column.transform);
+        RectTransform choicesRect = (RectTransform)choices.transform;
+        choicesRect.sizeDelta = new Vector2(660f, 0f);
+
         LayoutElement choicesLayoutEl = choices.AddComponent<LayoutElement>();
         choicesLayoutEl.minWidth = 560f;
+        choicesLayoutEl.preferredWidth = 660f;
 
         VerticalLayoutGroup choicesLayout = choices.AddComponent<VerticalLayoutGroup>();
         choicesLayout.spacing = 10f;
@@ -371,8 +444,8 @@ public static class DialogueCanvasWizard
         ContentSizeFitter choicesFitter = choices.AddComponent<ContentSizeFitter>();
         choicesFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        // Шаблон кнопки варианта (в неактивном хозяине, вне раскладки поля)
-        GameObject holder = NewUi("ChoiceTemplateHolder", box.transform);
+        // Шаблон кнопки варианта (в неактивном хозяине, вне раскладки)
+        GameObject holder = NewUi("ChoiceTemplateHolder", column.transform);
         holder.SetActive(false);
 
         GameObject choice = NewUi("ChoiceTemplate", holder.transform);
@@ -402,8 +475,11 @@ public static class DialogueCanvasWizard
         textHolderFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         TextMeshProUGUI choiceLabel = AddLabel(
-            NewUi("Text", textHolder.transform), font, "Вариант ответа", 20,
-            new Color(0.94f, 0.95f, 0.97f), TextAlignmentOptions.Left);
+            NewUi("Text", textHolder.transform), font, "Вариант ответа", 21,
+            new Color(0.96f, 0.97f, 0.99f), TextAlignmentOptions.MidlineLeft);
+        // Текст растягиваем по всей ширине кнопки и равняем по левому краю —
+        // иначе он сидит в точке якоря и выглядит как «центр кнопки».
+        Stretch((RectTransform)choiceLabel.transform);
         choiceLabel.enableWordWrapping = true;
         choiceLabel.raycastTarget = false;
 
@@ -483,6 +559,8 @@ public static class DialogueCanvasWizard
         uiComp.cancelButton = cancelButton;
         uiComp.interactHint = hint;
         uiComp.interactHintText = hintLabel;
+        uiComp.backgroundImage = boxBg;
+        uiComp.fontAsset = font;
 
         EditorUtility.SetDirty(canvasObj);
 
@@ -640,6 +718,48 @@ public static class DialogueCanvasWizard
         ti.SaveAndReimport();
 
         return AssetDatabase.LoadAssetAtPath<Sprite>(file);
+    }
+
+    /// <summary>Вертикально-градиентная картинка-заглушка для фона меню.</summary>
+    static Sprite GetOrCreateGradientSprite(string name, int size, Color top, Color bottom)
+    {
+        string file = $"{SpriteFolder}/{name}.png";
+
+        if (!File.Exists(file))
+        {
+            WriteGradientPng(file, size, top, bottom);
+            AssetDatabase.ImportAsset(file);
+        }
+
+        TextureImporter ti = (TextureImporter)AssetImporter.GetAtPath(file);
+        if (ti == null)
+        {
+            AssetDatabase.ImportAsset(file);
+            ti = (TextureImporter)AssetImporter.GetAtPath(file);
+        }
+
+        ConfigureImporter(ti, size, 0);
+        ti.SaveAndReimport();
+
+        return AssetDatabase.LoadAssetAtPath<Sprite>(file);
+    }
+
+    static void WriteGradientPng(string path, int size, Color top, Color bottom)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        var px = new Color32[size * size];
+        Color32 cc = default;
+        for (int y = 0; y < size; y++)
+        {
+            float f = Mathf.Clamp01((float)y / (size - 1));
+            cc = Color.Lerp(top, bottom, f);
+            for (int x = 0; x < size; x++)
+                px[y * size + x] = cc;
+        }
+        tex.SetPixels32(px);
+        tex.Apply();
+        File.WriteAllBytes(path, tex.EncodeToPNG());
+        Object.DestroyImmediate(tex);
     }
 
     static Sprite GetOrCreateVariant(string name, int size, int radius, RoundedVariant variant)

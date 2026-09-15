@@ -122,7 +122,11 @@ public sealed class HitscanWeapon : MonoBehaviour
             _ownerRoot = ownerHealth != null ? ownerHealth.gameObject : owner;
             if (ownerHealth != null) _ownerTeam = ownerHealth.Team;
         }
-        else _ownerRoot = null;
+        else
+        {
+            _ownerRoot = null;
+            _ownerTeam = Team.Axis;
+        }
 
         AmmunitionInMagazine--;
         _nextShotTime = Time.time + ShotInterval;

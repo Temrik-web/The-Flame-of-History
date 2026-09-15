@@ -18,6 +18,8 @@ public class Enemy : MonoBehaviour
     public GameObject deathEffectPrefab;   // частицы крови/взрыва (необязательно)
     public AudioClip deathSound;           // звук смерти (необязательно)
     public bool destroyOnDeath = false;    // false = труп остаётся лежать на сцене (рекомендуется для шутера)
+    [Tooltip("Задержка перед уничтожением трупа. Должна быть >= длины анимации смерти.")]
+    public float destroyDelay = 3f;
 
     private AudioSource audioSource;
 
@@ -87,14 +89,9 @@ public class Enemy : MonoBehaviour
 
         if (destroyOnDeath)
         {
-            if (deathSound != null && audioSource != null)
-            {
-                Destroy(gameObject, deathSound.length);
-            }
-            else
-            {
-                Destroy(gameObject);
-            }
+            float delay = Mathf.Max(destroyDelay,
+                deathSound != null ? deathSound.length : 0f);
+            Destroy(gameObject, delay);
         }
         else
         {

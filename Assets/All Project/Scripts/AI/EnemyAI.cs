@@ -27,7 +27,7 @@ namespace FlameOfHistory.AI
         [SerializeField] private EnemyLoadout loadout;
 
         [Header("Target")]
-        [SerializeField] private Team enemyTeam = Team.Allies;
+        [SerializeField] private Team enemyTeam = Team.Axis;
         [SerializeField] private LayerMask targetMask;
         [SerializeField] private LayerMask visibilityMask = ~0;
 
@@ -153,6 +153,25 @@ namespace FlameOfHistory.AI
             if (voice == null) voice = GetComponent<EnemyVoice>();
             if (loadout == null) loadout = GetComponent<EnemyLoadout>();
             if (animator == null) animator = GetComponentInChildren<Animator>();
+
+            // Если targetMask пуст (0) — враг слепой. Включаем все слои,
+            // чтобы он хотя бы что-то видел. В идеале настрой в инспекторе.
+            if (targetMask == 0)
+            {
+                targetMask = ~0;
+                Debug.LogWarning($"[EnemyAI] {name}: targetMask был пуст (0) — " +
+                    "автоматически включены все слои. Настрой targetMask в инспекторе " +
+                    "для корректной работы.", this);
+            }
+
+            // Старая сериализованная сцена могла сохранить enemyTeam = Allies
+            // (было до исправления бага). Игрок = Allies, враг должен быть = Axis.
+            if (enemyTeam == Team.Allies)
+            {
+                enemyTeam = Team.Axis;
+                Debug.LogWarning($"[EnemyAI] {name}: enemyTeam был Allies (старое значение " +
+                    "из сцены) — автоматически исправлен на Axis.", this);
+            }
 
             // Если оружие не проставлено вручную — берём то, что уже висит в иерархии.
             // EnemyLoadout при спавне оружия всё равно перезапишет ссылку через SetWeapon.
@@ -379,7 +398,7 @@ namespace FlameOfHistory.AI
 
                 CharacterHealth cand = col.GetComponentInParent<CharacterHealth>();
                 if (cand == null || !_candidateSet.Add(cand) ||
-                    !cand.IsAlive || cand.Team != enemyTeam)
+                    !cand.IsAlive || cand.Team == enemyTeam)
                     continue;
 
                 Vector3 aimPoint = GetTargetAimPoint(cand.transform);
@@ -930,7 +949,7 @@ namespace FlameOfHistory.AI
             if (damage.Attacker != null)
             {
                 var attackerHealth = damage.Attacker.GetComponentInParent<CharacterHealth>();
-                if (attackerHealth != null && attackerHealth.Team == enemyTeam)
+                if (attackerHealth != null && attackerHealth.Team != enemyTeam)
                 {
                     SetTarget(attackerHealth.transform);
                     _lastKnownTargetPosition = attackerHealth.transform.position;
@@ -1040,10 +1059,27 @@ namespace FlameOfHistory.AI
                 Gizmos.DrawWireSphere(center, wanderRadius);
             }
 
-            if (Application.isPlaying && _target != null)
+            if (Application.isPlaying)
             {
-                Gizmos.color = Color.Lerp(Color.green, Color.red, _awareness);
-                Gizmos.DrawLine(origin.position, _target.position);
+                if (_target != null)
+                {
+                    Gizmos.color = Color.Lerp(Color.green, Color.red, _awareness);
+                    Gizmos.DrawLine(origin.position, _target.position);
+                    Gizmos.DrawWireSphere(_target.position, 0.3f);
+                }
+                else
+                {
+                    // Нет цели — показываем направление обзора
+                    Gizmos.color = _awareness > 0.15f ? new Color(1f, 0.5f, 0f) : Color.gray;
+                    Gizmos.DrawRay(origin.position, origin.forward * 3f);
+                }
+            }
+
+            // Показываем targetMask в инспекторе
+            if (targetMask == 0)
+            {
+                Gizmos.color = Color.red;
+                Gizmos.DrawWireSphere(transform.position, 0.5f);
             }
         }
 #endif

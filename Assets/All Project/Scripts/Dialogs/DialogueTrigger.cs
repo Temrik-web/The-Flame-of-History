@@ -14,26 +14,44 @@ public class DialogueTrigger : MonoBehaviour
 
     private bool playerInRange = false;
     private bool isDialogueActive = false;
+    private GameObject cachedPlayer;
+    private DialogueManager cachedManager;
+
+    void Start()
+    {
+        cachedManager = DialogueManager.Instance;
+        if (cachedManager == null)
+            cachedManager = FindObjectOfType<DialogueManager>();
+    }
 
     void Update()
     {
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player == null) return;
+        if (cachedManager == null)
+        {
+            cachedManager = DialogueManager.Instance;
+            if (cachedManager == null)
+                cachedManager = FindObjectOfType<DialogueManager>();
+            if (cachedManager == null) return;
+        }
 
-        float dist = Vector3.Distance(transform.position, player.transform.position);
+        if (cachedPlayer == null)
+            cachedPlayer = GameObject.FindGameObjectWithTag("Player");
+        if (cachedPlayer == null) return;
+
+        float dist = Vector3.Distance(transform.position, cachedPlayer.transform.position);
         playerInRange = dist <= interactDistance;
 
-        if (DialogueManager.Instance != null && DialogueManager.Instance.interactHint != null)
+        if (cachedManager.interactHint != null)
         {
-            if (playerInRange && !isDialogueActive && (!playOnce || !hasPlayed))
+            if (playerInRange && !isDialogueActive && !cachedManager.isDialogueActive && (!playOnce || !hasPlayed))
             {
-                DialogueManager.Instance.interactHint.SetActive(true);
-                if (DialogueManager.Instance.interactHintText != null)
-                    DialogueManager.Instance.interactHintText.text = interactMessage;
+                cachedManager.interactHint.SetActive(true);
+                if (cachedManager.interactHintText != null)
+                    cachedManager.interactHintText.text = interactMessage;
             }
             else
             {
-                DialogueManager.Instance.interactHint.SetActive(false);
+                cachedManager.interactHint.SetActive(false);
             }
         }
 
@@ -48,9 +66,26 @@ public class DialogueTrigger : MonoBehaviour
 
     void StartDialogue()
     {
-        if (dialogue == null || DialogueManager.Instance == null) return;
+        if (dialogue == null)
+        {
+            Debug.LogWarning($"[DialogueTrigger] {name}: dialogue = null.", this);
+            return;
+        }
+        if (DialogueManager.Instance == null)
+        {
+            Debug.LogWarning($"[DialogueTrigger] {name}: DialogueManager.Instance = null.", this);
+            return;
+        }
+        if (DialogueManager.Instance.isDialogueActive)
+        {
+            Debug.LogWarning($"[DialogueTrigger] {name}: менеджер уже занят другим диалогом.", this);
+            return;
+        }
+
         isDialogueActive = true;
         hasPlayed = true;
+        Debug.Log($"[DialogueTrigger] {name}: старт диалога «{dialogue.dialogueName}» " +
+                  $"(узелков: {dialogue.nodes?.Count ?? -1}).", this);
         DialogueManager.Instance.StartDialogue(dialogue, this);
     }
 

@@ -345,6 +345,11 @@ namespace FlameOfHistory.AI
                 {
                     Mode = MotorMode.NavMesh;
                     _verticalVelocity = 0f;
+
+                    // NavMeshAgent сам двигает трансформ — CharacterController мешает.
+                    if (_controller != null && _controller.enabled)
+                        _controller.enabled = false;
+
                     if (HasDestination) MoveTo(_destination);
                 }
                 return;
@@ -354,6 +359,8 @@ namespace FlameOfHistory.AI
             if (TryReturnToNavMesh())
             {
                 Mode = MotorMode.NavMesh;
+                if (_controller != null && _controller.enabled)
+                    _controller.enabled = false;
                 if (HasDestination) MoveTo(_destination);
                 return;
             }
@@ -365,6 +372,10 @@ namespace FlameOfHistory.AI
                 // Агент в этом режиме только мешает: он продолжит писать
                 // ошибки и держать transform. Отключаем, но не удаляем.
                 if (_agent.enabled) _agent.enabled = false;
+
+                // Включаем CharacterController для fallback-движения с физикой.
+                if (_controller != null && !_controller.enabled)
+                    _controller.enabled = true;
 
                 if (allowFallbackMovement && !_warnedAboutFallback)
                 {
@@ -497,9 +508,33 @@ namespace FlameOfHistory.AI
             if (motion.sqrMagnitude < 1e-10f) return;
 
             if (_controller != null && _controller.enabled)
+            {
                 _controller.Move(motion);
+            }
             else
-                transform.position = position + motion;
+            {
+                // Fallback без CharacterController: проверяем столкновение
+                // перед движением, чтобы не проходить сквозь стены.
+                Vector3 desiredPos = position + motion;
+                float radius = bodyRadius;
+                Vector3 direction = motion;
+                float distance = direction.magnitude;
+
+                if (distance > 0.001f &&
+                    Physics.SphereCast(position + Vector3.up * groundOffset,
+                        radius, direction.normalized, out RaycastHit hit,
+                        distance + radius, obstacleMask,
+                        QueryTriggerInteraction.Ignore))
+                {
+                    // Упёрлись в стену — двигаемся только до точки столкновения.
+                    float safeDistance = Mathf.Max(0f, hit.distance - radius);
+                    desiredPos = position + direction.normalized * safeDistance;
+                    _blockedCompletely = true;
+                }
+
+                desiredPos.y = position.y + motion.y;
+                transform.position = desiredPos;
+            }
         }
 
         /// <summary>

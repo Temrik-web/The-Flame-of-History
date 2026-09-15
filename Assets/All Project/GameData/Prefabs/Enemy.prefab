@@ -10,7 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 661187851356589259}
   - component: {fileID: 3731985872734395804}
-  - component: {fileID: 4235345094536260587}
   - component: {fileID: 1387646924769392271}
   - component: {fileID: 2737640904577118978}
   - component: {fileID: 8895800728865834190}
@@ -19,7 +18,8 @@ GameObject:
   - component: {fileID: 3684448795484694151}
   - component: {fileID: 8492023427229120400}
   - component: {fileID: 4719919999980490642}
-  m_Layer: 0
+  - component: {fileID: 3992230305189112345}
+  m_Layer: 8
   m_Name: Enemy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -52,8 +52,8 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2635380279492669597}
   m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
---- !u!136 &4235345094536260587
-CapsuleCollider:
+--- !u!143 &3992230305189112345
+CharacterController:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -70,10 +70,13 @@ CapsuleCollider:
   m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5
+  serializedVersion: 3
   m_Height: 2
-  m_Direction: 1
+  m_Radius: 0.5
+  m_SlopeLimit: 45
+  m_StepOffset: 0.45
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1387646924769392271
 MeshRenderer:
@@ -158,7 +161,7 @@ MonoBehaviour:
   navMeshSnapRadius: 3
   groundMask:
     serializedVersion: 2
-    m_Bits: 54
+    m_Bits: 4294967039
   stepHeight: 0.45
   groundProbeDistance: 2.5
   maximumSlope: 50
@@ -166,7 +169,7 @@ MonoBehaviour:
   groundOffset: 1
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 54
+    m_Bits: 4294967039
   bodyRadius: 0.4
   lookAheadDistance: 1.4
   avoidanceAngles:
@@ -248,10 +251,10 @@ MonoBehaviour:
   enemyTeam: 0
   targetMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 4294967039
   visibilityMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 4294967039
   viewDistance: 45
   fieldOfView: 110
   verticalViewTolerance: 6
@@ -352,7 +355,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6745415742342313503}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: EyePoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -383,7 +386,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3075960324983345709}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Muzzle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -416,7 +419,7 @@ GameObject:
   - component: {fileID: 2226881159681454480}
   - component: {fileID: 6192195664066072231}
   - component: {fileID: 4456873276247738043}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Weapon
   m_TagString: Untagged
   m_Icon: {fileID: 0}

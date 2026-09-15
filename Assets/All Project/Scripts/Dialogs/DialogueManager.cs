@@ -166,8 +166,16 @@ public class DialogueManager : MonoBehaviour
         isDialogueActive = true;
         isShowingChoices = false;
 
-        // Запускаем fade in
-        if (dialoguePanel != null)
+        var start = dialogue.GetStartNode();
+        Debug.Log($"[DialogueManager] StartDialogue: «{dialogue.dialogueName}», " +
+                  $"узелков={dialogue.nodes?.Count ?? -1}, стартовый узел={start?.nodeID ?? "NULL"}.", this);
+
+        if (dialogueCanvasGroup == null && dialoguePanel != null)
+            dialogueCanvasGroup = dialoguePanel.GetComponent<CanvasGroup>();
+        if (dialogueCanvasGroup == null && dialoguePanel != null)
+            dialogueCanvasGroup = dialoguePanel.AddComponent<CanvasGroup>();
+
+        if (dialoguePanel != null && dialogueCanvasGroup != null)
         {
             fadeRoutine = StartCoroutine(FadeAndScale(dialoguePanel.transform, dialogueCanvasGroup, Vector3.one, 1f, fadeInDuration, fadeInCurve));
         }
@@ -230,6 +238,7 @@ public class DialogueManager : MonoBehaviour
     {
         if (node == null)
         {
+            Debug.LogWarning("[DialogueManager] MoveToNode: узел null — диалог завершён досрочно.", this);
             EndDialogue();
             return;
         }
