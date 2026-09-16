@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 6ea1c1e84795e1b49ba5aa0358174d0b
+guid: f5219df1fea8bcc41949350c0e171224
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -7,33 +7,18 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: BirchBark.001
-    second: {fileID: 2100000, guid: 81900ba22f95d1e44965f629c5d75db7, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: BirchBranchAtlas.001
-    second: {fileID: 2100000, guid: 72d236c085fab7646affe733ce6588d9, type: 2}
+      name: Material
+    second: {fileID: 2100000, guid: 75a64f87f1748eb409494524c67547e4, type: 2}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
-      name: 26_wood_0027_normal_opengl_1k
-    second: {fileID: 2800000, guid: 094fd59eaf8651d428ca03a94e666e0c, type: 3}
+      name: Albedo
+    second: {fileID: 2800000, guid: a5bdaa66145a00a44878c5eeef9f5bd6, type: 3}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
-      name: 27_wood_0027_color_1kV2
-    second: {fileID: 2800000, guid: c1e4ef4027ee84a409c55c92b4b1ae6f, type: 3}
-  - first:
-      type: UnityEngine:Texture2D
-      assembly: UnityEngine.CoreModule
-      name: 28_Branch_NORMAL0000
-    second: {fileID: 2800000, guid: d984329550fcfda4bb1789259f5a4a36, type: 3}
-  - first:
-      type: UnityEngine:Texture2D
-      assembly: UnityEngine.CoreModule
-      name: 29_Branch_COLOR0000
-    second: {fileID: 2800000, guid: 31e00d4f07cec1742acd197529152d5f, type: 3}
+      name: gallow_normal
+    second: {fileID: 2800000, guid: cfefe9725df9d6b4d8740b5eb04bea64, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -120,7 +105,7 @@ ModelImporter:
     armStretch: 0.05
     legStretch: 0.05
     feetSpacing: 0
-    globalScale: 0.01
+    globalScale: 1
     rootMotionBoneName: 
     hasTranslationDoF: 0
     hasExtraRoot: 0
