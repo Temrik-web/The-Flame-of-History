@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$scene = [IO.File]::ReadAllText((Join-Path $root 'Assets/Scenes/SampleScene.unity'))
+$scene = [IO.File]::ReadAllText((Join-Path $root 'Assets/All Project/Scenes/Game.unity'))
 $blocks = @{}
 foreach ($match in [regex]::Matches($scene, '(?ms)^--- !u!\d+ &(\d+)[^\r\n]*\r?\n.*?(?=^--- !u!|\z)')) {
     $id = $match.Groups[1].Value
@@ -35,5 +35,5 @@ foreach ($asset in Get-ChildItem (Join-Path $root 'Assets') -Recurse -File | Whe
     if ([IO.File]::ReadAllText($asset.FullName) -match $removed) { throw "Reference to removed component: $($asset.FullName)" }
 }
 $buildSettings = [IO.File]::ReadAllText((Join-Path $root 'ProjectSettings/EditorBuildSettings.asset'))
-if ($buildSettings -notmatch 'enabled: 1\r?\n    path: Assets/Scenes/SampleScene.unity\r?\n    guid: 99c9720ab356a0642a771bea13969a05') { throw 'Build scene is not configured' }
+if ($buildSettings -notmatch 'enabled: 1\r?\n    path: Assets/All Project/Scenes/Game.unity\r?\n    guid: 99c9720ab356a0642a771bea13969a05') { throw 'Build scene is not configured' }
 Write-Output "Project structure passed: $($blocks.Count) scene objects/components; local references, combat health, teams, removed script references and build settings checked."
