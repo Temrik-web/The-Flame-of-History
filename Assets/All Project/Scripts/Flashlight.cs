@@ -138,6 +138,7 @@ public class Flashlight : MonoBehaviour
 
     // Процедурная кука: одна текстура на все экземпляры фонарика.
     private static Texture2D sharedCookie;
+    private static float sharedCookieOuterSoftness = -1f;
 
     private Coroutine fadeRoutine;
     private Coroutine flickerRoutine;
@@ -274,8 +275,13 @@ public class Flashlight : MonoBehaviour
         if (spotLight == null) return;
 
         int res = Mathf.Clamp(cookieResolution, 64, 512);
-        if (sharedCookie == null || sharedCookie.width != res)
-            sharedCookie = GenerateCookie(res);
+        float softness = Mathf.Clamp01(outerSoftness);
+        if (sharedCookie == null || sharedCookie.width != res ||
+            !Mathf.Approximately(sharedCookieOuterSoftness, softness))
+        {
+            sharedCookie = GenerateCookie(res, softness);
+            sharedCookieOuterSoftness = softness;
+        }
 
         spotLight.cookie = sharedCookie;
         spotLight.cookieSize = 1f;
@@ -286,7 +292,7 @@ public class Flashlight : MonoBehaviour
     /// лёгкой неравномерностью (имитация дефектов рефлектора)
     /// и мягким внешним краем.
     /// </summary>
-    private static Texture2D GenerateCookie(int resolution)
+    private static Texture2D GenerateCookie(int resolution, float edgeSoftness)
     {
         Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false)
         {
@@ -325,8 +331,13 @@ public class Flashlight : MonoBehaviour
                            + Mathf.Sin(angle * 7f - dist * 3f) * 0.02f;
                 value = Mathf.Clamp01(value + ring * (1f - dist));
 
-                // Мягкий обрез на краю
-                float edgeFade = Mathf.Clamp01((1f - dist) * 4f);
+                // Ширина зоны затухания зависит от настройки мягкости края.
+                // Даже при нуле оставляем полпикселя сглаживания, чтобы окружность
+                // не получала ступенчатый алиасинг на границе текстуры.
+                float minimumFadeWidth = 0.5f / maxRadius;
+                float fadeWidth = Mathf.Lerp(minimumFadeWidth, 1f, edgeSoftness);
+                float edgeFade = Mathf.SmoothStep(0f, 1f,
+                    Mathf.Clamp01((1f - dist) / fadeWidth));
                 value *= edgeFade;
 
                 // Тёплый оттенок (R чуть больше GB — имитация лампы накаливания)
