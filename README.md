@@ -1,8 +1,16 @@
 # The Flame of History
 
-Unity 2022.3.62f3, URP. Основная сцена: `Assets/Scenes/SampleScene.unity`.
+Unity 2022.3.62f3, URP. Основная сцена: `Assets/All Project/Scenes/Game.unity`.
 
 ## Запуск и сборка
+
+Перед клонированием установите Git LFS и загрузите большие ассеты:
+
+```powershell
+git lfs install
+git clone https://github.com/Temrik-web/The-Flame-of-History.git
+git -C The-Flame-of-History lfs pull
+```
 
 Установить редактор указанной версии с Windows Build Support, открыть проект и дождаться импорта. Основная сцена включена в Build Settings. Сборка через `Tools → Сборка → Windows x64` создаёт `Builds/Windows/The Flame of History.exe`. Каталог Builds не коммитится.
 
