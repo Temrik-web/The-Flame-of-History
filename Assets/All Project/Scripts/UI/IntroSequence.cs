@@ -459,9 +459,10 @@ public class IntroSequence : MonoBehaviour
         if (skipProgressBar != null)
             skipProgressBar.fillAmount = skipProgress;
 
-        // Подсказка видна только на этапе видео — дальше только фото и меню.
-        if (skipHint != null)
-            skipHint.SetActive(currentStage == Stage.Video && !isTransitioning);
+        // Подсказка видна только на этапе видео — дальше только фото и меню. ЗАЧЕМ это сделано?????????????????????
+        
+        /* if (skipHint != null)
+            skipHint.SetActive(currentStage == Stage.Video && !isTransitioning); */
     }
 
     void OnSkipHeld()

@@ -6,9 +6,50 @@
   <component name="ChangeListManager">
     <list default="true" id="8ca32e3b-c2c8-42b6-a053-5a2e868378da" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.The Flame of History/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.The Flame of History/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/images/image_7012805.png.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/images/image_7012805.png.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/From Unity(Base)/Settings 1/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/From Unity(Base)/Settings 1/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/From Unity(Base)/Settings/High Fidelity_PipelineAsset.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/From Unity(Base)/Settings/High Fidelity_PipelineAsset.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/OIP-3601843760.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/OIP-3601843760.jpg.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/Phon2.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/Phon2.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/Text.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/Text.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/Unconquered-Land-rain-fire-loop.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/Unconquered-Land-rain-fire-loop.mp4.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/VideoTexture.renderTexture" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/VideoTexture.renderTexture.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/intro.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/intro.mp4.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/introimg.renderTexture" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/introimg.renderTexture.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/phon.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/phon.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/photo1.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/photo1.jpg.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/photo2.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/photo2.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/project.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/MAIN MENU/Video/project.txt.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/Resources/InventoryFont SDF.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Resources/InventoryFont SDF.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scenes/Game.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scenes/Game.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scenes/Intro.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scenes/Intro.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scenes/Main menu.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scenes/Main menu.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scripts/UI/IntroSequence.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scripts/UI/IntroSequence.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildAppleTree.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildAppleTree.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildBirch (1).prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildBirch (1).prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildBirch1.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildBirch1.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildOak.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildOak.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildOrangeBirch.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildOrangeBirch.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildOrangeBirch1.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/TREES/Terrain pref_/ChildOrangeBirch1.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/image_7012805.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/image_7012805.png.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/shrift.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/shrift/MarckScript-Regular SDF.asset" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/shrift/MarckScript-Regular SDF.asset.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/shrift/MarckScript-Regular.ttf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/shrift/MarckScript-Regular.ttf.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/QualitySettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/QualitySettings.asset" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -19,7 +60,7 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="HighlightingSettingsPerFile">
-    <setting file="file://$PROJECT_DIR$/Assets/Terrains/Terrains.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Assets/All Project/Scripts/TypeWriter effect.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Library/PackageCache/com.unity.render-pipelines.universal@14.0.12/Shaders/Lit.shader" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="ProjectColorInfo">{
@@ -101,6 +142,9 @@
       <workItem from="1788307024059" duration="21000" />
       <workItem from="1788319011296" duration="458000" />
       <workItem from="1788698265694" duration="1024000" />
+      <workItem from="1789679130178" duration="2418000" />
+      <workItem from="1789683153126" duration="98000" />
+      <workItem from="1789683269769" duration="3589000" />
     </task>
     <servers />
   </component>
