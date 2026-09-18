@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 public class DialogueManager : MonoBehaviour
 {
@@ -24,6 +25,10 @@ public class DialogueManager : MonoBehaviour
     public Button[] staticChoiceButtons = new Button[0];
     [Tooltip("Подписи кнопок (тексты 1, 2, 3 внутри). Если пусто — найдутся сами.")]
     public TextMeshProUGUI[] staticChoiceLabels = new TextMeshProUGUI[0];
+    [Tooltip("Спрайт заблокированного варианта (UI5). Пусто — обычный спрайт + серый цвет.")]
+    public Sprite lockedChoiceSprite;
+    [Tooltip("Цвет подписи заблокированного варианта.")]
+    public Color lockedChoiceLabelColor = new Color(0.55f, 0.55f, 0.6f, 0.8f);
     public GameObject interactHint;
     public TextMeshProUGUI interactHintText;
     public CanvasGroup dialogueCanvasGroup;
@@ -69,6 +74,10 @@ public class DialogueManager : MonoBehaviour
     private Coroutine fadeRoutine;
     private Coroutine cursorBlinkCoroutine;
     private bool isShowingChoices = false;
+
+    // Исходные цвета подписей кнопок — чтобы вернуть их после разблокировки.
+    private readonly System.Collections.Generic.Dictionary<TextMeshProUGUI, Color> labelBaseColors =
+        new System.Collections.Generic.Dictionary<TextMeshProUGUI, Color>();
 
     // Сколько символов текста уже показано.
     private int revealedCharacters = 0;
@@ -118,8 +127,7 @@ public class DialogueManager : MonoBehaviour
     // =====================================================================
     const string ProgressPrefix = "flame_dlg_";
 
-    /// <summary>Стабильный ключ ассета для сейвов (имя файла, не dialogueName).</summary>
-    public     /// <summary>
+    /// <summary>
     /// Гарантия интерфейса перед стартом: привязки нет — ищем канвас,
     /// адаптер есть, но не привязал — повторяем поиск.
     /// </summary>
@@ -187,6 +195,7 @@ public class DialogueManager : MonoBehaviour
     /// <summary>Спрятать фиксированные кнопки поштучно (панель целиком не трогаем).</summary>
     void HideStaticButtons()
     {
+        ClearSelection();
         if (staticChoiceButtons == null) return;
         foreach (Button b in staticChoiceButtons)
         {
@@ -313,15 +322,37 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
+        // Пока показаны варианты — пробел и продвижение не работают:
+        // выбор делается только мышкой (клик по кнопке).
+        if (isShowingChoices) return;
+
         if (isTyping && allowSkipTyping && Input.GetKeyDown(advanceKey))
         {
             CompleteTyping();
         }
         else if (!isTyping && Input.GetKeyDown(advanceKey))
         {
-            if (!isShowingChoices)
-                AdvanceDialogue();
+            AdvanceDialogue();
         }
+    }
+
+    /// <summary>
+    /// Сбросить фокус EventSystem: иначе кликнутая кнопка остаётся выбранной
+    /// и следующий пробел/Enter срабатывает как клик по ней (скип выбора).
+    /// </summary>
+    static void ClearSelection()
+    {
+        if (EventSystem.current != null)
+            EventSystem.current.SetSelectedGameObject(null);
+    }
+
+    /// <summary>Запретить кнопке фокус с клавиатуры: выбор только мышкой.</summary>
+    static void DisableKeyboardFocus(Button button)
+    {
+        if (button == null) return;
+        Navigation nav = button.navigation;
+        nav.mode = Navigation.Mode.None;
+        button.navigation = nav;
     }
 
     /// <summary>
@@ -363,6 +394,7 @@ public class DialogueManager : MonoBehaviour
         currentTrigger = trigger;
         isDialogueActive = true;
         isShowingChoices = false;
+        HideStaticButtons();
 
         // Вдруг канвас появился позже / привязка не взлетела — чиним прямо сейчас
         EnsureUserInterface();
@@ -412,6 +444,7 @@ public class DialogueManager : MonoBehaviour
         isShowingChoices = false;
         isTyping = false;
         revealedCharacters = 0;
+        ClearSelection();
 
         if (typingCoroutine != null) { StopCoroutine(typingCoroutine); typingCoroutine = null; }
         if (autoAdvanceCoroutine != null) { StopCoroutine(autoAdvanceCoroutine); autoAdvanceCoroutine = null; }
@@ -475,6 +508,7 @@ public class DialogueManager : MonoBehaviour
 
         currentNode = node;
         isShowingChoices = false;
+        HideStaticButtons();
 
         if (currentDialogue != null)
             SaveDialogueProgress(currentDialogue, node.nodeID);
@@ -770,6 +804,7 @@ public class DialogueManager : MonoBehaviour
         if (currentNode == null) return;
         if (!useStaticChoiceButtons && (choicesContainer == null || choiceButtonPrefab == null)) return;
         isShowingChoices = true;
+        ClearSelection();
 
         if (cursorBlinkCoroutine != null)
         {
@@ -781,33 +816,69 @@ public class DialogueManager : MonoBehaviour
 
         if (choicesPanel != null) choicesPanel.SetActive(true);
 
-        // Видимые варианты с учётом условий, предметов и квестов
-        var visible = new System.Collections.Generic.List<DialogueChoice>();
+        // Варианты с учётом условий, предметов и квестов.
+        // Скрытые (showWhenLocked выключен) выпадают из списка — нижние кнопки
+        // сдвигаются вверх, пробелов нет. Помеченные showWhenLocked показываются
+        // заблокированными (UI5, нажать нельзя).
+        var entries = new System.Collections.Generic.List<ChoiceEntry>();
         foreach (var choice in currentNode.choices)
         {
-            if (choice.condition != null && !choice.condition.Evaluate())
+            bool available = IsChoiceAvailable(choice);
+            if (!available && (choice == null || !choice.showWhenLocked))
                 continue;
-            if (!string.IsNullOrEmpty(choice.requiredItemId) &&
-                !DialogueCommand.PlayerHasItem(choice.requiredItemId, Mathf.Max(1, choice.requiredItemCount)))
-                continue;
-            if (!string.IsNullOrEmpty(choice.requiredQuestId) &&
-                !IsQuestStateMatch(choice.requiredQuestId, choice.requiredQuestState))
-                continue;
-            visible.Add(choice);
+            entries.Add(new ChoiceEntry(choice, available));
         }
 
         if (useStaticChoiceButtons)
-            ShowStaticChoices(visible);
+            ShowStaticChoices(entries);
         else
-            ShowTemplateChoices(visible);
+            ShowTemplateChoices(entries);
     }
 
-    /// <summary>Варианты на готовых кнопках сцены (Button1..3).</summary>
-    void ShowStaticChoices(System.Collections.Generic.List<DialogueChoice> visible)
+    /// <summary>Вариант + доступен ли он прямо сейчас.</summary>
+    private struct ChoiceEntry
     {
-        int slots = staticChoiceButtons != null ? staticChoiceButtons.Length : 0;
+        public DialogueChoice choice;
+        public bool available;
+        public ChoiceEntry(DialogueChoice choice, bool available)
+        {
+            this.choice = choice;
+            this.available = available;
+        }
+    }
 
-        if (slots == 0 && visible.Count > 0)
+    /// <summary>Проверка условий варианта: ассет-условие, предмет, квест.</summary>
+    static bool IsChoiceAvailable(DialogueChoice choice)
+    {
+        if (choice == null) return false;
+        if (choice.condition != null && !choice.condition.Evaluate())
+            return false;
+        if (!string.IsNullOrEmpty(choice.requiredItemId) &&
+            !DialogueCommand.PlayerHasItem(choice.requiredItemId, Mathf.Max(1, choice.requiredItemCount)))
+            return false;
+        if (!string.IsNullOrEmpty(choice.requiredQuestId) &&
+            !IsQuestStateMatch(choice.requiredQuestId, choice.requiredQuestState))
+            return false;
+        return true;
+    }
+
+    /// <summary>Варианты на готовых кнопках сцены (Button1..3). Скрытые пропускаем без пробелов, заблокированные — стиль UI5.</summary>
+    void ShowStaticChoices(System.Collections.Generic.List<ChoiceEntry> entries)
+    {
+        // Слоты сортируем сверху вниз по позиции: нумерация кнопок в сцене
+        // может не совпадать с визуальным порядком (Button1, Button3, Button2).
+        // Видимые ветки занимают верхние слоты подряд — дырок не бывает.
+        var slots = new System.Collections.Generic.List<Button>();
+        if (staticChoiceButtons != null)
+        {
+            foreach (Button b in staticChoiceButtons)
+            {
+                if (b != null) slots.Add(b);
+            }
+        }
+        slots.Sort((a, b) => SlotY(b).CompareTo(SlotY(a)));
+
+        if (slots.Count == 0 && entries.Count > 0)
         {
             Debug.LogWarning("[DialogueManager] Есть варианты, но нет кнопок (staticChoiceButtons пуст). " +
                 "Добавь UserDialogueUI на свой канвас: Tools -> Диалоги -> Подключить мой канвас.", this);
@@ -815,24 +886,36 @@ public class DialogueManager : MonoBehaviour
             EndDialogue();
             return;
         }
-        for (int i = 0; i < slots; i++)
+        for (int i = 0; i < slots.Count; i++)
         {
-            Button button = staticChoiceButtons[i];
-            if (button == null) continue;
+            Button button = slots[i];
 
-            if (i < visible.Count)
+            if (i < entries.Count)
             {
-                TextMeshProUGUI label = GetStaticLabel(i, button);
+                ChoiceEntry entry = entries[i];
+                DisableKeyboardFocus(button);
+                TextMeshProUGUI label = GetStaticLabel(StaticButtonIndex(button), button);
                 if (label != null)
                 {
-                    label.text = visible[i].choiceText;
+                    label.text = entry.choice.choiceText;
                     label.gameObject.SetActive(true);
+                    RememberLabelColor(label);
+                    label.color = entry.available ? labelBaseColors[label] : lockedChoiceLabelColor;
                 }
                 button.onClick.RemoveAllListeners();
-                DialogueChoice capturedChoice = visible[i];
-                button.onClick.AddListener(() => OnChoiceSelected(capturedChoice));
+                if (entry.available)
+                {
+                    DialogueChoice capturedChoice = entry.choice;
+                    button.onClick.AddListener(() => OnChoiceSelected(capturedChoice));
+                    button.interactable = true;
+                }
+                else
+                {
+                    // Заблокировано: нажать нельзя, кликов нет
+                    button.interactable = false;
+                }
+                ApplyLockedStyle(button);
                 if (!button.gameObject.activeSelf) button.gameObject.SetActive(true);
-                button.interactable = true;
             }
             else
             {
@@ -840,44 +923,93 @@ public class DialogueManager : MonoBehaviour
             }
         }
 
-        if (visible.Count == 0)
+        if (entries.Count == 0)
         {
             if (choicesPanel != null) choicesPanel.SetActive(false);
             isShowingChoices = false;
             EndDialogue();
         }
-        else if (visible.Count > slots)
+        else if (entries.Count > slots.Count)
         {
-            Debug.LogWarning($"[DialogueManager] Вариантов {visible.Count}, а кнопок {slots} — " +
-                             "показаны первые. Добавь кнопки в staticChoiceButtons.", this);
+            Debug.LogWarning($"[DialogueManager] Вариантов {entries.Count}, а кнопок {slots.Count} — " +
+                              "показаны первые. Добавь кнопки в staticChoiceButtons.", this);
         }
+    }
+
+    /// <summary>Y-позиция слота (чем больше, тем выше на экране).</summary>
+    static float SlotY(Button button)
+    {
+        if (button == null) return 0f;
+        RectTransform rect = button.GetComponent<RectTransform>();
+        return rect != null ? rect.anchoredPosition.y : 0f;
+    }
+
+    /// <summary>Индекс кнопки в staticChoiceButtons (для поиска её подписи).</summary>
+    int StaticButtonIndex(Button button)
+    {
+        if (staticChoiceButtons == null || button == null) return -1;
+        for (int i = 0; i < staticChoiceButtons.Length; i++)
+        {
+            if (staticChoiceButtons[i] == button) return i;
+        }
+        return -1;
+    }
+
+    /// <summary>Запомнить исходный цвет подписи, чтобы вернуть его после разблокировки.</summary>
+    void RememberLabelColor(TextMeshProUGUI label)
+    {
+        if (label != null && !labelBaseColors.ContainsKey(label))
+            labelBaseColors[label] = label.color;
+    }
+
+    /// <summary>Спрайт UI5 на кнопку (если задан и у стиля его ещё нет).</summary>
+    void ApplyLockedStyle(Button button)
+    {
+        if (button == null || lockedChoiceSprite == null) return;
+        DialogueCanvasButton style = button.GetComponent<DialogueCanvasButton>();
+        if (style != null && style.disabledSprite == null)
+            style.disabledSprite = lockedChoiceSprite;
     }
 
     TextMeshProUGUI GetStaticLabel(int index, Button button)
     {
-        if (staticChoiceLabels != null && index < staticChoiceLabels.Length &&
+        if (index >= 0 && staticChoiceLabels != null && index < staticChoiceLabels.Length &&
             staticChoiceLabels[index] != null)
             return staticChoiceLabels[index];
-        return button.GetComponentInChildren<TextMeshProUGUI>(true);
+        return button != null ? button.GetComponentInChildren<TextMeshProUGUI>(true) : null;
     }
 
-    /// <summary>Варианты из шаблона (создание/удаление кнопок).</summary>
-    void ShowTemplateChoices(System.Collections.Generic.List<DialogueChoice> visible)
+    /// <summary>Варианты из шаблона (создание/удаление кнопок). Заблокированные — UI5, нажать нельзя.</summary>
+    void ShowTemplateChoices(System.Collections.Generic.List<ChoiceEntry> entries)
     {
         if (choicesContainer == null || choiceButtonPrefab == null) return;
 
         foreach (Transform child in choicesContainer)
             Destroy(child.gameObject);
 
-        foreach (var choice in visible)
+        foreach (var entry in entries)
         {
             Button button = Instantiate(choiceButtonPrefab, choicesContainer);
+            DisableKeyboardFocus(button);
             TextMeshProUGUI buttonText = button.GetComponentInChildren<TextMeshProUGUI>();
             if (buttonText != null)
-                buttonText.text = choice.choiceText;
+            {
+                buttonText.text = entry.choice.choiceText;
+                if (!entry.available)
+                    buttonText.color = lockedChoiceLabelColor;
+            }
 
-            DialogueChoice capturedChoice = choice;
-            button.onClick.AddListener(() => OnChoiceSelected(capturedChoice));
+            if (entry.available)
+            {
+                DialogueChoice capturedChoice = entry.choice;
+                button.onClick.AddListener(() => OnChoiceSelected(capturedChoice));
+                button.interactable = true;
+            }
+            else
+            {
+                button.interactable = false;
+            }
+            ApplyLockedStyle(button);
         }
 
         if (choicesContainer.childCount == 0)

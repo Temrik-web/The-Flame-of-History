@@ -21,6 +21,12 @@ public class DialogueChoice
     [Tooltip("0 — любой взятый (активен или выполнен), 1 — активен, 2 — выполнен, 3 — провален.")]
     public int requiredQuestState = 1;
 
+    [Header("Недоступный вид")]
+    [Tooltip("Включено — если условия не выполнены, вариант показывается заблокированным " +
+             "(стиль UI5, нажать нельзя). Выключено — вариант скрывается, а нижние кнопки " +
+             "сдвигаются вверх, чтобы не было пробелов.")]
+    public bool showWhenLocked = false;
+
     [Header("Переход")]
     public string nextNodeID;
     public bool endDialogue = false;

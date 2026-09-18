@@ -46,11 +46,18 @@ public class DialogueCanvasButton : MonoBehaviour,
     [Range(0.6f, 1f)]
     public float pressedScale = 0.97f;
 
+    [Header("Недоступно (UI5)")]
+    [Tooltip("Спрайт заблокированной кнопки (UI_5). Пусто — обычный спрайт + серый цвет.")]
+    public Sprite disabledSprite;
+    [Tooltip("Цвет заблокированной кнопки, если нет своего спрайта UI5.")]
+    public Color disabledColor = new Color(0.6f, 0.6f, 0.65f, 0.9f);
+
     [Header("Скорость перехода")]
     public float animationSpeed = 14f;
 
     private RectTransform rect;
     private Image image;
+    private Button button;
     private float blend;        // 0 — обычное, 1 — наведение, 2 — нажатие
     private float targetBlend;
     private int state = -1;     // применённый спрайт-стате (обновляется только при смене)
@@ -58,6 +65,7 @@ public class DialogueCanvasButton : MonoBehaviour,
     void Awake()
     {
         rect = (RectTransform)transform;
+        button = GetComponent<Button>();
         if (target == null) target = GetComponent<Graphic>();
         if (target != null) image = target as Image;
     }
@@ -80,6 +88,20 @@ public class DialogueCanvasButton : MonoBehaviour,
 
     void Update()
     {
+        // Заблокированная кнопка (interactable=false): спрайт UI5 как есть,
+        // без него — обычный спрайт + серый цвет. Анимаций наведения нет.
+        if (button != null && !button.interactable)
+        {
+            blend = targetBlend = 0f;
+            state = -1;
+            if (rect != null) rect.localScale = Vector3.one;
+            if (image != null && disabledSprite != null && image.sprite != disabledSprite)
+                image.sprite = disabledSprite;
+            if (target != null)
+                target.color = disabledSprite != null ? Color.white : disabledColor;
+            return;
+        }
+
         // Плавное «дыхание» между состояниями (игнорирует паузу)
         float k = 1f - Mathf.Exp(-animationSpeed * Time.unscaledDeltaTime);
         blend = Mathf.Lerp(blend, targetBlend, k);
@@ -143,8 +165,24 @@ public class DialogueCanvasButton : MonoBehaviour,
         return Color.Lerp(normalColor, hoverColor, blend);
     }
 
-    public void OnPointerEnter(PointerEventData eventData) => targetBlend = 1f;
-    public void OnPointerExit(PointerEventData eventData) => targetBlend = 0f;
-    public void OnPointerDown(PointerEventData eventData) => targetBlend = 2f;
-    public void OnPointerUp(PointerEventData eventData) => targetBlend = 1f;
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (button != null && !button.interactable) return;
+        targetBlend = 1f;
+    }
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        if (button != null && !button.interactable) return;
+        targetBlend = 0f;
+    }
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        if (button != null && !button.interactable) return;
+        targetBlend = 2f;
+    }
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        if (button != null && !button.interactable) return;
+        targetBlend = 1f;
+    }
 }

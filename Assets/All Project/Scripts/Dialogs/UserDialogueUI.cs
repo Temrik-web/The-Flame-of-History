@@ -15,15 +15,15 @@ using UnityEditor;
 ///  3. Проверь в инспекторе, что всё нашлось само: Speeker, Top, TopImage,
 ///     Button1..3, тексты 1..3, окно. Пустые поля можно перетащить руками.
 ///
-/// Связь нод с интерфейсом:
-///  - Top <- тема диалога (краткое заглавие, одно на весь диалог);
-///  - Speeker <- реплика говорящего (печатается по буквам, цвет — цвет персонажа);
-///  - TopImage <- портрет (если у ноды нет арта — круглая заглушка);
-///  - Button1..3 <- варианты ответа ноды (лишние прячутся сами).
+/// Связь нод с интерфейсом (канвас Dialogs):
+///  - Top <- тема диалога (краткое заглавие, одно на весь диалог; обычный Text);
+///  - Speeker <- реплика говорящего (печатается по буквам, цвет — цвет персонажа; клик = дальше);
+///  - TopImage <- статичное фото дизайна (не перезаписывается);
+///  - Окно <- Backg (прячется/показывается целиком);
+///  - Button1..3 <- варианты ответа ноды (подписи 1..3 внутри, лишние прячутся сами).
 ///
-/// Стили кнопок: обычная — UI2, наведение и нажатие — UI3.
-/// Спрайты можно перетащить в поля, либо положить в сцену объекты с именами
-/// UI2/UI3 (с компонентом Image) — адаптер заберёт картинку оттуда.
+/// Стили кнопок: обычная — UI_2, наведение — UI_3, нажатие — UI_4, недоступна — UI_5.
+/// Спрайты забираются из объектов-сэмплов сцены (SpriteRenderer), сами сэмплы прячутся.
 /// </summary>
 [DisallowMultipleComponent]
 public class UserDialogueUI : MonoBehaviour
@@ -43,8 +43,10 @@ public class UserDialogueUI : MonoBehaviour
     public Text topicTextLegacy;
     [Tooltip("Speeker — реплика говорящего. Цвет текста = цвет персонажа.")]
     public TextMeshProUGUI replicaText;
-    [Tooltip("TopImage — портрет говорящего.")]
+    [Tooltip("TopImage — часть дизайна (статичное фото). Не перезаписывается репликами.")]
     public Image portraitImage;
+    [Tooltip("Включено — TopImage не трогаем (менеджеру портрет не отдаём, спрайт статичен).")]
+    public bool keepPortraitStatic = true;
 
     [Header("Варианты (Button1, Button2, Button3)")]
     [Tooltip("Кнопки в порядке Button1, Button2, Button3.")]
@@ -52,22 +54,28 @@ public class UserDialogueUI : MonoBehaviour
     [Tooltip("Подписи кнопок (тексты 1, 2, 3 внутри). Если пусто — найдутся сами.")]
     public TextMeshProUGUI[] choiceLabels = new TextMeshProUGUI[0];
 
-    [Header("Стили кнопок")]
-    [Tooltip("UI2 — обычная кнопка. Пусто — попробую найти объект UI2 в сцене.")]
+    [Header("Стили кнопок (UI_2 / UI_3 / UI_4)")]
+    [Tooltip("UI_2 — обычная кнопка. Пусто — заберу спрайт из объекта UI_2 в сцене.")]
     public Sprite normalSprite;
-    [Tooltip("UI3 — наведение. Пусто — попробую найти объект UI3 в сцене.")]
+    [Tooltip("UI_3 — наведение. Пусто — заберу спрайт из объекта UI_3 в сцене.")]
     public Sprite hoverSprite;
-    [Tooltip("UI3 — нажатие. Пусто — как наведение.")]
+    [Tooltip("UI_4 — нажатие. Пусто — заберу спрайт из UI_4, иначе как наведение.")]
     public Sprite pressedSprite;
+    [Tooltip("UI_5 — заблокированная ветка (недоступный вариант). Пусто — заберу из UI_5, иначе серый.")]
+    public Sprite lockedSprite;
+    [Tooltip("Цвет подписи заблокированного варианта.")]
+    public Color lockedLabelColor = new Color(0.55f, 0.55f, 0.6f, 0.8f);
     public Color normalColor = new Color(1f, 1f, 1f, 1f);
     public Color hoverColor = new Color(0.82f, 0.90f, 1f, 1f);
     public Color pressedColor = new Color(0.65f, 0.78f, 0.96f, 1f);
     [Range(1f, 1.3f)] public float hoverScale = 1.03f;
     [Range(0.6f, 1f)] public float pressedScale = 0.97f;
 
-    [Header("Продолжить (необязательно)")]
-    [Tooltip("Клик — допечатать/дойти дальше. Если пусто — только пробел.")]
+    [Header("Продолжить (клик по реплике)")]
+    [Tooltip("Клик — допечатать/дойти дальше. Если пусто — клик вешается на родителя Speeker (Image) сам.")]
     public Button continueButton;
+    [Tooltip("Клик по области реплики двигает диалог дальше (для канваса Dialogs).")]
+    public bool clickReplicaToAdvance = true;
 
     [Header("Подсказка «Нажмите E» (необязательно)")]
     public GameObject interactHint;
@@ -86,10 +94,46 @@ public class UserDialogueUI : MonoBehaviour
 
         AutoDiscover();
         StyleButtons();
+        EnsureReplicaClick();
         RetryWire();
 
         if (continueButton != null)
+        {
+            continueButton.onClick.RemoveListener(HandleContinueClick);
             continueButton.onClick.AddListener(HandleContinueClick);
+        }
+    }
+
+    /// <summary>
+    /// Клик по реплике: если отдельной кнопки продолжения нет,
+    /// вешаем клик на родителя Speeker (Image-контейнер).
+    /// Текст клик не перехватывает — отдаём его родителю.
+    /// </summary>
+    void EnsureReplicaClick()
+    {
+        if (!clickReplicaToAdvance || continueButton != null || replicaText == null) return;
+        Transform holder = replicaText.transform.parent;
+        if (holder == null) holder = replicaText.transform;
+        Button btn = holder.GetComponent<Button>();
+        if (btn == null)
+        {
+            btn = holder.gameObject.AddComponent<Button>();
+            Debug.Log($"[UserDialogueUI] На «{holder.name}» не было Button — добавил для клика-продолжения.", this);
+        }
+        // Прозрачная кнопка: свой Image оставляем как есть, переход убираем.
+        // Фокус с клавиатуры запрещаем: продолжение — пробелом через менеджер
+        // или кликом, но не Enter/Space по сфокусированной кнопке (двойной шаг).
+        btn.transition = Selectable.Transition.None;
+        Navigation nav = btn.navigation;
+        nav.mode = Navigation.Mode.None;
+        btn.navigation = nav;
+        btn.onClick.RemoveAllListeners();
+        btn.onClick.AddListener(HandleContinueClick);
+        continueButton = btn;
+        // Текст не должен съедать клик
+        replicaText.raycastTarget = false;
+        Image holderImg = holder.GetComponent<Image>();
+        if (holderImg != null) holderImg.raycastTarget = true;
     }
 
     /// <summary>Повторить поиск и привязку (менеджер зовёт сам, если с первого раза не вышло).</summary>
@@ -97,7 +141,27 @@ public class UserDialogueUI : MonoBehaviour
     {
         AutoDiscover();
         StyleButtons();
+        EnsureReplicaClick();
         WireToManager();
+
+        // Корень канваса Dialogs мог остаться с масштабом 0 / выключенным —
+        // чиним и корень, и окно, иначе ничего не будет видно.
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas == null && searchRoot != null)
+            canvas = searchRoot.GetComponentInChildren<Canvas>(true);
+        if (canvas != null)
+        {
+            if (!canvas.gameObject.activeSelf)
+            {
+                canvas.gameObject.SetActive(true);
+                Debug.Log("[UserDialogueUI] Корень канваса был выключен — включил.", this);
+            }
+            if (canvas.transform.localScale.magnitude < 0.05f)
+            {
+                canvas.transform.localScale = Vector3.one;
+                Debug.Log("[UserDialogueUI] Масштаб корня канваса был ~0 — вернул 1.", this);
+            }
+        }
 
         // Корень с масштабом ~0 невидим всегда — чиним молча
         if (dialogueWindow != null && dialogueWindow.transform.localScale.magnitude < 0.05f)
@@ -207,11 +271,15 @@ public class UserDialogueUI : MonoBehaviour
 
         manager.speakerNameText = null; // отдельного имени нет: говорящий виден по цвету реплики
         manager.dialogueText = replicaText;
-        manager.speakerPortraitImage = portraitImage;
+        // TopImage — статичное фото дизайна: спрайт репликами не перезаписываем
+        manager.speakerPortraitImage = keepPortraitStatic ? null : portraitImage;
 
         manager.useStaticChoiceButtons = true;
         manager.staticChoiceButtons = choiceButtons;
         manager.staticChoiceLabels = choiceLabels;
+        if (lockedSprite != null)
+            manager.lockedChoiceSprite = lockedSprite;
+        manager.lockedChoiceLabelColor = lockedLabelColor;
         manager.choiceButtonPrefab = null;
         manager.choicesContainer = null;
 
@@ -268,14 +336,36 @@ public class UserDialogueUI : MonoBehaviour
             if (found.Count > 0) choiceButtons = found.ToArray();
         }
 
-        // Подписи 1..3 должны быть TextMeshPro (иначе текст вариантов не встанет)
+        // Подписи 1..3 должны быть TextMeshPro (иначе текст вариантов не встанет).
+        // Для канваса Dialogs подписи лежат в детях Button1..3 с именами "1","2","3".
         if (choiceButtons != null)
         {
+            var labels = new System.Collections.Generic.List<TextMeshProUGUI>();
+            bool needLabels = choiceLabels == null || choiceLabels.Length != choiceButtons.Length;
             for (int i = 0; i < choiceButtons.Length; i++)
             {
                 Button b = choiceButtons[i];
-                if (b == null) continue;
-                if (b.GetComponentInChildren<TextMeshProUGUI>(true) == null)
+                if (b == null)
+                {
+                    if (needLabels) labels.Add(null);
+                    continue;
+                }
+                TextMeshProUGUI label = null;
+                if (!needLabels && i < choiceLabels.Length)
+                    label = choiceLabels[i];
+                if (label == null)
+                {
+                    // Сначала ищем ребёнка с именем "1"/"2"/"3", потом любой TMP внутри
+                    string want = (i + 1).ToString();
+                    foreach (TextMeshProUGUI t in b.GetComponentsInChildren<TextMeshProUGUI>(true))
+                    {
+                        if (t != null && t.gameObject.name == want) { label = t; break; }
+                    }
+                    if (label == null)
+                        label = b.GetComponentInChildren<TextMeshProUGUI>(true);
+                }
+                if (needLabels) labels.Add(label);
+                if (label == null)
                 {
                     if (b.GetComponentInChildren<Text>(true) != null)
                         Debug.LogWarning($"[UserDialogueUI] Подпись кнопки «{b.name}» — обычный Text. " +
@@ -284,16 +374,26 @@ public class UserDialogueUI : MonoBehaviour
                         Debug.LogWarning($"[UserDialogueUI] В кнопке «{b.name}» нет текста-подписи.", this);
                 }
             }
+            if (needLabels && labels.Count == choiceButtons.Length)
+                choiceLabels = labels.ToArray();
         }
 
         if (dialogueWindow == null)
-            dialogueWindow = canvas != null ? canvas.gameObject : gameObject;
+        {
+            // Для канваса Dialogs окном является Backg (панель с кнопками),
+            // а не весь Canvas — иначе прятанье/масштаб ломают весь канвас.
+            GameObject backg = FindPieceGO(scope, new[] { "Backg" }, "Backg", "Background", "Window", "DialogueWindow");
+            dialogueWindow = backg != null ? backg : (canvas != null ? canvas.gameObject : gameObject);
+        }
 
-        // UI2/UI3 как отдельных спрайтов нет: обычная кнопка — её же картинка,
-        // наведение/нажатие — тонировка (положи спрайты в поля — станут картинками)
-        if (normalSprite == null) normalSprite = FindSpriteInScene("UI2");
-        if (hoverSprite == null) hoverSprite = FindSpriteInScene("UI3");
+        // Стили кнопок: UI_2 обычная, UI_3 наведение, UI_4 нажатие.
+        // Объекты-сэмплы в сцене — это SpriteRenderer (не UI Image),
+        // имена могут быть UI_2 / UI2 / UI 2 — ищем по нормализованному имени.
+        if (normalSprite == null) normalSprite = FindButtonSprite("UI_2", "UI2", "UI 2");
+        if (hoverSprite == null) hoverSprite = FindButtonSprite("UI_3", "UI3", "UI 3");
+        if (pressedSprite == null) pressedSprite = FindButtonSprite("UI_4", "UI4", "UI 4");
         if (pressedSprite == null) pressedSprite = hoverSprite;
+        if (lockedSprite == null) lockedSprite = FindButtonSprite("UI_5", "UI5", "UI 5");
 
         Report("Top (тема)", topicText != null ? topicText.gameObject :
             (topicTextLegacy != null ? topicTextLegacy.gameObject : null), typeof(TextMeshProUGUI));
@@ -317,7 +417,7 @@ public class UserDialogueUI : MonoBehaviour
     }
 
     // =====================================================================
-    // Стили кнопок: UI2 обычная, UI3 наведение/нажатие
+    // Стили кнопок: UI_2 обычная, UI_3 наведение, UI_4 нажатие
     // =====================================================================
     void StyleButtons()
     {
@@ -329,12 +429,22 @@ public class UserDialogueUI : MonoBehaviour
             if (button == null) continue;
 
             button.transition = Selectable.Transition.None;
+            Navigation nav = button.navigation;
+            nav.mode = Navigation.Mode.None;
+            button.navigation = nav;
             Image graphic = button.GetComponent<Image>();
             if (graphic != null) button.targetGraphic = graphic;
 
-            // Обычный вид — родная картинка кнопки (UI2 как объекта нет)
-            if (normalSprite == null && graphic != null && graphic.sprite != null)
+            // Обычный вид — спрайт UI_2 сразу на фон кнопки
+            if (graphic != null && normalSprite != null)
+            {
+                graphic.sprite = normalSprite;
+                graphic.type = Image.Type.Sliced;
+            }
+            else if (normalSprite == null && graphic != null && graphic.sprite != null)
+            {
                 normalSprite = graphic.sprite;
+            }
 
             DialogueCanvasButton style = button.GetComponent<DialogueCanvasButton>();
             if (style == null) style = button.gameObject.AddComponent<DialogueCanvasButton>();
@@ -343,11 +453,36 @@ public class UserDialogueUI : MonoBehaviour
             style.normalSprite = normalSprite;
             style.hoverSprite = hoverSprite;
             style.pressedSprite = pressedSprite;
+            if (lockedSprite != null)
+                style.disabledSprite = lockedSprite;
             style.normalColor = normalColor;
             style.hoverColor = hoverColor;
             style.pressedColor = pressedColor;
             style.hoverScale = hoverScale;
             style.pressedScale = pressedScale;
+        }
+
+        HideStyleSamples();
+    }
+
+    /// <summary>
+    /// Прячем объекты-сэмплы UI_2/UI_3/UI_4/UI_5 после того, как забрали спрайты:
+    /// они лежат внутри Backg и иначе будут мусорить в окне диалога.
+    /// </summary>
+    void HideStyleSamples()
+    {
+        if (searchRoot == null) return;
+        foreach (string sample in new[] { "UI_2", "UI_3", "UI_4", "UI_5" })
+        {
+            Transform t = FindByAliases(searchRoot, sample, sample.Replace("_", ""), sample.Replace("_", " "));
+            if (t == null) continue;
+            // Сэмпл — это SpriteRenderer-образец, а не кнопка: кнопки не трогаем
+            if (t.GetComponent<Button>() != null) continue;
+            if (t.gameObject.activeSelf)
+            {
+                t.gameObject.SetActive(false);
+                Debug.Log($"[UserDialogueUI] Сэмпл «{t.name}» спрятан (спрайт уже на кнопках).", this);
+            }
         }
     }
 
@@ -482,12 +617,24 @@ public class UserDialogueUI : MonoBehaviour
         return null;
     }
 
-    /// <summary>Картинка из объекта сцены с именем (UI2/UI3): берём его спрайт.</summary>
-    static Sprite FindSpriteInScene(string objectName)
+    /// <summary>
+    /// Спрайт стиля кнопки из объекта-сэмпла сцены.
+    /// Имена нормализуются (UI_2 = UI2 = UI 2), берём спрайт из
+    /// SpriteRenderer (твои UI_1..UI_4) или из UI Image — что найдётся первым.
+    /// </summary>
+    static Sprite FindButtonSprite(params string[] aliases)
     {
+        var wanted = new System.Collections.Generic.HashSet<string>();
+        foreach (string a in aliases) wanted.Add(Norm(a));
+
+        foreach (SpriteRenderer sr in Object.FindObjectsOfType<SpriteRenderer>(true))
+        {
+            if (sr != null && sr.sprite != null && wanted.Contains(Norm(sr.gameObject.name)))
+                return sr.sprite;
+        }
         foreach (Image img in Object.FindObjectsOfType<Image>(true))
         {
-            if (img != null && img.gameObject.name == objectName && img.sprite != null)
+            if (img != null && img.sprite != null && wanted.Contains(Norm(img.gameObject.name)))
                 return img.sprite;
         }
         return null;
