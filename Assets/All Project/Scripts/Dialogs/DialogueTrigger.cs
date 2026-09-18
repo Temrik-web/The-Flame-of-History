@@ -12,6 +12,12 @@ public class DialogueTrigger : MonoBehaviour
     public float interactDistance = 3f;
     public KeyCode interactKey = KeyCode.E;
 
+    [Header("Сохранение прогресса")]
+    [Tooltip("Продолжать с последнего узла, если игрок вышел из диалога досрочно (Esc/Отмена).")]
+    public bool resumeFromSave = true;
+    [Tooltip("Не предлагать диалог заново, если он уже пройден до конца и сохранён.")]
+    public bool hideWhenDone = false;
+
     private bool playerInRange = false;
     private bool isDialogueActive = false;
     private GameObject cachedPlayer;
@@ -22,6 +28,13 @@ public class DialogueTrigger : MonoBehaviour
         cachedManager = DialogueManager.Instance;
         if (cachedManager == null)
             cachedManager = FindObjectOfType<DialogueManager>();
+
+        // Прохождение переживает перезапуск: playOnce-триггер не оживает
+        if (playOnce && dialogue != null && DialogueManager.IsDialogueDone(dialogue))
+        {
+            hasPlayed = true;
+            enabled = false;
+        }
     }
 
     void Update()
@@ -59,6 +72,8 @@ public class DialogueTrigger : MonoBehaviour
         {
             if (!playOnce || !hasPlayed)
             {
+                if (hideWhenDone && dialogue != null && DialogueManager.IsDialogueDone(dialogue))
+                    return;
                 StartDialogue();
             }
         }
@@ -86,7 +101,10 @@ public class DialogueTrigger : MonoBehaviour
         hasPlayed = true;
         Debug.Log($"[DialogueTrigger] {name}: старт диалога «{dialogue.dialogueName}» " +
                   $"(узелков: {dialogue.nodes?.Count ?? -1}).", this);
-        DialogueManager.Instance.StartDialogue(dialogue, this);
+        string resumeNode = resumeFromSave ? DialogueManager.GetSavedNodeID(dialogue) : "";
+        if (!string.IsNullOrEmpty(resumeNode) && dialogue.GetNodeByID(resumeNode) == null)
+            resumeNode = "";
+        DialogueManager.Instance.StartDialogue(dialogue, this, resumeNode);
     }
 
     public void OnDialogueEnded()

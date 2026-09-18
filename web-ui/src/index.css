@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-slate-100 text-slate-900 antialiased;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100svh;
+  }
+}

@@ -81,8 +81,6 @@ public static class DialogueCanvasWizard
 
         // Глушим старый интерфейс диалогов, собранный руками в сцене
         DisableLegacyObjects(canvas.transform);
-        // Убираем старый кодо-собираемый интерфейс, чтобы не наложился на новый
-        RemoveLegacyComponent(dm);
 
         EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
 
@@ -589,18 +587,6 @@ public static class DialogueCanvasWizard
         dm.panelStartScale = Vector3.one;
 
         EditorUtility.SetDirty(dm);
-    }
-
-    /// <summary>Убрать старый компонент, который собирал интерфейс кодом на рантайме.</summary>
-    static void RemoveLegacyComponent(DialogueManager dm)
-    {
-        if (dm == null) return;
-        DialogueUI legacy = dm.GetComponent<DialogueUI>();
-        if (legacy != null)
-        {
-            Undo.DestroyObjectImmediate(legacy);
-            Debug.Log("[DialogueCanvas] Диалоговый канвас заменяет старый DialogueUI.");
-        }
     }
 
     /// <summary>Выключить объекты старого UI, собранные руками в сцене.</summary>

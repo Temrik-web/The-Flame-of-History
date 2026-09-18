@@ -15,6 +15,15 @@ public class DialogueManager : MonoBehaviour
     public GameObject choicesPanel;
     public Button choiceButtonPrefab;
     public Transform choicesContainer;
+
+    [Header("Свои кнопки (канвас пользователя)")]
+    [Tooltip("Включено — варианты показываются на готовых кнопках сцены (Button1..3), " +
+             "а не создаются из шаблона.")]
+    public bool useStaticChoiceButtons = false;
+    [Tooltip("Кнопки вариантов в порядке Button1, Button2, Button3. Лишние прячутся сами.")]
+    public Button[] staticChoiceButtons = new Button[0];
+    [Tooltip("Подписи кнопок (тексты 1, 2, 3 внутри). Если пусто — найдутся сами.")]
+    public TextMeshProUGUI[] staticChoiceLabels = new TextMeshProUGUI[0];
     public GameObject interactHint;
     public TextMeshProUGUI interactHintText;
     public CanvasGroup dialogueCanvasGroup;
@@ -75,6 +84,8 @@ public class DialogueManager : MonoBehaviour
     public bool IsShowingChoices => isShowingChoices;
     /// <summary>Текущий узел диалога (может быть null).</summary>
     public DialogueNode CurrentNode => currentNode;
+    /// <summary>Текущий диалог (может быть null).</summary>
+    public DialogueData CurrentDialogue => currentDialogue;
 
     /// <summary>Диалог начался. Для кинематографики, звука, аналитики.</summary>
     public event System.Action OnDialogueStarted;
@@ -91,10 +102,193 @@ public class DialogueManager : MonoBehaviour
             return;
         }
         Instance = this;
+        GameState.Load();
+        QuestSystem.Load();
+    }
+
+    void OnApplicationQuit()
+    {
+        GameState.Save();
+        QuestSystem.Save();
+        PlayerPrefs.Save();
+    }
+
+    // =====================================================================
+    // Сохранение прогресса: последний узел + признак прохождения (PlayerPrefs).
+    // =====================================================================
+    const string ProgressPrefix = "flame_dlg_";
+
+    /// <summary>Стабильный ключ ассета для сейвов (имя файла, не dialogueName).</summary>
+    public     /// <summary>
+    /// Гарантия интерфейса перед стартом: привязки нет — ищем канвас,
+    /// адаптер есть, но не привязал — повторяем поиск.
+    /// </summary>
+    void EnsureUserInterface()
+    {
+        if (dialogueText != null) return;
+
+        UserDialogueUI ui = ExistingAdapter();
+        if (ui == null)
+        {
+            TryAutoWireUserCanvas();
+            return;
+        }
+        ui.RetryWire();
+    }
+
+    /// <summary>Адаптер в сцене (включая скрытые и выключенные).</summary>
+    static UserDialogueUI ExistingAdapter()
+    {
+        foreach (UserDialogueUI ui in FindObjectsOfType<UserDialogueUI>(true))
+        {
+            if (ui != null) return ui;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Сам находит канвас пользователя (ищет кнопку Button1, включая скрытые)
+    /// и вешает на него адаптер. Работает без единого клика в редакторе.
+    /// </summary>
+    void TryAutoWireUserCanvas()
+    {
+        if (dialogueText != null) return;
+        if (ExistingAdapter() != null) return;
+
+        Transform btn = FindInSceneByName("Button1");
+        if (btn == null) return;
+
+        // Хост — самый верхний предок кнопки (канвас), НИКОГДА сама кнопка:
+        // иначе прятанье окна спрячет кнопку, а проверки её потом не найдут
+        Transform top = btn;
+        while (top.parent != null) top = top.parent;
+
+        if (top.GetComponent<UserDialogueUI>() != null) return;
+        top.gameObject.AddComponent<UserDialogueUI>(); // Awake адаптера всё найдёт и спрячет окно
+        Debug.Log($"[DialogueManager] Нашёл твой канвас ({top.gameObject.name}) — адаптер подключён сам.", this);
+
+        // Убираем остатки моего старого канваса, чтобы не мешался
+        foreach (Canvas c in FindObjectsOfType<Canvas>(true))
+        {
+            if (c != null && c.gameObject.name == "DialogueCanvas" && c.gameObject != top.gameObject)
+                c.gameObject.SetActive(false);
+        }
+    }
+
+    static Transform FindInSceneByName(string name)
+    {
+        foreach (Transform t in FindObjectsOfType<Transform>(true))
+        {
+            if (t != null && t.name == name) return t;
+        }
+        return null;
+    }
+
+    /// <summary>Спрятать фиксированные кнопки поштучно (панель целиком не трогаем).</summary>
+    void HideStaticButtons()
+    {
+        if (staticChoiceButtons == null) return;
+        foreach (Button b in staticChoiceButtons)
+        {
+            if (b != null && b.gameObject.activeSelf)
+                b.gameObject.SetActive(false);
+        }
+    }
+
+    static string DialogueKey(DialogueData dialogue)
+    {
+        if (dialogue == null) return "";
+        // Имя ассета стабильнее русского dialogueName
+        return string.IsNullOrEmpty(dialogue.name) ? dialogue.dialogueName : dialogue.name;
+    }
+
+    /// <summary>Узел, на котором остановились в прошлый раз ("" — нет сохранения).</summary>
+    public static string GetSavedNodeID(DialogueData dialogue)
+    {
+        string key = DialogueKey(dialogue);
+        if (string.IsNullOrEmpty(key)) return "";
+        return PlayerPrefs.GetString(ProgressPrefix + "node_" + key, "");
+    }
+
+    public static bool IsDialogueDone(DialogueData dialogue)
+    {
+        string key = DialogueKey(dialogue);
+        if (string.IsNullOrEmpty(key)) return false;
+        return PlayerPrefs.GetInt(ProgressPrefix + "done_" + key, 0) == 1;
+    }
+
+    public static void MarkDialogueDone(DialogueData dialogue)
+    {
+        string key = DialogueKey(dialogue);
+        if (string.IsNullOrEmpty(key)) return;
+        PlayerPrefs.SetString(ProgressPrefix + "node_" + key, "");
+        PlayerPrefs.SetInt(ProgressPrefix + "done_" + key, 1);
+        PlayerPrefs.Save();
+    }
+
+    static void SaveDialogueProgress(DialogueData dialogue, string nodeID)
+    {
+        string key = DialogueKey(dialogue);
+        if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(nodeID)) return;
+        PlayerPrefs.SetString(ProgressPrefix + "node_" + key, nodeID);
+        PlayerPrefs.Save();
+    }
+
+    static void ClearDialogueProgress(DialogueData dialogue)
+    {
+        string key = DialogueKey(dialogue);
+        if (string.IsNullOrEmpty(key)) return;
+        PlayerPrefs.SetString(ProgressPrefix + "node_" + key, "");
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>Сбросить прогресс и прохождение одного диалога (для тестов/новой игры).</summary>
+    public static void ResetDialogue(DialogueData dialogue)
+    {
+        string key = DialogueKey(dialogue);
+        if (string.IsNullOrEmpty(key)) return;
+        PlayerPrefs.DeleteKey(ProgressPrefix + "node_" + key);
+        PlayerPrefs.DeleteKey(ProgressPrefix + "done_" + key);
+        PlayerPrefs.Save();
+    }
+
+    // =====================================================================
+    // Говорящие: цвет имени + портрет (или заглушка, пока нет арта).
+    // =====================================================================
+    /// <summary>Цвет имени: явный из узла или авто-палитра по имени.</summary>
+    public static Color ResolveSpeakerColor(DialogueNode node)
+    {
+        if (node == null) return Color.white;
+        if (node.speakerColor.a > 0.01f) return node.speakerColor;
+        return SpeakerPortrait.GetSpeakerColor(node.speakerName);
+    }
+
+    /// <summary>
+    /// Совпал ли статус квеста с требованием выбора:
+    /// 0 — взят (активен или выполнен), 1 — активен, 2 — выполнен, 3 — провален.
+    /// </summary>
+    public static bool IsQuestStateMatch(string questId, int requiredState)
+    {
+        if (string.IsNullOrEmpty(questId)) return true;
+        int s = QuestSystem.GetState(questId);
+        if (requiredState == 0) return s == QuestSystem.StateActive || s == QuestSystem.StateDone;
+        return s == requiredState;
+    }
+
+    /// <summary>Портрет: спрайт из узла или круглая заглушка в цвете персонажа.</summary>
+    public static Sprite ResolveSpeakerPortrait(DialogueNode node)
+    {
+        if (node == null) return null;
+        if (node.speakerPortrait != null) return node.speakerPortrait;
+        if (string.IsNullOrEmpty(node.speakerName)) return null;
+        return SpeakerPortrait.GetPlaceholder(node.speakerName);
     }
 
     void Start()
     {
+        // Сцена уже загружена целиком — тут поиск канваса надёжен (в Awake рано)
+        TryAutoWireUserCanvas();
+
         if (dialoguePanel != null)
         {
             dialoguePanel.SetActive(false);
@@ -115,7 +309,7 @@ public class DialogueManager : MonoBehaviour
 
         if (Input.GetKeyDown(exitDialogueKey))
         {
-            EndDialogue();
+            EndDialogue(false);
             return;
         }
 
@@ -130,7 +324,11 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    public void StartDialogue(DialogueData dialogue, DialogueTrigger trigger)
+    /// <summary>
+    /// Начать диалог. startNodeID — продолжить с узла (загрузка прогресса);
+    /// пусто/не найден — с начала.
+    /// </summary>
+    public void StartDialogue(DialogueData dialogue, DialogueTrigger trigger, string startNodeID = null)
     {
         if (isDialogueActive) return;
 
@@ -166,9 +364,17 @@ public class DialogueManager : MonoBehaviour
         isDialogueActive = true;
         isShowingChoices = false;
 
-        var start = dialogue.GetStartNode();
-        Debug.Log($"[DialogueManager] StartDialogue: «{dialogue.dialogueName}», " +
-                  $"узелков={dialogue.nodes?.Count ?? -1}, стартовый узел={start?.nodeID ?? "NULL"}.", this);
+        // Вдруг канвас появился позже / привязка не взлетела — чиним прямо сейчас
+        EnsureUserInterface();
+
+        if (dialogueText == null)
+            Debug.LogError("[DialogueManager] Нет текста реплики (dialogueText пуст): канвас не открывается. " +
+                "Выдели свой канвас в Hierarchy и нажми Tools -> Диалоги -> Подключить мой канвас.", this);
+
+        var start = !string.IsNullOrEmpty(startNodeID) ? dialogue.GetNodeByID(startNodeID) : null;
+        if (start == null) start = dialogue.GetStartNode();
+        if (start != null && !string.IsNullOrEmpty(startNodeID) && start.nodeID == startNodeID)
+            Debug.Log($"[DialogueManager] Продолжаем «{dialogue.dialogueName}» с узла {start.nodeID} (сейв).", this);
 
         if (dialogueCanvasGroup == null && dialoguePanel != null)
             dialogueCanvasGroup = dialoguePanel.GetComponent<CanvasGroup>();
@@ -185,12 +391,20 @@ public class DialogueManager : MonoBehaviour
 
         OnDialogueStarted?.Invoke();
 
-        MoveToNode(dialogue.GetStartNode());
+        MoveToNode(start);
     }
 
-    public void EndDialogue()
+    /// <summary>
+    /// Закончить диалог. completed=true — прошли до конца (прогресс стираем,
+    /// диалог помечаем пройденным); false — вышли вручную (Esc/Отмена),
+    /// прогресс остаётся и в следующий раз предложим продолжить.
+    /// </summary>
+    public void EndDialogue(bool completed = true)
     {
         if (!isDialogueActive) return;
+
+        DialogueData finishedDialogue = currentDialogue;
+        DialogueNode lastNode = currentNode;
 
         isDialogueActive = false;
         currentNode = null;
@@ -227,11 +441,27 @@ public class DialogueManager : MonoBehaviour
                 dialogueCanvasGroup.alpha = 0f;
         }
         if (choicesPanel != null) choicesPanel.SetActive(false);
+        HideStaticButtons();
 
         if (currentTrigger != null)
             currentTrigger.OnDialogueEnded();
 
         OnDialogueEnded?.Invoke();
+
+        if (finishedDialogue != null)
+        {
+            if (completed)
+            {
+                ClearDialogueProgress(finishedDialogue);
+                MarkDialogueDone(finishedDialogue);
+            }
+            else if (lastNode != null)
+            {
+                SaveDialogueProgress(finishedDialogue, lastNode.nodeID);
+            }
+            GameState.Save();
+            QuestSystem.Save();
+        }
     }
 
     void MoveToNode(DialogueNode node)
@@ -245,6 +475,14 @@ public class DialogueManager : MonoBehaviour
 
         currentNode = node;
         isShowingChoices = false;
+
+        if (currentDialogue != null)
+            SaveDialogueProgress(currentDialogue, node.nodeID);
+
+        // История (бэклог на H): кто что сказал, переживает перезапуск
+        DialogueHistory history = GetComponent<DialogueHistory>();
+        if (history == null) history = gameObject.AddComponent<DialogueHistory>();
+        history.Record(DialogueKey(currentDialogue), node.speakerName, node.dialogueText, ResolveSpeakerColor(node));
 
         if (choicesPanel != null) choicesPanel.SetActive(false);
 
@@ -265,6 +503,7 @@ public class DialogueManager : MonoBehaviour
             if (!string.IsNullOrEmpty(node.speakerName))
             {
                 speakerNameText.text = node.speakerName;
+                speakerNameText.color = ResolveSpeakerColor(node);
                 speakerNameText.gameObject.SetActive(true);
             }
             else
@@ -275,9 +514,10 @@ public class DialogueManager : MonoBehaviour
 
         if (speakerPortraitImage != null)
         {
-            if (node.speakerPortrait != null)
+            Sprite portrait = ResolveSpeakerPortrait(node);
+            if (portrait != null)
             {
-                speakerPortraitImage.sprite = node.speakerPortrait;
+                speakerPortraitImage.sprite = portrait;
                 speakerPortraitImage.gameObject.SetActive(true);
             }
             else
@@ -301,6 +541,17 @@ public class DialogueManager : MonoBehaviour
     {
         isTyping = true;
         if (text == null) text = "";
+
+        if (dialogueText == null)
+        {
+            // Интерфейс не привязан: показать нечего, но логика (выборы, квесты) идёт дальше
+            isTyping = false;
+            typingCoroutine = null;
+            revealedCharacters = text.Length;
+            if (currentNode != null && currentNode.choices.Count > 0 && !isShowingChoices)
+                StartCoroutine(ShowChoicesAfterDelay(choicesDelay));
+            yield break;
+        }
 
         revealedCharacters = 0;
         textHasRichTags = text.IndexOf('<') >= 0;
@@ -446,6 +697,15 @@ public class DialogueManager : MonoBehaviour
 
         if (currentNode == null) return;
 
+        if (dialogueText == null)
+        {
+            isTyping = false;
+            revealedCharacters = (currentNode.dialogueText ?? "").Length;
+            if (currentNode.choices.Count > 0 && !isShowingChoices)
+                StartCoroutine(ShowChoicesAfterDelay(0f));
+            return;
+        }
+
         string full = currentNode.dialogueText ?? "";
         dialogueText.text = full;
         dialogueText.maxVisibleCharacters = int.MaxValue;
@@ -507,7 +767,8 @@ public class DialogueManager : MonoBehaviour
     void ShowChoices()
     {
         if (isShowingChoices) return;
-        if (currentNode == null || choicesContainer == null || choiceButtonPrefab == null) return;
+        if (currentNode == null) return;
+        if (!useStaticChoiceButtons && (choicesContainer == null || choiceButtonPrefab == null)) return;
         isShowingChoices = true;
 
         if (cursorBlinkCoroutine != null)
@@ -520,14 +781,96 @@ public class DialogueManager : MonoBehaviour
 
         if (choicesPanel != null) choicesPanel.SetActive(true);
 
-        foreach (Transform child in choicesContainer)
-            Destroy(child.gameObject);
-
+        // Видимые варианты с учётом условий, предметов и квестов
+        var visible = new System.Collections.Generic.List<DialogueChoice>();
         foreach (var choice in currentNode.choices)
         {
             if (choice.condition != null && !choice.condition.Evaluate())
                 continue;
+            if (!string.IsNullOrEmpty(choice.requiredItemId) &&
+                !DialogueCommand.PlayerHasItem(choice.requiredItemId, Mathf.Max(1, choice.requiredItemCount)))
+                continue;
+            if (!string.IsNullOrEmpty(choice.requiredQuestId) &&
+                !IsQuestStateMatch(choice.requiredQuestId, choice.requiredQuestState))
+                continue;
+            visible.Add(choice);
+        }
 
+        if (useStaticChoiceButtons)
+            ShowStaticChoices(visible);
+        else
+            ShowTemplateChoices(visible);
+    }
+
+    /// <summary>Варианты на готовых кнопках сцены (Button1..3).</summary>
+    void ShowStaticChoices(System.Collections.Generic.List<DialogueChoice> visible)
+    {
+        int slots = staticChoiceButtons != null ? staticChoiceButtons.Length : 0;
+
+        if (slots == 0 && visible.Count > 0)
+        {
+            Debug.LogWarning("[DialogueManager] Есть варианты, но нет кнопок (staticChoiceButtons пуст). " +
+                "Добавь UserDialogueUI на свой канвас: Tools -> Диалоги -> Подключить мой канвас.", this);
+            isShowingChoices = false;
+            EndDialogue();
+            return;
+        }
+        for (int i = 0; i < slots; i++)
+        {
+            Button button = staticChoiceButtons[i];
+            if (button == null) continue;
+
+            if (i < visible.Count)
+            {
+                TextMeshProUGUI label = GetStaticLabel(i, button);
+                if (label != null)
+                {
+                    label.text = visible[i].choiceText;
+                    label.gameObject.SetActive(true);
+                }
+                button.onClick.RemoveAllListeners();
+                DialogueChoice capturedChoice = visible[i];
+                button.onClick.AddListener(() => OnChoiceSelected(capturedChoice));
+                if (!button.gameObject.activeSelf) button.gameObject.SetActive(true);
+                button.interactable = true;
+            }
+            else
+            {
+                button.gameObject.SetActive(false);
+            }
+        }
+
+        if (visible.Count == 0)
+        {
+            if (choicesPanel != null) choicesPanel.SetActive(false);
+            isShowingChoices = false;
+            EndDialogue();
+        }
+        else if (visible.Count > slots)
+        {
+            Debug.LogWarning($"[DialogueManager] Вариантов {visible.Count}, а кнопок {slots} — " +
+                             "показаны первые. Добавь кнопки в staticChoiceButtons.", this);
+        }
+    }
+
+    TextMeshProUGUI GetStaticLabel(int index, Button button)
+    {
+        if (staticChoiceLabels != null && index < staticChoiceLabels.Length &&
+            staticChoiceLabels[index] != null)
+            return staticChoiceLabels[index];
+        return button.GetComponentInChildren<TextMeshProUGUI>(true);
+    }
+
+    /// <summary>Варианты из шаблона (создание/удаление кнопок).</summary>
+    void ShowTemplateChoices(System.Collections.Generic.List<DialogueChoice> visible)
+    {
+        if (choicesContainer == null || choiceButtonPrefab == null) return;
+
+        foreach (Transform child in choicesContainer)
+            Destroy(child.gameObject);
+
+        foreach (var choice in visible)
+        {
             Button button = Instantiate(choiceButtonPrefab, choicesContainer);
             TextMeshProUGUI buttonText = button.GetComponentInChildren<TextMeshProUGUI>();
             if (buttonText != null)
@@ -548,6 +891,7 @@ public class DialogueManager : MonoBehaviour
     void OnChoiceSelected(DialogueChoice choice)
     {
         if (choicesPanel != null) choicesPanel.SetActive(false);
+        HideStaticButtons();
         isShowingChoices = false;
 
         foreach (var cmd in choice.onSelectCommands)

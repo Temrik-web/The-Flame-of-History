@@ -464,7 +464,11 @@ public class InventorySystem : MonoBehaviour
         }
 
         int added = amount - remaining;
-        if (added > 0) OnInventoryChanged?.Invoke();
+        if (added > 0)
+        {
+            OnInventoryChanged?.Invoke();
+            QuestSystem.NotifyItemAdded(item.Id);
+        }
         return added;
     }
 

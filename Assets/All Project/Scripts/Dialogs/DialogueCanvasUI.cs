@@ -101,12 +101,21 @@ public class DialogueCanvasUI : MonoBehaviour
     {
         if (manager == null) return;
         manager.OnDialogueEnded += HandleDialogueEnded;
+        manager.OnNodeChanged += HandleNodeChanged;
     }
 
     void OnDisable()
     {
         if (manager == null) return;
         manager.OnDialogueEnded -= HandleDialogueEnded;
+        manager.OnNodeChanged -= HandleNodeChanged;
+    }
+
+    void HandleNodeChanged(DialogueNode node)
+    {
+        // Цвет имени = цвет персонажа, чтобы было видно, кто говорит
+        if (speakerNameText != null && node != null && !string.IsNullOrEmpty(node.speakerName))
+            speakerNameText.color = DialogueManager.ResolveSpeakerColor(node);
     }
 
     void Update()
@@ -152,7 +161,8 @@ public class DialogueCanvasUI : MonoBehaviour
 
     void HandleCancelClick()
     {
-        if (manager != null) manager.EndDialogue();
+        // Ручной выход: прогресс диалога сохраняется, в следующий раз продолжим
+        if (manager != null) manager.EndDialogue(false);
     }
 
     void HandleDialogueEnded()

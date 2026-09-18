@@ -15,6 +15,11 @@ public class DoorController : MonoBehaviour
 
     [Header("Блокировка")]
     public bool isLocked = false;
+    [Tooltip("Id ключа из инвентаря (ItemData.keyId, например cellar). Пусто — ключ не нужен.")]
+    public string requiredKeyId = "";
+    [Tooltip("Квест, который закроется при первом открытии (например q_cellar_door).")]
+    public string questToCompleteOnOpen = "";
+    private bool questReported = false;
 
     [Header("Звуки")]
     public AudioClip openSound;
@@ -94,8 +99,15 @@ public class DoorController : MonoBehaviour
 
             if (isLocked)
             {
-                PlaySound(lockedSound);
-                return;
+                if (TryUnlockWithKey())
+                {
+                    Debug.Log($"[Door] {name}: открыто ключом '{requiredKeyId}'.", this);
+                }
+                else
+                {
+                    PlaySound(lockedSound);
+                    return;
+                }
             }
 
             ToggleDoor();
@@ -112,6 +124,11 @@ public class DoorController : MonoBehaviour
     public void Open()
     {
         if (isAnimating || isOpen || isLocked) return;
+        if (!questReported && !string.IsNullOrEmpty(questToCompleteOnOpen))
+        {
+            questReported = true;
+            QuestSystem.CompleteQuest(questToCompleteOnOpen);
+        }
         StartCoroutine(MoveDoor(true));
     }
 
@@ -161,6 +178,24 @@ public class DoorController : MonoBehaviour
     private void SetTargetRotation()
     {
         targetRotation = isOpen ? closedRotation * Quaternion.AngleAxis(openAngle, Vector3.up) : closedRotation;
+    }
+
+    /// <summary>
+    /// Пробует снять замок ключом из инвентаря. true — ключ подошёл, замок снят.
+    /// </summary>
+    public bool TryUnlockWithKey()
+    {
+        if (!isLocked) return true;
+        if (string.IsNullOrEmpty(requiredKeyId)) return false;
+
+        InventorySystem inv = InventorySystem.Instance;
+        if (inv == null) inv = FindObjectOfType<InventorySystem>();
+        if (inv != null && inv.HasKey(requiredKeyId))
+        {
+            isLocked = false;
+            return true;
+        }
+        return false;
     }
 
     private void PlaySound(AudioClip clip)

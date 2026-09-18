@@ -12,6 +12,8 @@ public class DialogueNode
     [Header("Персонаж и текст")]
     public string speakerName;
     public Sprite speakerPortrait;
+    [Tooltip("Цвет имени говорящего. Прозрачный (по умолчанию) = авто-палитра по имени.")]
+    public Color speakerColor = new Color(0f, 0f, 0f, 0f);
     [TextArea(3, 10)]
     public string dialogueText;
     public AudioClip voiceClip;

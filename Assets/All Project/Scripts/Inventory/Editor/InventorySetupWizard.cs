@@ -463,7 +463,7 @@ public static class InventorySetupWizard
         Debug.Log($"[InventorySetup] Фонарик настроен: свет под {parent.name}, клавиша F.");
     }
 
-    /// <summary>Повесить красивый интерфейс диалогов на существующий DialogueManager.</summary>
+    /// <summary>Интерфейс диалогов: используется свой канвас пользователя (UserDialogueUI).</summary>
     private static void SetupDialogueUI(TMP_FontAsset font)
     {
         DialogueManager dm = Object.FindObjectOfType<DialogueManager>();
@@ -473,22 +473,17 @@ public static class InventorySetupWizard
             return;
         }
 
-        // Новый кнопочный канвас (Tools -> Диалоги -> Создать канвас) уже подключён —
-        // старый кодо-собираемый интерфейс не вешаем, чтобы не было наложения.
+        // Кодовый интерфейс удалён из проекта: диалоги идут через свой канвас
+        // (компонент UserDialogueUI сам находит Speeker/Top/TopImage/Button1..3).
+        // Здесь ничего не создаём, чтобы не было наложения.
         if (dm.GetComponent<DialogueCanvasUI>() != null)
         {
-            Debug.Log("[InventorySetup] Диалог уже на кнопочном канвасе (DialogueCanvasUI) — старый UI пропущен.");
+            Debug.Log("[InventorySetup] Диалог уже на кнопочном канвасе (DialogueCanvasUI) — пропуск.");
             return;
         }
 
-        DialogueUI ui = dm.GetComponent<DialogueUI>();
-        if (ui == null) ui = Undo.AddComponent<DialogueUI>(dm.gameObject);
-
-        ui.manager = dm;
-        ui.fontAsset = font;
-        EditorUtility.SetDirty(ui);
-
-        Debug.Log($"[InventorySetup] DialogueUI подключён к {dm.name}.");
+        Debug.Log("[InventorySetup] Интерфейс диалогов: добавь UserDialogueUI на свой канвас " +
+                  "(Tools -> Диалоги -> Подключить мой канвас).");
     }
 
     /// <summary>Менеджер всплывающих подписей «+2 Аптечка» в мире.</summary>
