@@ -1218,6 +1218,20 @@ public class Wep : MonoBehaviour
         Quaternion spawnRot = Quaternion.LookRotation(hit.normal);
 
         GameObject fx = Instantiate(prefab, spawnPos, spawnRot);
+
+        // ParticlePack stores the actual impact under a "HitEffect" child and
+        // keeps a mesh/collider on the prefab root for its demo scene.  When such
+        // a prefab is used by a weapon, leave only the visual effect at the hit
+        // point so the invisible demo collider cannot affect later shots.
+        Transform visualRoot = fx.transform.Find("HitEffect");
+        if (visualRoot != null)
+        {
+            visualRoot.SetParent(null, true);
+            visualRoot.SetPositionAndRotation(spawnPos, spawnRot);
+            Destroy(fx);
+            fx = visualRoot.gameObject;
+        }
+
         Destroy(fx, impactLifetime);
     }
 
