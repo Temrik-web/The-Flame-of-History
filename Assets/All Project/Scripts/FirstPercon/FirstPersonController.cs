@@ -109,6 +109,14 @@ namespace EasyPeasyFirstPersonController
         public float crouchVolumeMultiplier = 0.7f;      // Приглушение при приседе
         public float footstepInterval = 0.4f;            // Мин. интервал между шагами
 
+        [Header("Noise (слышимость шагов для ИИ)")]
+        [Tooltip("Как далеко слышно обычный шаг, м.")]
+        public float walkNoiseRadius = 12f;
+        [Tooltip("Как далеко слышен бег/спринт, м.")]
+        public float sprintNoiseRadius = 22f;
+        [Tooltip("Как далеко слышна присевшая ходьба, м. Маленький — можно красться.")]
+        public float crouchNoiseRadius = 4f;
+
         // Вспомогательные для определения момента шага
         private float lastBobSign = 1f;
         private float lastFootstepTime = 0f;
@@ -274,6 +282,19 @@ namespace EasyPeasyFirstPersonController
         // ========== НОВЫЙ МЕТОД: воспроизведение звука шага ==========
         private void PlayFootstep()
         {
+            // Шум для ИИ — всегда, даже если аудио не настроено: крадущийся
+            // (crouch) почти не слышен, обычный шаг слышно рядом, бег — далеко.
+            bool isSprinting = input != null && input.sprint &&
+                characterController.velocity.magnitude > walkSpeed * 0.8f;
+            bool isCrouching = input != null && input.crouch;
+
+            float noiseRadius = isSprinting ? sprintNoiseRadius
+                : (isCrouching ? crouchNoiseRadius : walkNoiseRadius);
+            float noiseIntensity = isSprinting ? 1f : (isCrouching ? 0.35f : 0.7f);
+
+            if (noiseRadius > 0f)
+                FlameOfHistory.AI.NoiseSystem.Emit(transform.position, noiseRadius, gameObject, noiseIntensity);
+
             if (footstepSource == null || footstepSounds.Length == 0)
                 return;
 
@@ -306,12 +327,9 @@ namespace EasyPeasyFirstPersonController
                 if (selectedClip != null)
                 {
                     // Настраиваем громкость и тон в зависимости от состояния
+                    // (isSprinting/isCrouching уже посчитаны выше, у шума).
                     float volume = footstepVolume;
                     float pitch = 1f;
-
-                    // Определяем режим движения по скорости и вводу
-                    bool isSprinting = input.sprint && characterController.velocity.magnitude > walkSpeed * 0.8f;
-                    bool isCrouching = input.crouch; // если у тебя есть такая переменная
 
                     if (isSprinting)
                     {

@@ -81,6 +81,10 @@ public class UserDialogueUI : MonoBehaviour
     public GameObject interactHint;
     public TextMeshProUGUI interactHintText;
 
+    [Header("Логи")]
+    [Tooltip("Писать рутинные сообщения (привязка, сэмплы, клик). Выключено — в консоли только предупреждения.")]
+    public bool verboseLogging = false;
+
     void Awake()
     {
         if (manager == null) manager = DialogueManager.Instance;
@@ -118,7 +122,7 @@ public class UserDialogueUI : MonoBehaviour
         if (btn == null)
         {
             btn = holder.gameObject.AddComponent<Button>();
-            Debug.Log($"[UserDialogueUI] На «{holder.name}» не было Button — добавил для клика-продолжения.", this);
+            LogVerbose($"[UserDialogueUI] На «{holder.name}» не было Button — добавил для клика-продолжения.", this);
         }
         // Прозрачная кнопка: свой Image оставляем как есть, переход убираем.
         // Фокус с клавиатуры запрещаем: продолжение — пробелом через менеджер
@@ -134,6 +138,14 @@ public class UserDialogueUI : MonoBehaviour
         replicaText.raycastTarget = false;
         Image holderImg = holder.GetComponent<Image>();
         if (holderImg != null) holderImg.raycastTarget = true;
+    }
+
+    /// <summary>Рутинный лог: только если включён verboseLogging.</summary>
+    void LogVerbose(string message, Object context = null)
+    {
+        if (!verboseLogging) return;
+        if (context != null) Debug.Log(message, context);
+        else Debug.Log(message);
     }
 
     /// <summary>Повторить поиск и привязку (менеджер зовёт сам, если с первого раза не вышло).</summary>
@@ -154,12 +166,12 @@ public class UserDialogueUI : MonoBehaviour
             if (!canvas.gameObject.activeSelf)
             {
                 canvas.gameObject.SetActive(true);
-                Debug.Log("[UserDialogueUI] Корень канваса был выключен — включил.", this);
+                LogVerbose("[UserDialogueUI] Корень канваса был выключен — включил.", this);
             }
             if (canvas.transform.localScale.magnitude < 0.05f)
             {
                 canvas.transform.localScale = Vector3.one;
-                Debug.Log("[UserDialogueUI] Масштаб корня канваса был ~0 — вернул 1.", this);
+                LogVerbose("[UserDialogueUI] Масштаб корня канваса был ~0 — вернул 1.", this);
             }
         }
 
@@ -167,7 +179,7 @@ public class UserDialogueUI : MonoBehaviour
         if (dialogueWindow != null && dialogueWindow.transform.localScale.magnitude < 0.05f)
         {
             dialogueWindow.transform.localScale = Vector3.one;
-            Debug.Log("[UserDialogueUI] Масштаб окна был ~0 — вернул 1, иначе ничего не было бы видно.", this);
+            LogVerbose("[UserDialogueUI] Масштаб окна был ~0 — вернул 1, иначе ничего не было бы видно.", this);
         }
 
         // Окно — это НЕ одна из кнопок: иначе прятанье убьёт саму кнопку
@@ -191,7 +203,7 @@ public class UserDialogueUI : MonoBehaviour
         if (dialogueWindow != null && dialogueWindow.activeSelf && uiFound)
             dialogueWindow.SetActive(false);
 
-        Debug.Log($"[UserDialogueUI] Привязка: тема={ObjName(topicText, topicTextLegacy)}, " +
+        LogVerbose($"[UserDialogueUI] Привязка: тема={ObjName(topicText, topicTextLegacy)}, " +
                   $"реплика={ObjName(replicaText)}, портрет={ObjName(portraitImage)}, " +
                    $"кнопок={(choiceButtons != null ? choiceButtons.Length : 0)}.", this);
     }
@@ -293,7 +305,7 @@ public class UserDialogueUI : MonoBehaviour
         manager.panelStartScale = Vector3.one;
         manager.fadeInDuration = 0.15f;
 
-        Debug.Log("[UserDialogueUI] Менеджер подключён к твоему канвасу.", this);
+        LogVerbose("[UserDialogueUI] Менеджер подключён к твоему канвасу.", this);
     }
 
     // =====================================================================
@@ -481,7 +493,7 @@ public class UserDialogueUI : MonoBehaviour
             if (t.gameObject.activeSelf)
             {
                 t.gameObject.SetActive(false);
-                Debug.Log($"[UserDialogueUI] Сэмпл «{t.name}» спрятан (спрайт уже на кнопках).", this);
+                LogVerbose($"[UserDialogueUI] Сэмпл «{t.name}» спрятан (спрайт уже на кнопках).", this);
             }
         }
     }

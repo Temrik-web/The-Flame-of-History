@@ -343,7 +343,7 @@ public static class EnemySetupWizard
     private static void ConfigureAgent(NavMeshAgent agent)
     {
         agent.speed = 4.2f;
-        agent.angularSpeed = 720f;
+        agent.angularSpeed = 360f;
         agent.acceleration = 12f;
         agent.stoppingDistance = 1.2f;
         agent.radius = 0.4f;

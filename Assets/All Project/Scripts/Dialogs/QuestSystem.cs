@@ -16,6 +16,7 @@ using UnityEngine;
 ///  q_cellar_door «Что в подвале» — открыть подвал Михалыча найденным ключом;
 ///  q_knife       «Нож Степана» — заслужить нож;
 ///  q_grenade     «Граната для Алеся» — награда Василия за ключ.
+///  q_forest_chest «Сундук в лесу» — проверить сундук у вишен, забрать письмо.
 /// </summary>
 public static class QuestSystem
 {
@@ -49,6 +50,9 @@ public static class QuestSystem
             "Степан присматривается к Алесю. Заслужить его доверие и получить нож."),
         new QuestDef("q_grenade", "Граната для Алеся",
             "Василий обещал отблагодарить за ключ. Вернуться к нему."),
+        new QuestDef("q_forest_chest", "Сундук в лесу",
+            "Василий просил проверить сундук у вишен в лесу — Степан мог оставить там письмо. " +
+            "Найти сундук и забрать содержимое."),
     };
 
     private static readonly Dictionary<string, int> states = new Dictionary<string, int>();
@@ -129,7 +133,8 @@ public static class QuestSystem
 
     /// <summary>
     /// Вызывается из InventorySystem.AddItem. Реакции на подбор без правок сцены:
-    /// ключ подвала закрывает q_cart_key и открывает q_cellar_door.
+    /// ключ подвала закрывает q_cart_key и открывает q_cellar_door;
+    /// письмо из лесного сундука закрывает q_forest_chest.
     /// </summary>
     public static void NotifyItemAdded(string itemId)
     {
@@ -139,6 +144,11 @@ public static class QuestSystem
             CompleteQuest("q_cart_key");
             GameState.SetFlag("has_cellar_key", true);
             StartQuest("q_cellar_door");
+        }
+        if (itemId == "letter_old" && IsActive("q_forest_chest"))
+        {
+            CompleteQuest("q_forest_chest");
+            GameState.SetFlag("found_chest_letter", true);
         }
     }
 

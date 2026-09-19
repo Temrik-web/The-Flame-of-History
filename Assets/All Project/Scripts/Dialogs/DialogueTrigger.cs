@@ -20,6 +20,7 @@ public class DialogueTrigger : MonoBehaviour
 
     private bool playerInRange = false;
     private bool isDialogueActive = false;
+    private bool hintShownByUs = false;
     private GameObject cachedPlayer;
     private DialogueManager cachedManager;
 
@@ -59,12 +60,14 @@ public class DialogueTrigger : MonoBehaviour
             if (playerInRange && !isDialogueActive && !cachedManager.isDialogueActive && (!playOnce || !hasPlayed))
             {
                 cachedManager.interactHint.SetActive(true);
+                hintShownByUs = true;
                 if (cachedManager.interactHintText != null)
                     cachedManager.interactHintText.text = interactMessage;
             }
-            else
+            else if (hintShownByUs)
             {
                 cachedManager.interactHint.SetActive(false);
+                hintShownByUs = false;
             }
         }
 
@@ -80,8 +83,7 @@ public class DialogueTrigger : MonoBehaviour
     }
 
     void StartDialogue()
-    {
-        if (dialogue == null)
+    {        if (dialogue == null)
         {
             Debug.LogWarning($"[DialogueTrigger] {name}: dialogue = null.", this);
             return;

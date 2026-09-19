@@ -62,6 +62,15 @@ public class DialogueManager : MonoBehaviour
     public float typingSoundVolume = 0.3f;
     public int typingSoundFrequency = 3;
 
+    [Header("Реплика игрока (эхо выбора)")]
+    [Tooltip("Показать выбранный ответ как реплику героя (отдельный шаг с печатью), " +
+             "а не перескакивать сразу на ответ NPC. Лечит «фраза героя не видна».")]
+    public bool echoPlayerChoice = true;
+    [Tooltip("Имя героя для эха выбора.")]
+    public string playerSpeakerName = "Вы";
+    [Tooltip("Цвет реплики героя. Прозрачный (по умолчанию) = авто-палитра по имени.")]
+    public Color playerSpeakerColor = new Color(0f, 0f, 0f, 0f);
+
     private DialogueData currentDialogue;
     private DialogueNode currentNode;
     public bool isDialogueActive = false;
@@ -75,12 +84,22 @@ public class DialogueManager : MonoBehaviour
     private Coroutine cursorBlinkCoroutine;
     private bool isShowingChoices = false;
 
+    // Эхо выбора: герой произносит выбранный ответ перед переходом дальше.
+    // currentNode при этом остаётся старым узлом, цель хранится отдельно.
+    private bool isShowingEcho = false;
+    private DialogueNode pendingEchoTarget;
+    private string echoText = "";
+    private Coroutine echoCoroutine;
+
     // Исходные цвета подписей кнопок — чтобы вернуть их после разблокировки.
     private readonly System.Collections.Generic.Dictionary<TextMeshProUGUI, Color> labelBaseColors =
         new System.Collections.Generic.Dictionary<TextMeshProUGUI, Color>();
 
     // Сколько символов текста уже показано.
     private int revealedCharacters = 0;
+    // Базовый текст для мигающего курсора. Отдельное поле (а не currentNode),
+    // чтобы курсор корректно работал и на эхе реплики героя.
+    private string cursorBaseText = "";
     // Текст, содержащий rich-text теги, нельзя резать через Substring —
     // для него используется режим maxVisibleCharacters (курсор при этом не рисуется).
     private bool textHasRichTags = false;
@@ -95,6 +114,8 @@ public class DialogueManager : MonoBehaviour
     public DialogueNode CurrentNode => currentNode;
     /// <summary>Текущий диалог (может быть null).</summary>
     public DialogueData CurrentDialogue => currentDialogue;
+    /// <summary>Показана ли эхо-реплика героя (выбранный ответ).</summary>
+    public bool IsShowingEcho => isShowingEcho;
 
     /// <summary>Диалог начался. Для кинематографики, звука, аналитики.</summary>
     public event System.Action OnDialogueStarted;
@@ -272,6 +293,14 @@ public class DialogueManager : MonoBehaviour
         return SpeakerPortrait.GetSpeakerColor(node.speakerName);
     }
 
+    /// <summary>Цвет реплики героя (эхо выбора): явный или авто-палитра по имени.</summary>
+    public Color ResolvePlayerColor()
+    {
+        if (playerSpeakerColor.a > 0.01f) return playerSpeakerColor;
+        if (string.IsNullOrEmpty(playerSpeakerName)) return Color.white;
+        return SpeakerPortrait.GetSpeakerColor(playerSpeakerName);
+    }
+
     /// <summary>
     /// Совпал ли статус квеста с требованием выбора:
     /// 0 — взят (активен или выполнен), 1 — активен, 2 — выполнен, 3 — провален.
@@ -362,6 +391,11 @@ public class DialogueManager : MonoBehaviour
     public void StartDialogue(DialogueData dialogue, DialogueTrigger trigger, string startNodeID = null)
     {
         if (isDialogueActive) return;
+        if (dialogue == null)
+        {
+            Debug.LogError("[DialogueManager] StartDialogue: dialogue = null.", this);
+            return;
+        }
 
         // Останавливаем возможную старую анимацию fade out и мгновенно готовим панель
         if (fadeRoutine != null)
@@ -437,16 +471,23 @@ public class DialogueManager : MonoBehaviour
 
         DialogueData finishedDialogue = currentDialogue;
         DialogueNode lastNode = currentNode;
+        // Цель эха захватываем до сброса состояния (нужна для сохранения прогресса ниже).
+        DialogueNode echoTarget = pendingEchoTarget;
 
         isDialogueActive = false;
         currentNode = null;
         currentDialogue = null;
         isShowingChoices = false;
+        isShowingEcho = false;
+        pendingEchoTarget = null;
+        echoText = "";
         isTyping = false;
         revealedCharacters = 0;
+        cursorBaseText = "";
         ClearSelection();
 
         if (typingCoroutine != null) { StopCoroutine(typingCoroutine); typingCoroutine = null; }
+        if (echoCoroutine != null) { StopCoroutine(echoCoroutine); echoCoroutine = null; }
         if (autoAdvanceCoroutine != null) { StopCoroutine(autoAdvanceCoroutine); autoAdvanceCoroutine = null; }
         if (cursorBlinkCoroutine != null) { StopCoroutine(cursorBlinkCoroutine); cursorBlinkCoroutine = null; }
         if (fadeRoutine != null) { StopCoroutine(fadeRoutine); fadeRoutine = null; }
@@ -488,9 +529,15 @@ public class DialogueManager : MonoBehaviour
                 ClearDialogueProgress(finishedDialogue);
                 MarkDialogueDone(finishedDialogue);
             }
-            else if (lastNode != null)
+            else
             {
-                SaveDialogueProgress(finishedDialogue, lastNode.nodeID);
+                // Вышли во время эха героя — продолжаем с целевого узла,
+                // а не повторяем уже выбранный ответ.
+                string progressNodeID = null;
+                if (echoTarget != null) progressNodeID = echoTarget.nodeID;
+                else if (lastNode != null) progressNodeID = lastNode.nodeID;
+                if (!string.IsNullOrEmpty(progressNodeID))
+                    SaveDialogueProgress(finishedDialogue, progressNodeID);
             }
             GameState.Save();
             QuestSystem.Save();
@@ -499,15 +546,77 @@ public class DialogueManager : MonoBehaviour
 
     void MoveToNode(DialogueNode node)
     {
+        MoveToNodeInternal(node, 0);
+    }
+
+    /// <summary>Есть ли у узла выборы (null считаем отсутствием).</summary>
+    static bool HasChoices(DialogueNode node)
+    {
+        return node != null && node.choices != null && node.choices.Count > 0;
+    }
+
+    void MoveToNodeInternal(DialogueNode node, int skipDepth)
+    {
         if (node == null)
         {
-            Debug.LogWarning("[DialogueManager] MoveToNode: узел null — диалог завершён досрочно.", this);
-            EndDialogue();
+            Debug.LogError("[DialogueManager] Переход в null-узел (битая ссылка nextNodeID?) — " +
+                           "диалог завершён без отметки прохождения, чтобы его можно было пройти заново.", this);
+            EndDialogue(false);
             return;
         }
 
+        // Пустой сервисный узел без выборов: команды выполняем, текст не показываем,
+        // идём дальше сразу — иначе игрок видит пустое окно («фраза не видна»).
+        if (string.IsNullOrEmpty(node.dialogueText) && !HasChoices(node))
+        {
+            if (skipDepth > 100)
+            {
+                Debug.LogError($"[DialogueManager] Цепочка пустых узлов длиннее 100 в " +
+                               $"«{DialogueKey(currentDialogue)}» (зацикливание?) — диалог остановлен.", this);
+                EndDialogue(false);
+                return;
+            }
+            DialogueNode skippedFrom = currentNode;
+            currentNode = node;
+            isShowingChoices = false;
+            isShowingEcho = false;
+            pendingEchoTarget = null;
+            HideStaticButtons();
+
+            if (currentDialogue != null)
+                SaveDialogueProgress(currentDialogue, node.nodeID);
+
+            if (skippedFrom != null) skippedFrom.onNodeExit?.Invoke();
+            if (node.onEnterCommands != null)
+                foreach (var cmd in node.onEnterCommands)
+                    cmd.Execute();
+            node.onNodeEnter?.Invoke();
+            OnNodeChanged?.Invoke(node);
+
+            if (!string.IsNullOrEmpty(node.nextNodeID) && currentDialogue != null)
+            {
+                DialogueNode next = currentDialogue.GetNodeByID(node.nextNodeID);
+                if (next == null)
+                {
+                    Debug.LogError($"[DialogueManager] Узел «{node.nodeID}»: nextNodeID " +
+                                   $"«{node.nextNodeID}» не найден — диалог завершён. Проверь связи в DialogueData.", this);
+                    EndDialogue(false);
+                    return;
+                }
+                MoveToNodeInternal(next, skipDepth + 1);
+            }
+            else
+            {
+                EndDialogue();
+            }
+            return;
+        }
+
+        DialogueNode previousNode = currentNode;
         currentNode = node;
         isShowingChoices = false;
+        isShowingEcho = false;
+        pendingEchoTarget = null;
         HideStaticButtons();
 
         if (currentDialogue != null)
@@ -526,8 +635,10 @@ public class DialogueManager : MonoBehaviour
             cursorBlinkCoroutine = null;
         }
 
-        foreach (var cmd in node.onEnterCommands)
-            cmd.Execute();
+        if (previousNode != null) previousNode.onNodeExit?.Invoke();
+        if (node.onEnterCommands != null)
+            foreach (var cmd in node.onEnterCommands)
+                cmd.Execute();
 
         node.onNodeEnter?.Invoke();
         OnNodeChanged?.Invoke(node);
@@ -560,12 +671,28 @@ public class DialogueManager : MonoBehaviour
             }
         }
 
+        cursorBaseText = node.dialogueText ?? "";
+
+        // Текста нет, а выборы есть: пустое окно не показываем, выборы — сразу.
+        if (string.IsNullOrEmpty(node.dialogueText) && HasChoices(node))
+        {
+            isTyping = false;
+            revealedCharacters = 0;
+            if (dialogueText != null)
+            {
+                dialogueText.text = "";
+                dialogueText.maxVisibleCharacters = int.MaxValue;
+            }
+            ShowChoices();
+            return;
+        }
+
         float speed = node.textSpeed > 0 ? node.textSpeed : defaultTextSpeed;
         if (typingCoroutine != null) StopCoroutine(typingCoroutine);
         typingCoroutine = StartCoroutine(TypeText(node.dialogueText, speed));
 
         if (autoAdvanceCoroutine != null) StopCoroutine(autoAdvanceCoroutine);
-        if (node.autoAdvanceDelay > 0 && node.choices.Count == 0)
+        if (node.autoAdvanceDelay > 0 && !HasChoices(node))
         {
             autoAdvanceCoroutine = StartCoroutine(AutoAdvance(node.autoAdvanceDelay));
         }
@@ -582,7 +709,7 @@ public class DialogueManager : MonoBehaviour
             isTyping = false;
             typingCoroutine = null;
             revealedCharacters = text.Length;
-            if (currentNode != null && currentNode.choices.Count > 0 && !isShowingChoices)
+            if (!isShowingEcho && HasChoices(currentNode) && !isShowingChoices)
                 StartCoroutine(ShowChoicesAfterDelay(choicesDelay));
             yield break;
         }
@@ -599,11 +726,16 @@ public class DialogueManager : MonoBehaviour
             cursorBlinkCoroutine = null;
         }
 
+        // Длина видимых символов для режима rich-text. Объявлена снаружи блока,
+        // потому что используется и после цикла — финальная установка maxVisibleCharacters.
+        int visibleLength = 0;
+
         if (textHasRichTags)
         {
             // Печатаем через maxVisibleCharacters — теги остаются целыми
             dialogueText.text = text;
             dialogueText.maxVisibleCharacters = 0;
+            visibleLength = GetVisibleLength(text);
         }
         else
         {
@@ -612,26 +744,44 @@ public class DialogueManager : MonoBehaviour
         }
 
         int soundCounter = 0;
-        int length = textHasRichTags ? GetVisibleLength(text) : text.Length;
-
-        for (int i = 1; i <= length; i++)
-        {
-            revealedCharacters = i;
-
-            if (textHasRichTags) dialogueText.maxVisibleCharacters = i;
-            else dialogueText.text = text.Substring(0, i);
-
-            if (typingSound != null && ++soundCounter % Mathf.Max(1, typingSoundFrequency) == 0)
-                PlayTypingSound();
-
-            yield return new WaitForSecondsRealtime(speed);
-        }
-
-        revealedCharacters = length;
 
         if (textHasRichTags)
         {
-            dialogueText.maxVisibleCharacters = length;
+            for (int i = 1; i <= visibleLength; i++)
+            {
+                revealedCharacters = i;
+                dialogueText.maxVisibleCharacters = i;
+
+                if (typingSound != null && ++soundCounter % Mathf.Max(1, typingSoundFrequency) == 0)
+                    PlayTypingSound();
+
+                yield return new WaitForSecondsRealtime(speed);
+            }
+
+            revealedCharacters = visibleLength;
+        }
+        else
+        {
+            // Печатаем по границам текстовых элементов: суррогатные пары
+            // (эмодзи) и комбинируемые символы не рвём пополам.
+            int[] cuts = GetCutPoints(text);
+            foreach (int cut in cuts)
+            {
+                revealedCharacters = cut;
+                dialogueText.text = text.Substring(0, cut);
+
+                if (typingSound != null && ++soundCounter % Mathf.Max(1, typingSoundFrequency) == 0)
+                    PlayTypingSound();
+
+                yield return new WaitForSecondsRealtime(speed);
+            }
+
+            revealedCharacters = text.Length;
+        }
+
+        if (textHasRichTags)
+        {
+            dialogueText.maxVisibleCharacters = visibleLength;
         }
         else
         {
@@ -646,12 +796,37 @@ public class DialogueManager : MonoBehaviour
         if (useCursor)
             cursorBlinkCoroutine = StartCoroutine(BlinkCursor());
 
-        if (currentNode != null && currentNode.choices.Count > 0)
+        // Во время эха героя выборы старого узла не показываем: их уже выбрали.
+        if (!isShowingEcho && HasChoices(currentNode))
         {
             yield return new WaitForSecondsRealtime(choicesDelay);
             if (isDialogueActive && !isTyping)
                 ShowChoices();
         }
+    }
+
+    /// <summary>Позиции разреза строки по границам текстовых элементов.</summary>
+    static int[] GetCutPoints(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return new int[0];
+        var cuts = new System.Collections.Generic.List<int>(text.Length);
+        int i = 0;
+        while (i < text.Length)
+        {
+            int next = i + 1;
+            if (char.IsHighSurrogate(text[i]) && next < text.Length && char.IsLowSurrogate(text[next]))
+                next++;
+            // Диакритика, вариационные селекторы и ZWJ-цепочки тянутся за символом.
+            while (next < text.Length &&
+                   (text[next] == '\u200D' || text[next] == '\uFE0F' ||
+                    char.GetUnicodeCategory(text[next]) == System.Globalization.UnicodeCategory.NonSpacingMark ||
+                    char.GetUnicodeCategory(text[next]) == System.Globalization.UnicodeCategory.SpacingCombiningMark ||
+                    char.GetUnicodeCategory(text[next]) == System.Globalization.UnicodeCategory.EnclosingMark))
+                next++;
+            i = next;
+            cuts.Add(i);
+        }
+        return cuts.ToArray();
     }
 
     /// <summary>Число печатаемых символов без учёта rich-text тегов.</summary>
@@ -693,7 +868,8 @@ public class DialogueManager : MonoBehaviour
     {
         // Курсор дописывается к уже показанному тексту, а не вырезается из него —
         // поэтому отрицательная длина в Substring больше невозможна.
-        string baseText = currentNode != null ? currentNode.dialogueText : "";
+        // База берётся из поля (узел или эхо героя), а не из currentNode.
+        string baseText = cursorBaseText ?? "";
         if (baseText == null) baseText = "";
 
         int safeCount = Mathf.Clamp(revealedCharacters, 0, baseText.Length);
@@ -723,10 +899,35 @@ public class DialogueManager : MonoBehaviour
             StopCoroutine(typingCoroutine);
             typingCoroutine = null;
         }
+        if (echoCoroutine != null)
+        {
+            StopCoroutine(echoCoroutine);
+            echoCoroutine = null;
+        }
         if (cursorBlinkCoroutine != null)
         {
             StopCoroutine(cursorBlinkCoroutine);
             cursorBlinkCoroutine = null;
+        }
+
+        // Допечатать эхо героя: база — текст выбора, а не старый узел.
+        if (isShowingEcho)
+        {
+            if (dialogueText == null)
+            {
+                isTyping = false;
+                revealedCharacters = echoText.Length;
+                return;
+            }
+
+            dialogueText.text = echoText;
+            dialogueText.maxVisibleCharacters = int.MaxValue;
+            revealedCharacters = echoText.Length;
+            isTyping = false;
+
+            if (showTypingCursor && !string.IsNullOrEmpty(cursorSymbol) && echoText.IndexOf('<') < 0)
+                cursorBlinkCoroutine = StartCoroutine(BlinkCursor());
+            return;
         }
 
         if (currentNode == null) return;
@@ -754,26 +955,48 @@ public class DialogueManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Двигает диалог дальше (следующий узел или показ вариантов).
+    /// Двигает диалог дальше (эхо героя, следующий узел или показ вариантов).
     /// Вызывается кнопкой продолжения, Space или автоматически.
+    /// Ввод больше не блокируется таймером автопродвижения: клик/пробел
+    /// всегда работает, а таймер гасится переходом.
     /// </summary>
     public void AdvanceDialogue()
     {
         if (isTyping) return;
         if (isShowingChoices) return;
+
+        // Эхо героя прочитано — идём в целевой узел.
+        if (isShowingEcho)
+        {
+            DialogueNode target = pendingEchoTarget;
+            isShowingEcho = false;
+            pendingEchoTarget = null;
+            echoText = "";
+            MoveToNode(target);
+            return;
+        }
+
         if (currentNode == null) { EndDialogue(); return; }
 
-        if (currentNode.choices != null && currentNode.choices.Count > 0)
+        if (HasChoices(currentNode))
         {
             ShowChoices();
             return;
         }
 
-        if (autoAdvanceCoroutine != null) return;
-
         if (!string.IsNullOrEmpty(currentNode.nextNodeID))
         {
-            MoveToNode(currentDialogue.GetNodeByID(currentNode.nextNodeID));
+            DialogueNode next = currentDialogue != null
+                ? currentDialogue.GetNodeByID(currentNode.nextNodeID)
+                : null;
+            if (next == null)
+            {
+                Debug.LogError($"[DialogueManager] Узел «{currentNode.nodeID}»: nextNodeID " +
+                               $"«{currentNode.nextNodeID}» не найден — диалог завершён. Проверь связи в DialogueData.", this);
+                EndDialogue(false);
+                return;
+            }
+            MoveToNode(next);
         }
         else
         {
@@ -784,11 +1007,13 @@ public class DialogueManager : MonoBehaviour
     IEnumerator AutoAdvance(float delay)
     {
         yield return new WaitForSecondsRealtime(delay);
-        if (isDialogueActive && !isTyping && !isShowingChoices)
+        // Ссылку сбрасываем ДО продвижения: иначе AdvanceDialogue видит
+        // «таймер ещё идёт» и молча отменяется (таймер душил сам себя).
+        autoAdvanceCoroutine = null;
+        if (isDialogueActive && !isTyping && !isShowingChoices && !isShowingEcho)
         {
             AdvanceDialogue();
         }
-        autoAdvanceCoroutine = null;
     }
 
     IEnumerator ShowChoicesAfterDelay(float delay)
@@ -802,6 +1027,7 @@ public class DialogueManager : MonoBehaviour
     {
         if (isShowingChoices) return;
         if (currentNode == null) return;
+        if (currentNode.choices == null) return;
         if (!useStaticChoiceButtons && (choicesContainer == null || choiceButtonPrefab == null)) return;
         isShowingChoices = true;
         ClearSelection();
@@ -883,7 +1109,9 @@ public class DialogueManager : MonoBehaviour
             Debug.LogWarning("[DialogueManager] Есть варианты, но нет кнопок (staticChoiceButtons пуст). " +
                 "Добавь UserDialogueUI на свой канвас: Tools -> Диалоги -> Подключить мой канвас.", this);
             isShowingChoices = false;
-            EndDialogue();
+            // Ошибка конфигурации, а не конец истории: прогресс сохраняем,
+            // completed=false — после починки канваса диалог можно пройти заново.
+            EndDialogue(false);
             return;
         }
         for (int i = 0; i < slots.Count; i++)
@@ -1026,8 +1254,9 @@ public class DialogueManager : MonoBehaviour
         HideStaticButtons();
         isShowingChoices = false;
 
-        foreach (var cmd in choice.onSelectCommands)
-            cmd.Execute();
+        if (choice.onSelectCommands != null)
+            foreach (var cmd in choice.onSelectCommands)
+                cmd.Execute();
 
         choice.onSelected?.Invoke();
 
@@ -1037,14 +1266,153 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
+        DialogueNode target = null;
         if (!string.IsNullOrEmpty(choice.nextNodeID))
         {
-            MoveToNode(currentDialogue.GetNodeByID(choice.nextNodeID));
+            target = currentDialogue != null ? currentDialogue.GetNodeByID(choice.nextNodeID) : null;
+            if (target == null)
+            {
+                Debug.LogError($"[DialogueManager] Выбор «{choice.choiceText}»: nextNodeID " +
+                               $"«{choice.nextNodeID}» не найден — диалог завершён. Проверь связи в DialogueData.", this);
+                EndDialogue(false);
+                return;
+            }
+        }
+
+        // Эхо героя: выбранный ответ показываем как его реплику отдельным шагом.
+        // Иначе фраза героя видна только на кнопке и исчезает в момент клика.
+        if (echoPlayerChoice && target != null && !string.IsNullOrEmpty(choice.choiceText))
+        {
+            ShowEcho(choice.choiceText, target);
+            return;
+        }
+
+        if (target != null)
+        {
+            MoveToNode(target);
         }
         else
         {
             EndDialogue();
         }
+    }
+
+    /// <summary>
+    /// Показать выбранный ответ как реплику героя. Дальше — пробел/клик
+    /// (AdvanceDialogue уведут в целевой узел), Esc сохранит прогресс на цели.
+    /// </summary>
+    void ShowEcho(string text, DialogueNode target)
+    {
+        pendingEchoTarget = target;
+        echoText = text ?? "";
+        isShowingEcho = true;
+        isShowingChoices = false;
+
+        if (typingCoroutine != null) { StopCoroutine(typingCoroutine); typingCoroutine = null; }
+        if (echoCoroutine != null) { StopCoroutine(echoCoroutine); echoCoroutine = null; }
+        if (autoAdvanceCoroutine != null) { StopCoroutine(autoAdvanceCoroutine); autoAdvanceCoroutine = null; }
+        if (cursorBlinkCoroutine != null)
+        {
+            StopCoroutine(cursorBlinkCoroutine);
+            cursorBlinkCoroutine = null;
+        }
+        if (choicesPanel != null) choicesPanel.SetActive(false);
+        HideStaticButtons();
+
+        // История (бэклог на H): реплика героя пишется как обычная строка.
+        DialogueHistory history = GetComponent<DialogueHistory>();
+        if (history == null) history = gameObject.AddComponent<DialogueHistory>();
+        history.Record(DialogueKey(currentDialogue), playerSpeakerName, echoText, ResolvePlayerColor());
+
+        if (speakerNameText != null)
+        {
+            if (!string.IsNullOrEmpty(playerSpeakerName))
+            {
+                speakerNameText.text = playerSpeakerName;
+                speakerNameText.color = ResolvePlayerColor();
+                if (!speakerNameText.gameObject.activeSelf)
+                    speakerNameText.gameObject.SetActive(true);
+            }
+            else
+            {
+                speakerNameText.gameObject.SetActive(false);
+            }
+        }
+
+        // У эха нет своего портрета: чужой прячем, чтобы не висел от прошлой реплики.
+        if (speakerPortraitImage != null)
+            speakerPortraitImage.gameObject.SetActive(false);
+
+        // Интерфейс (цвет реплики) переключаем на героя через лицевой узел:
+        // обработчики читают только имя/цвет, списки им не нужны.
+        OnNodeChanged?.Invoke(new DialogueNode
+        {
+            speakerName = playerSpeakerName,
+            speakerColor = playerSpeakerColor
+        });
+
+        float speed = defaultTextSpeed;
+        if (currentNode != null && currentNode.textSpeed > 0)
+            speed = currentNode.textSpeed;
+        cursorBaseText = echoText;
+        echoCoroutine = StartCoroutine(EchoTypeText(echoText, speed));
+    }
+
+    IEnumerator EchoTypeText(string text, float speed)
+    {
+        isTyping = true;
+        if (text == null) text = "";
+        revealedCharacters = 0;
+        bool rich = text.IndexOf('<') >= 0;
+        int soundCounter = 0;
+
+        if (dialogueText == null)
+        {
+            // Интерфейс не привязан: эхо пропускаем молча, цель ждёт продвижения.
+            isTyping = false;
+            echoCoroutine = null;
+            revealedCharacters = text.Length;
+            yield break;
+        }
+
+        if (rich)
+        {
+            dialogueText.text = text;
+            dialogueText.maxVisibleCharacters = 0;
+            int length = GetVisibleLength(text);
+            for (int i = 1; i <= length; i++)
+            {
+                revealedCharacters = i;
+                dialogueText.maxVisibleCharacters = i;
+                if (typingSound != null && ++soundCounter % Mathf.Max(1, typingSoundFrequency) == 0)
+                    PlayTypingSound();
+                yield return new WaitForSecondsRealtime(speed);
+            }
+            revealedCharacters = length;
+            dialogueText.maxVisibleCharacters = length;
+        }
+        else
+        {
+            dialogueText.text = "";
+            dialogueText.maxVisibleCharacters = int.MaxValue;
+            foreach (int cut in GetCutPoints(text))
+            {
+                revealedCharacters = cut;
+                dialogueText.text = text.Substring(0, cut);
+                if (typingSound != null && ++soundCounter % Mathf.Max(1, typingSoundFrequency) == 0)
+                    PlayTypingSound();
+                yield return new WaitForSecondsRealtime(speed);
+            }
+            revealedCharacters = text.Length;
+            dialogueText.text = text;
+            dialogueText.maxVisibleCharacters = int.MaxValue;
+        }
+
+        isTyping = false;
+        echoCoroutine = null;
+
+        if (showTypingCursor && !string.IsNullOrEmpty(cursorSymbol) && !rich)
+            cursorBlinkCoroutine = StartCoroutine(BlinkCursor());
     }
 
     public void SetBackground(Sprite bg)

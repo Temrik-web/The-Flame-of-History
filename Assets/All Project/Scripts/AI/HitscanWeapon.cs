@@ -59,6 +59,12 @@ public sealed class HitscanWeapon : MonoBehaviour
     /// <summary>Дальность стрельбы — ИИ по ней решает, стоит ли вообще открывать огонь.</summary>
     public float Range => range;
 
+    /// <summary>
+    /// Множитель урона текущего выстрела. Им управляет EnemyAI (темп схватки:
+    /// первые попадания — царапины, последние — добивающие). По умолчанию 1.
+    /// </summary>
+    public float DamageScale { get; set; } = 1f;
+
     /// <summary>Сработал выстрел. Аргумент — точка, куда пришлась пуля.</summary>
     public event System.Action<Vector3> Fired;
 
@@ -163,7 +169,7 @@ public sealed class HitscanWeapon : MonoBehaviour
 
             IDamageable damageable = hit.collider.GetComponentInParent<IDamageable>();
             if (damageable != null && damageable.IsAlive)
-                damageable.TakeDamage(new DamageInfo(damage, hit.point, direction, owner));
+                damageable.TakeDamage(new DamageInfo(damage * Mathf.Max(0.01f, DamageScale), hit.point, direction, owner));
             else
                 SpawnImpact(hit.point, hit.normal);
 

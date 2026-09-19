@@ -21,6 +21,13 @@ public sealed class CharacterHealth : MonoBehaviour, IDamageable
 
     private void Awake()  => ResetHealth();
 
+    // Реестр всех персонажей для EnemyAI: OverlapSphere не видит цели вообще
+    // без Collider или с одними триггерами, поэтому такая цель без реестра
+    // была бы невидима для врагов. Регистрация идёт здесь, а не в EnemyAI,
+    // чтобы работала для любого объекта.
+    private void OnEnable() => EnemyAI.RegisterCharacter(this);
+    private void OnDisable() => EnemyAI.UnregisterCharacter(this);
+
     public void ResetHealth()
     {
         CurrentHealth = maximumHealth;
