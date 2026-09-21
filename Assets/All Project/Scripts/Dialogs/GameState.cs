@@ -137,5 +137,33 @@ public static class GameState
 
     // Строки храним с экранированием ; = \ — ключи считаем простыми идентификаторами.
     static string Escape(string s) => (s ?? "").Replace("\\", "\\\\").Replace(";", "\\s").Replace("=", "\\e");
-    static string Unescape(string s) => (s ?? "").Replace("\\e", "=").Replace("\\s", ";").Replace("\\\\", "\\");
+
+    // Декодируем слева направо, чтобы не повреждать исходные последовательности
+    // "\\e", "\\s" и "\\\\".
+    static string Unescape(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s ?? "";
+
+        var result = new System.Text.StringBuilder(s.Length);
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (s[i] != '\\' || i + 1 >= s.Length)
+            {
+                result.Append(s[i]);
+                continue;
+            }
+
+            char escaped = s[++i];
+            switch (escaped)
+            {
+                case '\\': result.Append('\\'); break;
+                case 's': result.Append(';'); break;
+                case 'e': result.Append('='); break;
+                default:
+                    result.Append('\\').Append(escaped);
+                    break;
+            }
+        }
+        return result.ToString();
+    }
 }

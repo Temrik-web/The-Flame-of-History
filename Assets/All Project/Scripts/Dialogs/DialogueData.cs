@@ -75,7 +75,8 @@ public class DialogueData : ScriptableObject
             }
             if (string.IsNullOrEmpty(node.dialogueText) &&
                 (node.choices == null || node.choices.Count == 0) &&
-                string.IsNullOrEmpty(node.nextNodeID))
+                string.IsNullOrEmpty(node.nextNodeID) &&
+                !string.Equals(node.nodeID, "N_end", System.StringComparison.OrdinalIgnoreCase))
             {
                 Debug.LogWarning($"[DialogueData] «{dialogueName}» узел «{node.nodeID}»: пустой тупик " +
                                    "(нет текста, выборов и перехода) — диалог закончится молча.", this);

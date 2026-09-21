@@ -23,7 +23,10 @@ public class DialogueCommand
     }
 
     public CommandType type;
+    [Tooltip("Имя флага/переменной, id предмета, квеста и т. п.")]
     public string stringParam;
+    [Tooltip("Строковое значение для команды SetString.")]
+    public string stringValueParam;
     public bool boolParam;
     public int intParam;
     public float floatParam;
@@ -42,7 +45,7 @@ public class DialogueCommand
                 GameState.SetInt(stringParam, intParam);
                 break;
             case CommandType.SetString:
-                GameState.SetString(stringParam, boolParam ? "true" : "false");
+                GameState.SetString(stringParam, stringValueParam);
                 break;
             case CommandType.GiveItem:
                 GiveItemToPlayer(stringParam, Mathf.Max(1, intParam));
@@ -61,7 +64,11 @@ public class DialogueCommand
                 break;
             case CommandType.PlaySFX:
                 if (clipParam != null)
-                    AudioSource.PlayClipAtPoint(clipParam, Camera.main.transform.position);
+                {
+                    AudioListener listener = Object.FindObjectOfType<AudioListener>();
+                    Vector3 position = listener != null ? listener.transform.position : Vector3.zero;
+                    AudioSource.PlayClipAtPoint(clipParam, position);
+                }
                 break;
             case CommandType.Teleport:
                 break;
