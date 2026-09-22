@@ -5,11 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8ca32e3b-c2c8-42b6-a053-5a2e868378da" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.The Flame of History/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.The Flame of History/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/From Unity(Base)/Settings 1/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/From Unity(Base)/Settings 1/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scenes/Game.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scenes/Game.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scenes/Intro.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scenes/Intro.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scripts/Wep/Wep.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scripts/Wep/Wep.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scenes/Main menu.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scenes/Main menu.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scripts/Change scenes.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scripts/Change scenes.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -116,6 +113,7 @@
       <workItem from="1789679130178" duration="2418000" />
       <workItem from="1789683153126" duration="98000" />
       <workItem from="1789683269769" duration="4975000" />
+      <workItem from="1790033948441" duration="38000" />
     </task>
     <servers />
   </component>
