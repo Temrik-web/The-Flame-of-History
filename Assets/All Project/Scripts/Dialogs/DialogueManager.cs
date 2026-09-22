@@ -62,6 +62,19 @@ public class DialogueManager : MonoBehaviour
     public float typingSoundVolume = 0.3f;
     public int typingSoundFrequency = 3;
 
+    [Header("Длинные реплики")]
+    [Tooltip("Включено — длинные реплики печатаются чуть меньшим шрифтом, " +
+             "чтобы текст не вылезал из окна. Короткие реплики не трогаем.")]
+    public bool shrinkLongText = true;
+    [Tooltip("Длина реплики в символах, после которой шрифт уменьшается (первая ступень).")]
+    public int longTextThreshold = 200;
+    [Tooltip("Множитель шрифта для длинных реплик.")]
+    [Range(0.5f, 1f)] public float longTextScale = 0.85f;
+    [Tooltip("Длина реплики для второй ступени уменьшения.")]
+    public int veryLongThreshold = 280;
+    [Tooltip("Множитель шрифта для очень длинных реплик.")]
+    [Range(0.5f, 1f)] public float veryLongScale = 0.72f;
+
     [Header("Реплика игрока (эхо выбора)")]
     [Tooltip("Показать выбранный ответ как реплику героя (отдельный шаг с печатью), " +
              "а не перескакивать сразу на ответ NPC. Лечит «фраза героя не видна».")]
@@ -105,6 +118,10 @@ public class DialogueManager : MonoBehaviour
     private bool textHasRichTags = false;
 
     private AudioSource typingAudioSource;
+
+    // Базовый размер шрифта реплики (для shrinkLongText): запоминаем один раз,
+    // перед каждым диалогом возвращаем его, в конце диалога — тоже.
+    private float baseFontSize = -1f;
 
     /// <summary>Идёт ли посимвольная печать прямо сейчас.</summary>
     public bool IsTyping => isTyping;
@@ -433,6 +450,17 @@ public class DialogueManager : MonoBehaviour
         // Вдруг канвас появился позже / привязка не взлетела — чиним прямо сейчас
         EnsureUserInterface();
 
+        // Длинные реплики: запоминаем базовый шрифт один раз, дальше только масштабируем.
+        // Если канвас пересоздали со своим размером — подхватываем заново, когда текущий
+        // совпадает с обычным (т.е. не наш уменьшенный).
+        if (dialogueText != null && !dialogueText.enableAutoSizing)
+        {
+            if (baseFontSize <= 0f)
+                baseFontSize = dialogueText.fontSize;
+            else
+                dialogueText.fontSize = baseFontSize;
+        }
+
         if (dialogueText == null)
             Debug.LogError("[DialogueManager] Нет текста реплики (dialogueText пуст): канвас не открывается. " +
                 "Выдели свой канвас в Hierarchy и нажми Tools -> Диалоги -> Подключить мой канвас.", this);
@@ -514,6 +542,9 @@ public class DialogueManager : MonoBehaviour
             if (dialogueCanvasGroup != null)
                 dialogueCanvasGroup.alpha = 0f;
         }
+        // Возвращаем обычный шрифт: следующий диалог начнётся с базового размера.
+        if (dialogueText != null && baseFontSize > 0f && !dialogueText.enableAutoSizing)
+            dialogueText.fontSize = baseFontSize;
         if (choicesPanel != null) choicesPanel.SetActive(false);
         HideStaticButtons();
 
@@ -672,6 +703,7 @@ public class DialogueManager : MonoBehaviour
         }
 
         cursorBaseText = node.dialogueText ?? "";
+        FitTextSize(cursorBaseText);
 
         // Текста нет, а выборы есть: пустое окно не показываем, выборы — сразу.
         if (string.IsNullOrEmpty(node.dialogueText) && HasChoices(node))
@@ -1355,6 +1387,7 @@ public class DialogueManager : MonoBehaviour
         if (currentNode != null && currentNode.textSpeed > 0)
             speed = currentNode.textSpeed;
         cursorBaseText = echoText;
+        FitTextSize(echoText);
         echoCoroutine = StartCoroutine(EchoTypeText(echoText, speed));
     }
 
@@ -1413,6 +1446,22 @@ public class DialogueManager : MonoBehaviour
 
         if (showTypingCursor && !string.IsNullOrEmpty(cursorSymbol) && !rich)
             cursorBlinkCoroutine = StartCoroutine(BlinkCursor());
+    }
+
+    /// <summary>
+    /// Уменьшить шрифт под длинную реплику (две ступени), чтобы текст не вылезал
+    /// из окна. Короткие реплики — базовый размер. Если на тексте включён
+    /// TMP-автосайз — сами ничего не крутим, уважаем настройку дизайнера.
+    /// </summary>
+    void FitTextSize(string text)
+    {
+        if (!shrinkLongText || dialogueText == null || dialogueText.enableAutoSizing) return;
+        if (baseFontSize <= 0f) baseFontSize = dialogueText.fontSize;
+        int len = string.IsNullOrEmpty(text) ? 0 : text.Length;
+        float scale = 1f;
+        if (len >= veryLongThreshold) scale = veryLongScale;
+        else if (len >= longTextThreshold) scale = longTextScale;
+        dialogueText.fontSize = baseFontSize * scale;
     }
 
     public void SetBackground(Sprite bg)

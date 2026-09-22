@@ -71,8 +71,13 @@ public class DialogueCommand
                 }
                 break;
             case CommandType.Teleport:
+                TeleportPlayer(gameObjectParam);
                 break;
             case CommandType.CustomEvent:
+                // Главный «отросток» механики: узел/выбор кидает строковое событие
+                // в DialogueEventBus (например "raid_germans"), а мир реагирует:
+                // GermanRaidDirector спавнит немцев, квесты стартуют и т.д.
+                DialogueEventBus.Raise(stringParam);
                 break;
             case CommandType.StartQuest:
                 QuestSystem.StartQuest(stringParam);
@@ -151,5 +156,23 @@ public class DialogueCommand
         if (inv == null) inv = Object.FindObjectOfType<InventorySystem>();
         if (inv == null) return false;
         return inv.CountItemById(itemId) >= Mathf.Max(1, amount);
+    }
+
+    /// <summary>
+    /// Телепортировать игрока к точке (gameObjectParam). Пусто — ничего не делать.
+    /// Удобно для «отростков» после диалога: поговорил — очнулся у сарая и т.п.
+    /// </summary>
+    public static void TeleportPlayer(GameObject destination)
+    {
+        if (destination == null) return;
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null)
+        {
+            Debug.LogWarning("[DialogueCommand] Teleport: игрок с тегом Player не найден.");
+            return;
+        }
+        player.transform.SetPositionAndRotation(
+            destination.transform.position, destination.transform.rotation);
+        Debug.Log($"[DialogueCommand] Телепорт игрока к {destination.name}.");
     }
 }
