@@ -299,6 +299,23 @@ public class DialogueManager : MonoBehaviour
         PlayerPrefs.Save();
     }
 
+    /// <summary>
+    /// С какой реплики продолжать после ручного выхода (Esc):
+    /// уже показанное НЕ повторяем. Линейная реплика без выборов —
+    /// она прочитана, идём на следующий узел. Узел с выбором или эхо героя —
+    /// выбор ещё не сделан / ответ уже выбран, продолжаем с цели.
+    /// </summary>
+    static string ComputeResumeNodeID(DialogueNode echoTarget, DialogueNode lastNode)
+    {
+        if (echoTarget != null) return echoTarget.nodeID;
+        if (lastNode == null) return null;
+        bool hasChoices = lastNode.choices != null && lastNode.choices.Count > 0;
+        if (!hasChoices && !string.IsNullOrEmpty(lastNode.nextNodeID))
+            return lastNode.nextNodeID;
+        return lastNode.nodeID;
+    }
+
+
     // =====================================================================
     // Говорящие: цвет имени + портрет (или заглушка, пока нет арта).
     // =====================================================================
@@ -562,11 +579,11 @@ public class DialogueManager : MonoBehaviour
             }
             else
             {
-                // Вышли во время эха героя — продолжаем с целевого узла,
-                // а не повторяем уже выбранный ответ.
-                string progressNodeID = null;
-                if (echoTarget != null) progressNodeID = echoTarget.nodeID;
-                else if (lastNode != null) progressNodeID = lastNode.nodeID;
+                // Вышли вручную (Esc): уже показанную реплику НЕ повторяем —
+                // продолжаем со следующей непрочитанной (PlayerPrefs flame_dlg_node_*).
+                // Узел с выбором (выбор ещё не сделан) — остаёмся на нём,
+                // иначе ветка потеряется.
+                string progressNodeID = ComputeResumeNodeID(echoTarget, lastNode);
                 if (!string.IsNullOrEmpty(progressNodeID))
                     SaveDialogueProgress(finishedDialogue, progressNodeID);
             }

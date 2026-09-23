@@ -124,6 +124,12 @@ public class DialogueTrigger : MonoBehaviour
             Debug.LogWarning($"[DialogueTrigger] {name}: dialogue = null.", this);
             return;
         }
+        if (dialogue.nodes == null || dialogue.nodes.Count == 0)
+        {
+            Debug.LogError($"[DialogueTrigger] {name}: диалог «{dialogue.dialogueName}» пуст " +
+                           $"(0 узлов, ассет {dialogue.name}) — E откроет пустоту. Проверь ассет в папке Dialog.", this);
+            return;
+        }
         if (!IsAvailable()) return; // цепочка/квест не сошлись — молчим
         if (DialogueManager.Instance == null)
         {
