@@ -8,9 +8,14 @@ public class DialogueTrigger : MonoBehaviour
     private bool hasPlayed = false;
 
     [Header("Взаимодействие")]
-    public string interactMessage = "Нажмите E для разговора";
+    public string interactMessage = "Нажмите E, чтобы говорить";
     public float interactDistance = 3f;
     public KeyCode interactKey = KeyCode.E;
+    [Tooltip("Диалог только при прямой видимости (без стен между). " +
+             "Выключи, если НПС стоит за низким забором, который перекрывает луч.")]
+    public bool requireLineOfSight = true;
+    [Tooltip("Что считается стеной. Триггеры игнорятся всегда.")]
+    public LayerMask losBlockMask = ~0;
 
     [Header("Сохранение прогресса")]
     [Tooltip("Продолжать с последнего узла, если игрок вышел из диалога досрочно (Esc/Отмена).")]
@@ -33,9 +38,22 @@ public class DialogueTrigger : MonoBehaviour
     private bool hintShownByUs = false;
     private GameObject cachedPlayer;
     private DialogueManager cachedManager;
+    private float nextPlayerWarnTime = 0f;
 
     void Start()
     {
+        // На одном NPC должен рулить кто-то один: если рядом висит NpcDialogueSequence
+        // (1 NPC = все диалоги 1->2->3), триггер гасится сам — иначе оба дерутся за E
+        // и подсказку, а повторное E может перезапустить D1 вместо D2.
+        NpcDialogueSequence seq = GetComponent<NpcDialogueSequence>();
+        if (seq != null && seq.enabled)
+        {
+            Debug.LogWarning($"[DialogueTrigger] {name}: рядом NpcDialogueSequence — триггер выключен, " +
+                             "чтобы не драться за E. Удали лишний триггер.", this);
+            enabled = false;
+            return;
+        }
+
         cachedManager = DialogueManager.Instance;
         if (cachedManager == null)
             cachedManager = FindObjectOfType<DialogueManager>();
@@ -85,20 +103,46 @@ public class DialogueTrigger : MonoBehaviour
         }
 
         if (cachedPlayer == null)
-            cachedPlayer = GameObject.FindGameObjectWithTag("Player");
-        if (cachedPlayer == null) return;
+        {
+            try { cachedPlayer = GameObject.FindGameObjectWithTag("Player"); }
+            catch { cachedPlayer = null; }
+        }
+        if (cachedPlayer == null)
+        {
+            if (Time.time >= nextPlayerWarnTime)
+            {
+                nextPlayerWarnTime = Time.time + 5f;
+                Debug.LogWarning($"[DialogueTrigger] {name}: игрок с тегом «Player» не найден — E не сработает. Поставь тег на игрока.", this);
+            }
+            return;
+        }
+
+        // Открыт инвентарь — разговор не предлагаем и не стартуем (см. StartDialogue).
+        if (InventorySystem.Instance != null && InventorySystem.Instance.IsOpen)
+        {
+            if (hintShownByUs && cachedManager.interactHint != null)
+            {
+                cachedManager.interactHint.SetActive(false);
+                hintShownByUs = false;
+            }
+            return;
+        }
 
         float dist = Vector3.Distance(transform.position, cachedPlayer.transform.position);
         playerInRange = dist <= interactDistance;
+        // Стена между (игрок в доме, НПС на улице): подсказки нет, E молчит.
+        bool visible = !requireLineOfSight || DialogueManager.HasLineOfSight(
+            transform.position + Vector3.up * 1.6f, cachedPlayer, gameObject, losBlockMask);
 
         if (cachedManager.interactHint != null)
         {
-            if (playerInRange && !isDialogueActive && !cachedManager.isDialogueActive && (!playOnce || !hasPlayed))
+            if (playerInRange && visible && !isDialogueActive && !cachedManager.isDialogueActive && (!playOnce || !hasPlayed))
             {
                 cachedManager.interactHint.SetActive(true);
                 hintShownByUs = true;
                 if (cachedManager.interactHintText != null)
-                    cachedManager.interactHintText.text = interactMessage;
+                    cachedManager.interactHintText.text =
+                        interactMessage + DialogueManager.GetQuestGateHint(dialogue);
             }
             else if (hintShownByUs)
             {
@@ -107,7 +151,7 @@ public class DialogueTrigger : MonoBehaviour
             }
         }
 
-        if (playerInRange && !isDialogueActive && Input.GetKeyDown(interactKey))
+        if (playerInRange && visible && !isDialogueActive && Input.GetKeyDown(interactKey))
         {
             if (!playOnce || !hasPlayed)
             {
@@ -141,6 +185,10 @@ public class DialogueTrigger : MonoBehaviour
             Debug.LogWarning($"[DialogueTrigger] {name}: менеджер уже занят другим диалогом.", this);
             return;
         }
+        // Открытый инвентарь и диалог не совмещаем: иначе менеджер включит
+        // контроллер при закрытии диалога, а сумка ещё открыта — игрок пойдёт с инвентарём.
+        if (InventorySystem.Instance != null && InventorySystem.Instance.IsOpen)
+            return;
 
         isDialogueActive = true;
         hasPlayed = true;

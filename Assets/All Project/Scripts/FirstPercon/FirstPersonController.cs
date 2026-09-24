@@ -100,35 +100,6 @@ namespace EasyPeasyFirstPersonController
         [Header("Debug")]
         public bool currentStateDebug = true;
 
-        // ========== НОВЫЙ БЛОК: ЗВУКИ ШАГОВ ==========
-        [Header("Footstep Audio")]
-        public AudioSource footstepSource;               // Источник звука
-        public FootstepSound[] footstepSounds;           // Таблица: материал → клипы
-        public float footstepVolume = 0.5f;              // Базовая громкость
-        public float sprintPitchMultiplier = 1.2f;       // Повышение тона при беге
-        public float crouchVolumeMultiplier = 0.7f;      // Приглушение при приседе
-        public float footstepInterval = 0.4f;            // Мин. интервал между шагами
-
-        [Header("Noise (слышимость шагов для ИИ)")]
-        [Tooltip("Как далеко слышно обычный шаг, м.")]
-        public float walkNoiseRadius = 12f;
-        [Tooltip("Как далеко слышен бег/спринт, м.")]
-        public float sprintNoiseRadius = 22f;
-        [Tooltip("Как далеко слышна присевшая ходьба, м. Маленький — можно красться.")]
-        public float crouchNoiseRadius = 4f;
-
-        // Вспомогательные для определения момента шага
-        private float lastBobSign = 1f;
-        private float lastFootstepTime = 0f;
-        // ============================================
-
-        [System.Serializable]   // <-- NEW: структура для настройки в инспекторе
-        public struct FootstepSound
-        {
-            public PhysicMaterial material;   // Материал, на котором будет играть звук
-            public AudioClip[] clips;         // Массив клипов (выбирается случайный)
-        }
-
         void OnGUI()
         {
             if (currentState != null && Application.isEditor && currentStateDebug)
@@ -209,28 +180,6 @@ namespace EasyPeasyFirstPersonController
                 bobTimer = Mathf.Lerp(bobTimer, 0, Time.deltaTime * 10f);
             }
 
-            // ========== НОВЫЙ БЛОК: определение момента шага ==========
-            if (useHeadBob && isMoving)
-            {
-                float currentBobSign = Mathf.Sign(Mathf.Sin(bobTimer));
-                // Шаг происходит при переходе синуса через ноль сверху вниз
-                if (lastBobSign > 0 && currentBobSign < 0)
-                {
-                    if (Time.time - lastFootstepTime > footstepInterval)
-                    {
-                        PlayFootstep();
-                        lastFootstepTime = Time.time;
-                    }
-                }
-                lastBobSign = currentBobSign;
-            }
-            else
-            {
-                // Сбрасываем знак, когда стоим
-                lastBobSign = 1f;
-            }
-            // =========================================================
-
             // Smoothly transition the actual camera Y to include the bob offset
             float desiredY = originalCamY + targetBobOffset;
 
@@ -278,76 +227,6 @@ namespace EasyPeasyFirstPersonController
             xRotation -= verticalRecoil;
             transform.Rotate(Vector3.up * Random.Range(-horizontalRecoil, horizontalRecoil));
         }
-
-        // ========== НОВЫЙ МЕТОД: воспроизведение звука шага ==========
-        private void PlayFootstep()
-        {
-            // Шум для ИИ — всегда, даже если аудио не настроено: крадущийся
-            // (crouch) почти не слышен, обычный шаг слышно рядом, бег — далеко.
-            bool isSprinting = input != null && input.sprint &&
-                characterController.velocity.magnitude > walkSpeed * 0.8f;
-            bool isCrouching = input != null && input.crouch;
-
-            float noiseRadius = isSprinting ? sprintNoiseRadius
-                : (isCrouching ? crouchNoiseRadius : walkNoiseRadius);
-            float noiseIntensity = isSprinting ? 1f : (isCrouching ? 0.35f : 0.7f);
-
-            if (noiseRadius > 0f)
-                FlameOfHistory.AI.NoiseSystem.Emit(transform.position, noiseRadius, gameObject, noiseIntensity);
-
-            if (footstepSource == null || footstepSounds.Length == 0)
-                return;
-
-            // Бросаем луч вниз от groundCheck
-            RaycastHit hit;
-            if (Physics.Raycast(groundCheck.position, Vector3.down, out hit, 0.3f, groundMask))
-            {
-                PhysicMaterial mat = hit.collider.sharedMaterial;
-                AudioClip selectedClip = null;
-
-                // Ищем подходящий материал в нашем массиве
-                foreach (var entry in footstepSounds)
-                {
-                    if (entry.material == mat)
-                    {
-                        if (entry.clips != null && entry.clips.Length > 0)
-                            selectedClip = entry.clips[Random.Range(0, entry.clips.Length)];
-                        break;
-                    }
-                }
-
-                // Если не нашли – берём первый элемент как дефолтный
-                if (selectedClip == null && footstepSounds.Length > 0)
-                {
-                    var defaultEntry = footstepSounds[0];
-                    if (defaultEntry.clips != null && defaultEntry.clips.Length > 0)
-                        selectedClip = defaultEntry.clips[Random.Range(0, defaultEntry.clips.Length)];
-                }
-
-                if (selectedClip != null)
-                {
-                    // Настраиваем громкость и тон в зависимости от состояния
-                    // (isSprinting/isCrouching уже посчитаны выше, у шума).
-                    float volume = footstepVolume;
-                    float pitch = 1f;
-
-                    if (isSprinting)
-                    {
-                        volume *= 1.2f;
-                        pitch = sprintPitchMultiplier;
-                    }
-                    else if (isCrouching)
-                    {
-                        volume *= crouchVolumeMultiplier;
-                        pitch = 0.9f;
-                    }
-
-                    footstepSource.pitch = pitch;
-                    footstepSource.PlayOneShot(selectedClip, volume);
-                }
-            }
-        }
-        // =============================================================
 
         public bool HasCeiling()
         {

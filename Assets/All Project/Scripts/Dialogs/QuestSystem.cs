@@ -14,9 +14,10 @@ using UnityEngine;
 /// Квесты сюжета (id зафиксированы, используются в диалогах D1/D2/D4/D5/D9/D10/D11):
 ///  q_cart_key    «Ключ от дома деда» — ПЕРВЫЙ квест: игрок отбился от отряда и попал
 ///                в деревню покойного деда (Михалыча). Степан отправляет к повозке —
-///                найти ключ от дома деда. Ключ (CartKey, key_cellar) виден на повозке
-///                только пока квест активен (QuestActivator / QuestKeyPickup);
-///                подбор ключа закрывает q_cart_key (NotifyItemAdded).
+///                найти ключ от дома деда. Ключ (Rusty key, key_cellar) виден на повозке
+///                только пока квест активен (QuestKeyPickup); подбор ставит флаг
+///                has_cellar_key, а закрывает квест только ПЕРЕДАЧА ключа Степану
+///                («Ключ у меня» в D1 → N_give): там же стартует q_cellar_door.
 ///  q_forest_chest «Сундук в лесу» — проверить сундук у вишен, забрать письмо.
 ///  q_ammo        «Мне бы патронов» — Степан один раз делится диском к ППШ;
 ///  q_stepan_aid  «Чем перевязаться» — Степан делится бинтами (раз, за доверие);
@@ -150,17 +151,17 @@ public static class QuestSystem
 
     /// <summary>
     /// Вызывается из InventorySystem.AddItem. Реакции на подбор без правок сцены:
-    /// ключ подвала закрывает q_cart_key и открывает q_cellar_door;
-    /// письмо из лесного сундука закрывает q_forest_chest.
+    /// ключ подвала взводит флаг has_cellar_key, письмо из лесного сундука
+    /// закрывает q_forest_chest. ВАЖНО: подбор ключа НЕ закрывает q_cart_key —
+    /// квест закрывается только передачей ключа Степану («Ключ у меня» в D1),
+    /// там же стартует q_cellar_door.
     /// </summary>
     public static void NotifyItemAdded(string itemId)
     {
         if (string.IsNullOrEmpty(itemId)) return;
         if (itemId == "key_cellar" && IsActive("q_cart_key"))
         {
-            CompleteQuest("q_cart_key");
             GameState.SetFlag("has_cellar_key", true);
-            StartQuest("q_cellar_door");
         }
         if (itemId == "letter_old" && IsActive("q_forest_chest"))
         {

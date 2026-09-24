@@ -28,9 +28,14 @@ public class NpcDialogueSequence : MonoBehaviour
     public List<DialogueData> dialogues = new List<DialogueData>();
 
     [Header("Взаимодействие")]
-    public string interactMessage = "Нажмите E для разговора";
+    public string interactMessage = "Нажмите E, чтобы говорить";
     public float interactDistance = 3f;
     public KeyCode interactKey = KeyCode.E;
+    [Tooltip("Диалог только при прямой видимости (без стен между). " +
+             "Выключи, если НПС стоит за низким забором, который перекрывает луч.")]
+    public bool requireLineOfSight = true;
+    [Tooltip("Что считается стеной. Триггеры игнорятся всегда.")]
+    public LayerMask losBlockMask = ~0;
 
     [Header("Поведение")]
     [Tooltip("Продолжать диалог с сохранённого узла, если вышли досрочно (Esc).")]
@@ -40,8 +45,10 @@ public class NpcDialogueSequence : MonoBehaviour
     [Tooltip("Показывать в подсказке номер беседы: «Поговорить (2/8)».")]
     public bool showCounterInHint = true;
     [Tooltip("Сразу запускать следующий диалог цепочки, когда предыдущий " +
-             "пройден до конца. Вышел по Esc — не запускаем, висит «продолжить».")]
-    public bool autoStartNext = true;
+             "пройден до конца. Выключено по умолчанию: по задаче «1 закрылся — " +
+             "потом МОЖНО открыть 2,3,4» каждый следующий открывается по E. " +
+             "Включи, если хочешь автопродолжение без нажатия. Вышел по Esc — не запускаем, висит «продолжить».")]
+    public bool autoStartNext = false;
     [Tooltip("Пауза перед автозапуском следующего (сек, реального времени).")]
     public float autoStartDelay = 0.6f;
 
@@ -49,6 +56,24 @@ public class NpcDialogueSequence : MonoBehaviour
     DialogueManager cachedManager;
     bool hintShownByUs;
     DialogueData lastStarted;
+    float nextPlayerWarnTime = 0f;
+    float nextEmptyWarnTime = 0f;
+
+    void Awake()
+    {
+        // Страховка от драки за E: глушим чужие DialogueTrigger на этом же NPC.
+        // (В редакторе это делает «Создать NPC-куб», здесь — защита от ручной настройки.)
+        foreach (DialogueTrigger t in GetComponents<DialogueTrigger>())
+        {
+            if (t != null && t.enabled)
+            {
+                t.enabled = false;
+                Debug.LogWarning($"[NpcSequence] {name}: выключил DialogueTrigger " +
+                                 $"«{(t.dialogue != null ? t.dialogue.name : "null")}» на том же объекте — " +
+                                 "цепочкой рулит NpcDialogueSequence.", this);
+            }
+        }
+    }
 
     void OnEnable()
     {
@@ -141,11 +166,29 @@ public class NpcDialogueSequence : MonoBehaviour
         }
 
         if (cachedPlayer == null)
-            cachedPlayer = GameObject.FindGameObjectWithTag("Player");
-        if (cachedPlayer == null) return;
+        {
+            try { cachedPlayer = GameObject.FindGameObjectWithTag("Player"); }
+            catch { cachedPlayer = null; }
+        }
+        if (cachedPlayer == null)
+        {
+            if (Time.time >= nextPlayerWarnTime)
+            {
+                nextPlayerWarnTime = Time.time + 5f;
+                Debug.LogWarning($"[NpcSequence] {name}: игрок с тегом «Player» не найден — E не сработает. Поставь тег на игрока.", this);
+            }
+            return;
+        }
 
         // Менеджер занят чужим диалогом — прячем свою подсказку и ждём.
         if (cachedManager.isDialogueActive)
+        {
+            HideHint();
+            return;
+        }
+
+        // Открыт инвентарь — разговор не предлагаем и не стартуем.
+        if (InventorySystem.Instance != null && InventorySystem.Instance.IsOpen)
         {
             HideHint();
             return;
@@ -171,10 +214,13 @@ public class NpcDialogueSequence : MonoBehaviour
 
         float dist = Vector3.Distance(transform.position, cachedPlayer.transform.position);
         bool inRange = dist <= interactDistance;
+        // Стена между (игрок в доме, НПС на улице): подсказки нет, E молчит.
+        bool visible = !requireLineOfSight || DialogueManager.HasLineOfSight(
+            transform.position + Vector3.up * 1.6f, cachedPlayer, gameObject, losBlockMask);
 
         if (cachedManager.interactHint != null)
         {
-            if (inRange)
+            if (inRange && visible)
             {
                 string msg = interactMessage;
                 if (showCounterInHint && dialogues != null && dialogues.Count > 1)
@@ -187,6 +233,8 @@ public class NpcDialogueSequence : MonoBehaviour
                 // а не начнём сначала (прогресс лежит в flame_dlg_node_*).
                 if (resumeFromSave && !string.IsNullOrEmpty(DialogueManager.GetSavedNodeID(current)))
                     msg += " — продолжить";
+                // Квест-гейт (D1 + ключ): сразу видно, почему цепочка стоит.
+                msg += DialogueManager.GetQuestGateHint(current);
                 cachedManager.interactHint.SetActive(true);
                 hintShownByUs = true;
                 if (cachedManager.interactHintText != null)
@@ -198,7 +246,7 @@ public class NpcDialogueSequence : MonoBehaviour
             }
         }
 
-        if (inRange && Input.GetKeyDown(interactKey))
+        if (inRange && visible && Input.GetKeyDown(interactKey))
             StartCurrentDialogue(current);
     }
 
@@ -207,6 +255,27 @@ public class NpcDialogueSequence : MonoBehaviour
         if (dialogue == null) return;
         if (DialogueManager.Instance == null) return;
         if (DialogueManager.Instance.isDialogueActive) return;
+        // Открытый инвентарь и диалог не совмещаем (см. DialogueTrigger).
+        if (InventorySystem.Instance != null && InventorySystem.Instance.IsOpen)
+            return;
+
+        // Пустой ассет в рантайме (рассинхрон импорта — лечится
+        // «Переимпортировать диалоги»): не стартуем, иначе менеджер мгновенно
+        // закроет диалог без отметки и E будет молотить в пустоту.
+        if (dialogue.nodes == null || dialogue.nodes.Count == 0)
+        {
+            if (Time.time >= nextEmptyWarnTime)
+            {
+                nextEmptyWarnTime = Time.time + 5f;
+                string state = dialogue.nodes == null
+                    ? "null (импорт сломан)"
+                    : "пуст (0)";
+                Debug.LogError($"[NpcSequence] {name}: «{dialogue.name}» — nodes {state} в рантайме! " +
+                               "Сверься с «Проверить связки» -> [УЗЛЫ]. Если в редакторе узлы есть — " +
+                               "Tools -> Диалоги -> Переимпортировать диалоги.", this);
+            }
+            return;
+        }
 
         string resumeNode = "";
         if (resumeFromSave)
@@ -222,6 +291,10 @@ public class NpcDialogueSequence : MonoBehaviour
         // Триггер не передаём (null): EndDialogue переживёт null-триггер,
         // а done-флаг менеджер выставит сам. Цепочка движется по done-флагам.
         DialogueManager.Instance.StartDialogue(dialogue, null, resumeNode);
+        // Старт мог не взлететь (менеджер заняли в тот же кадр) — тогда не висим
+        // в lastStarted, иначе чужой OnDialogueEnded притянет нас за собой.
+        if (!DialogueManager.Instance.isDialogueActive)
+            lastStarted = null;
     }
 
     /// <summary>
@@ -234,6 +307,13 @@ public class NpcDialogueSequence : MonoBehaviour
         if (lastStarted == null) return;
         DialogueData finished = lastStarted;
         lastStarted = null;
+        // Чужой диалог закрылся (в сцене 2 цепочки) — не наш, игнорируем.
+        DialogueManager m = cachedManager != null ? cachedManager : DialogueManager.Instance;
+        if (m != null && m.LastFinishedDialogue != null && m.LastFinishedDialogue != finished)
+            return;
+        // Esc/Отмена — не тянем дальше, в подсказке будет «продолжить тот же».
+        if (m != null && !m.LastFinishedCompleted && !DialogueManager.IsDialogueDone(finished))
+            return;
         if (!DialogueManager.IsDialogueDone(finished)) return;
         if (!autoStartNext) return;
         if (CurrentDialogue() == null) return;

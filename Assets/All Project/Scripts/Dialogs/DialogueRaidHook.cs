@@ -5,8 +5,9 @@ using UnityEngine;
 /// «поговорил 2 диалогом — идёт событие», позже — спавн немцев.
 ///
 /// Как вешать:
-///  1. Положи компонент на тот же объект, где DialogueTrigger (например, на Степана
-///     или Василия), укажи тот же DialogueData в поле dialogue;
+///  1. Положи компонент на тот же объект, где NpcDialogueSequence или DialogueTrigger
+///     (например, на Степана), укажи тот же DialogueData в поле dialogue
+///     (пусто — считаем любой СВОЙ диалог этого объекта, чужие НПС игнорируем);
 ///  2. talksBeforeEvent = 2 — на второй завершённый разговор кидаем eventId;
 ///  3. eventId = "raid_germans" — GermanRaidDirector его уже слушает.
 ///
@@ -75,13 +76,43 @@ public class DialogueRaidHook : MonoBehaviour
 
     void OnAnyDialogueEnded()
     {
-        // Какой диалог только что закрыли — спрашиваем у триггера рядом.
-        // Триггер уже сбросил свой флаг, поэтому сверяемся мягко:
-        // если dialogue задан — считаем только его (по имени объекта-триггера),
-        // иначе — любой диалог, начатый с этого объекта.
-        DialogueTrigger trigger = GetComponent<DialogueTrigger>();
-        if (dialogue != null && trigger != null && trigger.dialogue != dialogue)
+        DialogueManager m = DialogueManager.Instance;
+        // Считаем только ЗАВЕРШЁННЫЕ беседы: выход по Esc (completed=false)
+        // — не беседа, счётчик не крутим, событие не кидаем.
+        if (m != null && !m.LastFinishedCompleted)
             return;
+        DialogueData finished = m != null ? m.LastFinishedDialogue : null;
+
+        // Фильтр по диалогу: задан конкретный — считаем только его.
+        if (dialogue != null && finished != null && finished != dialogue)
+            return;
+
+        // Без фильтра: считаем только «свои» — диалог триггера или цепочки
+        // на этом же объекте. Иначе хук на Степане накрутится от Василия.
+        if (dialogue == null && finished != null)
+        {
+            DialogueTrigger trigger = GetComponent<DialogueTrigger>();
+            NpcDialogueSequence seq = GetComponent<NpcDialogueSequence>();
+            bool ours = false;
+            if (trigger != null && trigger.dialogue != null && trigger.dialogue == finished)
+                ours = true;
+            if (seq != null && seq.dialogues != null && seq.dialogues.Contains(finished))
+                ours = true;
+            // Если на объекте нет ни триггера, ни цепочки — старый режим:
+            // считаем любой (поле dialogue пусто, висит отдельно).
+            if ((trigger == null || trigger.dialogue == null) && seq == null)
+                ours = true;
+            if (!ours)
+                return;
+        }
+        // Фолбэк для старого режима (менеджер ещё не пишет LastFinished,
+        // например сторонний вызов): сверяемся с триггером рядом.
+        if (finished == null)
+        {
+            DialogueTrigger trigger = GetComponent<DialogueTrigger>();
+            if (dialogue != null && trigger != null && trigger.dialogue != dialogue)
+                return;
+        }
 
         string countKey = CountPrefix + KeyBase;
         string firedKey = FiredPrefix + KeyBase;

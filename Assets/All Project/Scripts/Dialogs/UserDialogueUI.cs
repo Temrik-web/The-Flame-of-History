@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,15 +13,16 @@ using UnityEditor;
 /// Как пользоваться:
 ///  1. Выдели свой канвас в Hierarchy.
 ///  2. Меню Tools -> Диалоги -> Подключить мой канвас (или добавь компонент вручную).
-///  3. Проверь в инспекторе, что всё нашлось само: Speeker, Top, TopImage,
-///     Button1..3, тексты 1..3, окно. Пустые поля можно перетащить руками.
+///  3. Проверь в инспекторе, что всё нашлось само: Speeker, SpeekerName, Top, TopImage,
+///     Button1..6, тексты 1..6, окно. Пустые поля можно перетащить руками.
 ///
 /// Связь нод с интерфейсом (канвас Dialogs):
-///  - Top <- тема диалога (краткое заглавие, одно на весь диалог; обычный Text);
+///  - Top <- тема диалога БЕЗ префикса («Диалог 1 — Знакомство» -> «Знакомство»);
 ///  - Speeker <- реплика говорящего (печатается по буквам, цвет — цвет персонажа; клик = дальше);
+///  - SpeekerName <- имя говорящего (Степан/Алесь/Вы; нет объекта — имя в начале реплики);
 ///  - TopImage <- статичное фото дизайна (не перезаписывается);
 ///  - Окно <- Backg (прячется/показывается целиком);
-///  - Button1..3 <- варианты ответа ноды (подписи 1..3 внутри, лишние прячутся сами).
+///  - Button1..6 <- варианты ответа ноды (подписи 1..6 внутри, лишние прячутся сами).
 ///
 /// Стили кнопок: обычная — UI_2, наведение — UI_3, нажатие — UI_4, недоступна — UI_5.
 /// Спрайты забираются из объектов-сэмплов сцены (SpriteRenderer), сами сэмплы прячутся.
@@ -43,6 +45,9 @@ public class UserDialogueUI : MonoBehaviour
     public Text topicTextLegacy;
     [Tooltip("Speeker — реплика говорящего. Цвет текста = цвет персонажа.")]
     public TextMeshProUGUI replicaText;
+    [Tooltip("SpeekerName — имя говорящего (показывает менеджер: Степан/Алесь/Вы). " +
+             "Если пусто — найдётся само; нет такого объекта — имя допишется в текст реплики.")]
+    public TextMeshProUGUI speakerNameText;
     [Tooltip("TopImage — часть дизайна (статичное фото). Не перезаписывается репликами.")]
     public Image portraitImage;
     [Tooltip("Включено — TopImage не трогаем (менеджеру портрет не отдаём, спрайт статичен).")]
@@ -234,14 +239,26 @@ public class UserDialogueUI : MonoBehaviour
     void HandleDialogueStarted()
     {
         WireToManager();
-        // Тема — название диалога (одно на весь разговор)
+        // Тема — название диалога БЕЗ технического префикса («Диалог 1 — Знакомство» -> «Знакомство»)
         if (manager != null && manager.CurrentDialogue != null)
         {
             string title = manager.CurrentDialogue.dialogueName;
             if (string.IsNullOrEmpty(title)) title = manager.CurrentDialogue.name;
+            title = CleanTopicTitle(title);
             if (topicText != null) topicText.text = title;
             else if (topicTextLegacy != null) topicTextLegacy.text = title;
         }
+    }
+
+    /// <summary>
+    /// Убрать технический префикс «Диалог N —» из заголовка, оставить только тему.
+    /// Остальное (без префикса) не трогаем.
+    /// </summary>
+    static string CleanTopicTitle(string title)
+    {
+        if (string.IsNullOrEmpty(title)) return title;
+        Match m = Regex.Match(title.Trim(), @"^Диалог\s*\d+\s*[—–\-:]\s*(.+)$");
+        return m.Success ? m.Groups[1].Value : title;
     }
 
     void HandleNodeChanged(DialogueNode node)
@@ -281,8 +298,10 @@ public class UserDialogueUI : MonoBehaviour
             manager.dialogueCanvasGroup = group;
         }
 
-        manager.speakerNameText = null; // отдельного имени нет: говорящий виден по цвету реплики
+        manager.speakerNameText = speakerNameText; // SpeekerName (может быть null)
         manager.dialogueText = replicaText;
+        // Отдельного поля имени нет — менеджер допишет «Имя: » в начало реплики сам.
+        manager.prefixSpeakerNameInText = true;
         // TopImage — статичное фото дизайна: спрайт репликами не перезаписываем
         manager.speakerPortraitImage = keepPortraitStatic ? null : portraitImage;
 
@@ -309,7 +328,7 @@ public class UserDialogueUI : MonoBehaviour
     }
 
     // =====================================================================
-    // Автопоиск по именам: Speeker, Top, TopImage, Button1..3, UI2, UI3
+    // Автопоиск по именам: Speeker, Top, TopImage, Button1..6, UI2, UI3
     // =====================================================================
     private Transform searchRoot;
 
@@ -326,13 +345,17 @@ public class UserDialogueUI : MonoBehaviour
         if (replicaText == null)
             replicaText = FindPieceTMP(scope, new[] { "Speeker", "Speaker" },
                 "Speeker", "Speaker", "Replica", "DialogText", "Text");
+        if (speakerNameText == null)
+            speakerNameText = FindPieceTMP(scope, new[] { "SpeekerName", "SpeakerName" },
+                "SpeekerName", "SpeakerName", "SpeakerLabel");
         if (portraitImage == null)
             portraitImage = FindPieceImage(scope, new[] { "TopImage" }, "TopImage", "Portrait", "Avatar");
 
         if (choiceButtons == null || choiceButtons.Length == 0)
         {
             var found = new System.Collections.Generic.List<Button>();
-            for (int i = 1; i <= 3; i++)
+            // До 6 кнопок: в D2 четыре варианта, лишние прячутся сами.
+            for (int i = 1; i <= 6; i++)
             {
                 GameObject go = FindPieceGO(scope, new[] { "Button" + i },
                     "Button" + i, "Btn" + i, "Choice" + i, "Option" + i);
@@ -348,8 +371,8 @@ public class UserDialogueUI : MonoBehaviour
             if (found.Count > 0) choiceButtons = found.ToArray();
         }
 
-        // Подписи 1..3 должны быть TextMeshPro (иначе текст вариантов не встанет).
-        // Для канваса Dialogs подписи лежат в детях Button1..3 с именами "1","2","3".
+        // Подписи 1..6 должны быть TextMeshPro (иначе текст вариантов не встанет).
+        // Для канваса Dialogs подписи лежат в детях Button1..6 с именами "1".."6".
         if (choiceButtons != null)
         {
             var labels = new System.Collections.Generic.List<TextMeshProUGUI>();
@@ -398,6 +421,21 @@ public class UserDialogueUI : MonoBehaviour
             dialogueWindow = backg != null ? backg : (canvas != null ? canvas.gameObject : gameObject);
         }
 
+        // Подсказка «Нажмите E, чтобы говорить» (InteractHint/HintText).
+        // Без неё игрок не знает, что рядом можно говорить.
+        if (interactHint == null)
+        {
+            GameObject hintGO = FindPieceGO(scope, new[] { "InteractHint", "Hint", "HintText" },
+                "InteractHint", "Hint", "HintText", "PressE", "EPrompt");
+            if (hintGO != null) interactHint = hintGO;
+        }
+        if (interactHintText == null && interactHint != null)
+            interactHintText = interactHint.GetComponentInChildren<TextMeshProUGUI>(true);
+        // До первого диалога подсказка прячется (иначе висит с запуска сцены).
+        if (interactHint != null && manager != null && !manager.isDialogueActive &&
+            interactHint.activeSelf)
+            interactHint.SetActive(false);
+
         // Стили кнопок: UI_2 обычная, UI_3 наведение, UI_4 нажатие.
         // Объекты-сэмплы в сцене — это SpriteRenderer (не UI Image),
         // имена могут быть UI_2 / UI2 / UI 2 — ищем по нормализованному имени.
@@ -410,9 +448,11 @@ public class UserDialogueUI : MonoBehaviour
         Report("Top (тема)", topicText != null ? topicText.gameObject :
             (topicTextLegacy != null ? topicTextLegacy.gameObject : null), typeof(TextMeshProUGUI));
         Report("Speeker (реплика)", replicaText != null ? replicaText.gameObject : null, typeof(TextMeshProUGUI));
+        Report("SpeekerName (имя)", speakerNameText != null ? speakerNameText.gameObject : null, typeof(TextMeshProUGUI));
         Report("TopImage", portraitImage != null ? portraitImage.gameObject : null, typeof(Image));
         for (int i = 0; i < (choiceButtons != null ? choiceButtons.Length : 0); i++)
             Report("Button" + (i + 1), choiceButtons[i] != null ? choiceButtons[i].gameObject : null, typeof(Button));
+        Report("InteractHint", interactHint, typeof(GameObject));
     }
 
     void Report(string name, GameObject go, System.Type need)
@@ -670,7 +710,7 @@ public class UserDialogueUI : MonoBehaviour
 
         Selection.activeGameObject = selected;
         EditorGUIUtility.PingObject(selected);
-        Debug.Log("[UserDialogueUI] Компонент добавлен. Нажми Play — объекты Speeker/Top/TopImage/Button1..3 найдутся сами, недостающие перетащи в инспекторе.");
+        Debug.Log("[UserDialogueUI] Компонент добавлен. Нажми Play — объекты Speeker/Top/TopImage/Button1..6 найдутся сами, недостающие перетащи в инспекторе.");
     }
 #endif
 }

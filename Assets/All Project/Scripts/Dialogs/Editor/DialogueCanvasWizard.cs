@@ -88,184 +88,33 @@ public static class DialogueCanvasWizard
                   "варианты справа, «Отмена» — выйти. Сохрани сцену (Ctrl+S).");
     }
 
-    // =====================================================================
-    // Тестовая сцена
-    // =====================================================================
-    [MenuItem("Tools/Диалоги/Создать тест-куб (E)", false, 10)]
-    public static void CreateTestCube()
-    {
-        // Без канваса и менеджера диалог некому показывать — собираем их тоже
-        if (GameObject.Find("DialogueCanvas") == null)
-            CreateCanvas();
-
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player == null)
-        {
-            var fps = Object.FindObjectOfType<EasyPeasyFirstPersonController.FirstPersonController>();
-            if (fps != null) player = fps.gameObject;
-        }
-        if (player == null)
-        {
-            EditorUtility.DisplayDialog("Диалоги",
-                "Игрок не найден (нужен объект с тегом «Player» или FirstPersonController).",
-                "Ок");
-            return;
-        }
-
-        DialogueData data = GetOrCreateTestDialogue();
-
-        GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        cube.name = "TestDialogueNPC";
-        Undo.RegisterCreatedObjectUndo(cube, "Create test dialogue cube");
-
-        // Ставим куб перед игроком, слегка выше пола
-        Vector3 spawn = player.transform.position + player.transform.forward * 2.5f;
-        spawn.y += 1f;
-        cube.transform.position = spawn;
-        cube.transform.localScale = Vector3.one * 0.8f;
-
-        Renderer ren = cube.GetComponent<Renderer>();
-        if (ren != null)
-            ren.sharedMaterial = GetTestMaterial();
-
-        DialogueTrigger trigger = cube.GetComponent<DialogueTrigger>();
-        if (trigger == null) trigger = cube.AddComponent<DialogueTrigger>();
-        trigger.dialogue = data;
-        trigger.interactDistance = 3f;
-        trigger.interactKey = KeyCode.E;
-        trigger.interactMessage = "Нажмите E для разговора";
-
-        EditorUtility.SetDirty(cube);
-        Selection.activeGameObject = cube;
-        EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
-
-        Debug.Log("[DialogueCanvas] Тест-куб готов: подойди к кубу и нажми E. " +
-                  "Запусти игру (Ctrl+P).");
-    }
+    // Кубы и цепочки собираются через Tools/Диалоги/«Создать NPC-куб (все диалоги)»
+    // (один NPC = вся цепочка на NpcDialogueSequence).
 
     // =====================================================================
-    // Кубы под все диалоги из Assets/All Project/Dialog (D1–D8)
+    // Починка шрифта StalinistOne (нет "_" — сыплет "Underline is not available")
     // =====================================================================
-    [MenuItem("Tools/Диалоги/Создать кубы с диалогами (D1-D8)", false, 11)]
-    public static void CreateDialogueCubes()
+    [MenuItem("Tools/Диалоги/Починить шрифт: скопировать символы", false, 1)]
+    public static void CopyFontRepairChars()
     {
-        // Без канваса и менеджера диалог некому показывать — собираем их тоже
-        if (GameObject.Find("DialogueCanvas") == null)
-            CreateCanvas();
+        // В буфер: весь ASCII (пробел, цифры, "_" и т.д.) + вся кириллица.
+        // StalinistOne SDF собран только из 94 кириллических букв — отсюда спам
+        // варнингов на каждом TMP-тексте с этим шрифтом.
+        var sb = new System.Text.StringBuilder();
+        for (int c = 0x20; c <= 0x7E; c++) sb.Append((char)c);
+        for (int c = 0x400; c <= 0x4FF; c++) sb.Append((char)c);
+        EditorGUIUtility.systemCopyBuffer = sb.ToString();
 
-        string dialogFolder = "Assets/All Project/Dialog";
-        string[] guids = AssetDatabase.FindAssets("t:DialogueData", new[] { dialogFolder });
-        if (guids.Length == 0)
-        {
-            EditorUtility.DisplayDialog("Диалоги",
-                "Диалоги не найдены в папке " + dialogFolder, "Ок");
-            return;
-        }
-
-        GameObject root = new GameObject("DialogueCubes");
-        Undo.RegisterCreatedObjectUndo(root, "Create dialogue cubes");
-
-        int index = 0;
-        foreach (string guid in guids)
-        {
-            string path = AssetDatabase.GUIDToAssetPath(guid);
-            DialogueData data = AssetDatabase.LoadAssetAtPath<DialogueData>(path);
-            if (data == null) continue;
-            if (data.name == "OldManDialogue") continue; // старый тест не трогаем
-
-            string cubeName = string.IsNullOrEmpty(data.dialogueName) ? data.name : data.dialogueName;
-
-            GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            cube.name = cubeName;
-            cube.transform.SetParent(root.transform);
-            cube.transform.position = new Vector3(index * 3f, 1f, 0f);
-            cube.transform.localScale = Vector3.one * 0.8f;
-
-            DialogueTrigger trigger = cube.GetComponent<DialogueTrigger>();
-            if (trigger == null) trigger = cube.AddComponent<DialogueTrigger>();
-            trigger.dialogue = data;
-            trigger.interactDistance = 3f;
-            trigger.interactKey = KeyCode.E;
-            trigger.interactMessage = "Нажмите E для разговора";
-
-            index++;
-        }
-
-        Selection.activeGameObject = root;
-        EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
-
-        Debug.Log("[DialogueCanvas] Создано кубов с диалогами: " + index +
-                  ". Подойди к кубу и нажми E (Ctrl+P).");
-    }
-
-    static DialogueData GetOrCreateTestDialogue()
-    {
-        string path = "Assets/GameData/UI/DialogueSprites/TestDialogue.asset";
-        DialogueData data = AssetDatabase.LoadAssetAtPath<DialogueData>(path);
-        if (data != null) return data;
-
-        data = ScriptableObject.CreateInstance<DialogueData>();
-        data.dialogueName = "TestDialogue";
-
-        DialogueNode hello = new DialogueNode();
-        hello.nodeID = "hello";
-        hello.speakerName = "Кубик";
-        hello.dialogueText = "Привет! Я тестовый куб. Кликни мышью или нажми пробел, " +
-                             "а потом выбери вариант ответа.";
-        hello.textSpeed = 0.03f;
-        hello.nextNodeID = "question";
-
-        DialogueNode question = new DialogueNode();
-        question.nodeID = "question";
-        question.speakerName = "Кубик";
-        question.dialogueText = "Ну что, как тебе кнопочный диалог?";
-        question.textSpeed = 0.03f;
-
-        DialogueChoice good = new DialogueChoice();
-        good.choiceText = "Отлично";
-        good.nextNodeID = "bye";
-        good.endDialogue = false;
-
-        DialogueChoice meh = new DialogueChoice();
-        meh.choiceText = "Пойдёт";
-        meh.nextNodeID = "bye";
-        meh.endDialogue = false;
-
-        DialogueChoice skip = new DialogueChoice();
-        skip.choiceText = "Пока, куб";
-        skip.endDialogue = true;
-
-        question.choices.Add(good);
-        question.choices.Add(meh);
-        question.choices.Add(skip);
-
-        DialogueNode bye = new DialogueNode();
-        bye.nodeID = "bye";
-        bye.speakerName = "Кубик";
-        bye.dialogueText = "Спасибо! Вариант ответа работает.";
-        bye.textSpeed = 0.03f;
-
-        data.nodes.Add(hello);
-        data.nodes.Add(question);
-        data.nodes.Add(bye);
-
-        AssetDatabase.CreateAsset(data, path);
-        AssetDatabase.ImportAsset(path);
-        return data;
-    }
-
-    static Material GetTestMaterial()
-    {
-        string path = "Assets/GameData/UI/DialogueSprites/TestCubeMat.mat";
-        Material mat = AssetDatabase.LoadAssetAtPath<Material>(path);
-        if (mat != null) return mat;
-
-        Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
-        mat = new Material(shader);
-        mat.color = new Color(0.95f, 0.45f, 0.12f);
-        AssetDatabase.CreateAsset(mat, path);
-        return mat;
+        EditorUtility.DisplayDialog("Шрифт",
+            "Символы скопированы в буфер обмена.\n\n" +
+            "Дальше руками (1 минута):\n" +
+            "1. Window -> TextMeshPro -> Font Asset Creator.\n" +
+            "2. Source Font File: StalinistOne-Regular.ttf.\n" +
+            "3. Character Set: Custom Characters, вставь из буфера (Ctrl+V).\n" +
+            "4. Atlas 2048x2048, Render Mode SDFAA, Generate Font Atlas.\n" +
+            "5. Save — перезапиши ТОТ ЖЕ файл StalinistOne-Regular SDF " +
+            "(то же имя и папка, чтобы не слетели ссылки).\n\n" +
+            "Варнинги Underline пропадут.", "Ок");
     }
 
     /// <summary>Если в сцене нет DialogueManager — создаём его.</summary>

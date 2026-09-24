@@ -17,6 +17,14 @@ public class DoorController : MonoBehaviour
     public bool isLocked = false;
     [Tooltip("Id ключа из инвентаря (ItemData.keyId, например cellar). Пусто — ключ не нужен.")]
     public string requiredKeyId = "";
+    [Tooltip("Что писать при наведении на ЗАКРЫТУЮ дверь вместо «Нажмите E».")]
+    public string lockedHintMessage = "Дверь закрыта — найдите ключ";
+    [Tooltip("Квест, при котором замок снимается сам (например q_cellar_door " +
+             "стартует в момент подбора ключа — дверь деда откроется). Пусто — только ключом.")]
+    public string autoUnlockQuestId = "";
+    [Tooltip("При каком статусе квеста снимать замок: 0 — взят (активен или выполнен), " +
+             "1 — активен, 2 — выполнен, 3 — провален.")]
+    public int autoUnlockQuestState = 0;
     [Tooltip("Квест, который закроется при первом открытии (например q_cellar_door).")]
     public string questToCompleteOnOpen = "";
     private bool questReported = false;
@@ -67,6 +75,15 @@ public class DoorController : MonoBehaviour
 
     void Update()
     {
+        // Автоснятие замка по квесту (ключ подобрали — q_cellar_door взят):
+        // состояние, а не ввод, поэтому проверяем раньше всех early-return.
+        if (isLocked && !string.IsNullOrEmpty(autoUnlockQuestId) &&
+            DialogueManager.IsQuestStateMatch(autoUnlockQuestId, autoUnlockQuestState))
+        {
+            isLocked = false;
+            Debug.Log($"[Door] {name}: замок снят по квесту '{autoUnlockQuestId}'.", this);
+        }
+
         // Проверяем, смотрит ли игрок на дверь (рейкаст)
         isLookingAtDoor = false;
         if (Camera.main != null)
@@ -92,7 +109,10 @@ public class DoorController : MonoBehaviour
                 transform.rotation = targetRotation;
         }
 
-        // Обработка нажатия E
+        // Обработка нажатия E. Во время диалога клавиша принадлежит диалогу:
+        // иначе E, открывшее разговор с НПС, в тот же кадр дёрнуло бы и дверь.
+        if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
+            return;
         if (isLookingAtDoor && Input.GetKeyDown(KeyCode.E))
         {
             if (isAnimating) return;
@@ -204,15 +224,20 @@ public class DoorController : MonoBehaviour
             audioSource.PlayOneShot(clip);
     }
 
-    // Подсказка на экране
+    // Подсказка на экране (во время диалога прячем — E занята разговором)
     void OnGUI()
     {
+        if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
+            return;
         if (showHint && isLookingAtDoor && !isAnimating)
         {
             GUIStyle style = new GUIStyle(GUI.skin.label);
             style.fontSize = 20;
             style.alignment = TextAnchor.MiddleCenter;
-            GUI.Label(new Rect(Screen.width / 2 - 100, Screen.height / 2 + 50, 200, 30), "Нажмите E", style);
+            string text = isLocked && !string.IsNullOrEmpty(lockedHintMessage)
+                ? lockedHintMessage
+                : "Нажмите E";
+            GUI.Label(new Rect(Screen.width / 2 - 160, Screen.height / 2 + 50, 320, 30), text, style);
         }
     }
 

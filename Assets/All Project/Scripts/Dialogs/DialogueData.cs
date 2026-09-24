@@ -7,6 +7,11 @@ public class DialogueData : ScriptableObject
     public string dialogueName;
     [TextArea(3, 10)]
     public string description;
+    [Tooltip("Квест-гейт: диалог засчитывается пройденным (и цепочка идёт дальше) " +
+             "только если этот квест ВЫПОЛНЕН. Пусто — гейта нет.\n" +
+             "Пример: D1 + q_cart_key — пока ключ не подобрали, D1 не закрывается " +
+             "и D2 не предлагается, сколько бы раз его ни проходили.")]
+    public string completionQuestId = "";
     public List<DialogueNode> nodes = new List<DialogueNode>();
 
     public DialogueNode GetStartNode()

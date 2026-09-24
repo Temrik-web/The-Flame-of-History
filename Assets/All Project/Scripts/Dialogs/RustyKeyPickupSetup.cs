@@ -16,8 +16,9 @@ using UnityEngine;
 ///  3. Play — в консоли увидишь «[RustyKey] Готов: ...».
 /// Никаких правок префаба/меша не нужно, модель остаётся родной.
 ///
-/// Подбор закрывает q_cart_key сам: InventorySystem.AddItem ->
-/// QuestSystem.NotifyItemAdded (key_cellar -> Complete q_cart_key).
+/// Подбор ставит флаг has_cellar_key (InventorySystem.AddItem ->
+/// QuestSystem.NotifyItemAdded). Сам квест закрывается передачей ключа
+/// Степану («Ключ у меня» в D1 → узел N_give).
 /// </summary>
 [DisallowMultipleComponent]
 public class RustyKeyPickupSetup : MonoBehaviour
@@ -35,12 +36,18 @@ public class RustyKeyPickupSetup : MonoBehaviour
     public ItemData itemOverride;
 
     [Header("Вид в сене")]
-    [Tooltip("Ключ лежит в сене — вращение/покачивание выключаем, свет оставляем чтобы было видно.")]
+    [Tooltip("Ключ лежит в сене без спецэффектов: вращение/покачивание выключены, " +
+             "свет и подсветка модели убираются полностью в SetupNow.")]
     public bool keySpin = false;
     public bool keyBob = false;
-    public bool keyGlow = true;
     [Tooltip("Не перекрашивать ржавую модель в цвет редкости.")]
     public bool keepRustyLook = true;
+
+    [Header("Размер")]
+    [Tooltip("Во сколько раз увеличить модель ключа. Квестовый предмет должен " +
+             "торчать из сена: мелкий ключ и лучом не выцепить, и сено его перекрывает.")]
+    [Range(1f, 4f)] public float keyScale = 2f;
+    [HideInInspector] public Vector3 baseKeyScale = Vector3.zero;
 
     [Header("Дубли")]
     [Tooltip("Найденный настоящий ключ заменяет куб-заглушку CartKey: " +
@@ -49,6 +56,34 @@ public class RustyKeyPickupSetup : MonoBehaviour
     public string placeholderName = "CartKey";
 
     void Start() => SetupNow();
+
+    void OnEnable()
+    {
+        // Форвард квест-событий на гейт ключа. Нужен потому, что сам ключ
+        // обычно стартует СКРЫТЫМ: на выключенном объекте Unity не вызывает
+        // OnEnable/Start у только что добавленных компонентов — гейт на ключе
+        // никогда не подписался бы и ключ не появился бы при старте квеста.
+        // Сетап висит на активном объекте, поэтому ведёт гейт сам.
+        QuestSystem.OnQuestStarted += OnQuestChanged;
+        QuestSystem.OnQuestCompleted += OnQuestChanged;
+        QuestSystem.OnQuestFailed += OnQuestChanged;
+    }
+
+    void OnDisable()
+    {
+        QuestSystem.OnQuestStarted -= OnQuestChanged;
+        QuestSystem.OnQuestCompleted -= OnQuestChanged;
+        QuestSystem.OnQuestFailed -= OnQuestChanged;
+    }
+
+    void OnQuestChanged(string changedId)
+    {
+        if (changedId != questId) return;
+        GameObject key = FindByName(keyObjectName);
+        if (key == null) return;
+        var gate = key.GetComponent<QuestKeyPickup>();
+        if (gate != null) gate.Apply();
+    }
 
     /// <summary>Найти и настроить ключ (можно вызвать из контекстного меню).</summary>
     [ContextMenu("Настроить ржавый ключ сейчас")]
@@ -62,6 +97,12 @@ public class RustyKeyPickupSetup : MonoBehaviour
             return;
         }
 
+        // 0) Размер — ПЕРЕД коллайдером: бокс считается от мировых габаритов.
+        // Идемпотентно (повторный вызов не раздует модель дважды).
+        if (baseKeyScale == Vector3.zero)
+            baseKeyScale = key.transform.localScale;
+        key.transform.localScale = baseKeyScale * Mathf.Max(0.5f, keyScale);
+
         // 1) Коллайдер — без него InventorySystem лучом не найдёт предмет.
         Collider col = key.GetComponentInChildren<Collider>();
         if (col == null)
@@ -71,24 +112,46 @@ public class RustyKeyPickupSetup : MonoBehaviour
             box.isTrigger = true;
             if (rend != null)
             {
-                // Чуть увеличиваем, чтобы по маленькому ключу было легко попасть.
+                // С запасом: по маленькому ключу лучом сложно попасть.
                 Vector3 size = rend.bounds.size;
-                size.x = Mathf.Max(size.x * 4f, 0.4f);
-                size.y = Mathf.Max(size.y * 4f, 0.4f);
-                size.z = Mathf.Max(size.z * 4f, 0.4f);
+                size.x = Mathf.Max(size.x * 6f, 0.6f);
+                size.y = Mathf.Max(size.y * 6f, 0.6f);
+                size.z = Mathf.Max(size.z * 6f, 0.6f);
                 // BoxCollider.size в локальных единицах — делим на мировой масштаб.
                 Vector3 lossy = key.transform.lossyScale;
                 box.size = new Vector3(
-                    lossy.x > 0f ? size.x / lossy.x : 0.4f,
-                    lossy.y > 0f ? size.y / lossy.y : 0.4f,
-                    lossy.z > 0f ? size.z / lossy.z : 0.4f);
+                    lossy.x > 0f ? size.x / lossy.x : 0.6f,
+                    lossy.y > 0f ? size.y / lossy.y : 0.6f,
+                    lossy.z > 0f ? size.z / lossy.z : 0.6f);
                 box.center = key.transform.InverseTransformPoint(rend.bounds.center);
             }
             else
             {
-                box.size = Vector3.one * 0.4f;
+                box.size = Vector3.one * 0.6f;
             }
             Debug.Log($"[RustyKey] {key.name}: добавлен BoxCollider для подбора.", key);
+        }
+
+        // Дотягиваем бокс до удобного размера, даже если коллайдер уже был
+        // (модель ключа мелкая — иначе луч pickup'а пролетает мимо).
+        BoxCollider owned = key.GetComponent<BoxCollider>();
+        if (owned != null)
+        {
+            Vector3 ws = new Vector3(
+                owned.size.x * Mathf.Abs(key.transform.lossyScale.x),
+                owned.size.y * Mathf.Abs(key.transform.lossyScale.y),
+                owned.size.z * Mathf.Abs(key.transform.lossyScale.z));
+            if (ws.x < 0.6f || ws.y < 0.6f || ws.z < 0.6f)
+            {
+                Vector3 want = new Vector3(
+                    Mathf.Max(ws.x, 0.6f), Mathf.Max(ws.y, 0.6f), Mathf.Max(ws.z, 0.6f));
+                Vector3 lossy = key.transform.lossyScale;
+                owned.size = new Vector3(
+                    Mathf.Abs(lossy.x) > 0.001f ? want.x / Mathf.Abs(lossy.x) : 0.6f,
+                    Mathf.Abs(lossy.y) > 0.001f ? want.y / Mathf.Abs(lossy.y) : 0.6f,
+                    Mathf.Abs(lossy.z) > 0.001f ? want.z / Mathf.Abs(lossy.z) : 0.6f);
+                Debug.Log($"[RustyKey] {key.name}: коллайдер увеличен для удобного подбора.", key);
+            }
         }
 
         // 2) Pickup — предмет + подсказка «E — ...».
@@ -111,7 +174,17 @@ public class RustyKeyPickupSetup : MonoBehaviour
         pickup.amount = 1;
         pickup.spin = keySpin;
         pickup.bob = keyBob;
-        pickup.createGlowLight = keyGlow;
+        // Света нет вообще: ни точки-лампы, ни эмиссии при наведении.
+        // (Старые сериализованные значения createGlowLight/highlightIntensity
+        // затираем принудительно — иначе свет останется.)
+        pickup.createGlowLight = false;
+        pickup.highlightIntensity = 0f;
+        Transform oldGlow = key.transform.Find("Glow");
+        if (oldGlow != null)
+        {
+            Object.Destroy(oldGlow.gameObject);
+            Debug.Log($"[RustyKey] {key.name}: удалён старый объект свечения.", key);
+        }
         if (keepRustyLook)
             pickup.tintMaterialByRarity = false;
 
@@ -134,6 +207,28 @@ public class RustyKeyPickupSetup : MonoBehaviour
                 ph.SetActive(false);
                 Debug.Log($"[RustyKey] Заглушка '{placeholderName}' спрятана — " +
                           "теперь ключ только ржавый.", ph);
+            }
+        }
+
+        // Диагностика: ключ по квесту должен быть виден, но висит под
+        // выключенным родителем — тогда SetActive на нём не поможет.
+        if (gate != null)
+        {
+            bool shouldShow = QuestSystem.GetState(questId) == gate.visibleWhenState;
+            if (gate.invert) shouldShow = !shouldShow;
+            if (shouldShow)
+            {
+                Transform p = key.transform.parent;
+                while (p != null)
+                {
+                    if (!p.gameObject.activeSelf)
+                    {
+                        Debug.LogWarning($"[RustyKey] {key.name}: должен быть виден, но родитель " +
+                                         $"«{p.name}» выключен — ключа не будет видно!", key);
+                        break;
+                    }
+                    p = p.parent;
+                }
             }
         }
 

@@ -18,7 +18,7 @@ public class DialogueManager : MonoBehaviour
     public Transform choicesContainer;
 
     [Header("Свои кнопки (канвас пользователя)")]
-    [Tooltip("Включено — варианты показываются на готовых кнопках сцены (Button1..3), " +
+    [Tooltip("Включено — варианты показываются на готовых кнопках сцены (Button1..6), " +
              "а не создаются из шаблона.")]
     public bool useStaticChoiceButtons = false;
     [Tooltip("Кнопки вариантов в порядке Button1, Button2, Button3. Лишние прячутся сами.")]
@@ -79,10 +79,17 @@ public class DialogueManager : MonoBehaviour
     [Tooltip("Показать выбранный ответ как реплику героя (отдельный шаг с печатью), " +
              "а не перескакивать сразу на ответ NPC. Лечит «фраза героя не видна».")]
     public bool echoPlayerChoice = true;
-    [Tooltip("Имя героя для эха выбора.")]
-    public string playerSpeakerName = "Вы";
+    [Tooltip("Имя героя для эха выбора (его реплик).")]
+    public string playerSpeakerName = "Алесь";
     [Tooltip("Цвет реплики героя. Прозрачный (по умолчанию) = авто-палитра по имени.")]
     public Color playerSpeakerColor = new Color(0f, 0f, 0f, 0f);
+
+    [Header("Имя в тексте")]
+    [Tooltip("Включено — имя говорящего дописывается в начало реплики " +
+             "(«Степан: ...»). Нужно канвасам БЕЗ отдельного поля имени " +
+             "(UserDialogueUI включает сам). Если поле имени привязано — " +
+             "префикс не ставится, чтобы не двоилось.")]
+    public bool prefixSpeakerNameInText = false;
 
     private DialogueData currentDialogue;
     private DialogueNode currentNode;
@@ -103,6 +110,11 @@ public class DialogueManager : MonoBehaviour
     private DialogueNode pendingEchoTarget;
     private string echoText = "";
     private Coroutine echoCoroutine;
+
+    // Контроллеры, выключенные нами на время диалога (включаем только свои;
+    // чужое (например уже выключенное инвентарём) не трогаем).
+    private readonly System.Collections.Generic.List<MonoBehaviour> disabledControllersByUs =
+        new System.Collections.Generic.List<MonoBehaviour>();
 
     // Исходные цвета подписей кнопок — чтобы вернуть их после разблокировки.
     private readonly System.Collections.Generic.Dictionary<TextMeshProUGUI, Color> labelBaseColors =
@@ -133,6 +145,10 @@ public class DialogueManager : MonoBehaviour
     public DialogueData CurrentDialogue => currentDialogue;
     /// <summary>Показана ли эхо-реплика героя (выбранный ответ).</summary>
     public bool IsShowingEcho => isShowingEcho;
+    /// <summary>Диалог, который только что закрылся (для цепочек/хуков). Null — ни один ещё не закрывался.</summary>
+    public DialogueData LastFinishedDialogue { get; private set; }
+    /// <summary>Был ли последний закрытый диалог пройден до конца (true) или брошен по Esc (false).</summary>
+    public bool LastFinishedCompleted { get; private set; }
 
     /// <summary>Диалог начался. Для кинематографики, звука, аналитики.</summary>
     public event System.Action OnDialogueStarted;
@@ -158,6 +174,13 @@ public class DialogueManager : MonoBehaviour
         GameState.Save();
         QuestSystem.Save();
         PlayerPrefs.Save();
+    }
+
+    void OnDisable()
+    {
+        // Страховка от «повисшего» замка: менеджер умер (смена сцены) —
+        // игрок не должен остаться без оружия и движения.
+        PlayerInputLock.ReleaseAll(this);
     }
 
     // =====================================================================
@@ -270,6 +293,7 @@ public class DialogueManager : MonoBehaviour
         if (string.IsNullOrEmpty(key)) return;
         PlayerPrefs.SetString(ProgressPrefix + "node_" + key, "");
         PlayerPrefs.SetInt(ProgressPrefix + "done_" + key, 1);
+        ClearUsedChoices(dialogue);
         PlayerPrefs.Save();
     }
 
@@ -296,7 +320,64 @@ public class DialogueManager : MonoBehaviour
         if (string.IsNullOrEmpty(key)) return;
         PlayerPrefs.DeleteKey(ProgressPrefix + "node_" + key);
         PlayerPrefs.DeleteKey(ProgressPrefix + "done_" + key);
+        ClearUsedChoices(dialogue);
         PlayerPrefs.Save();
+    }
+
+    // =====================================================================
+    // Одноразовые кнопки: нажал выбор — второй раз он уже не работает.
+    // Храним "nodeID\nchoiceText" диалога (PlayerPrefs flame_dlg_used_*),
+    // показываем использованные заблокированными (UI5), а не прячем.
+    // =====================================================================
+    const string UsedPrefix = "flame_dlg_used_";
+
+    static string MakeUsedKey(string nodeID, string choiceText) =>
+        (nodeID ?? "") + "\n" + (choiceText ?? "");
+
+    /// <summary>Все использованные выборы диалога.</summary>
+    public static System.Collections.Generic.HashSet<string> GetUsedChoices(DialogueData dialogue)
+    {
+        var set = new System.Collections.Generic.HashSet<string>();
+        string key = DialogueKey(dialogue);
+        if (string.IsNullOrEmpty(key)) return set;
+        string raw = PlayerPrefs.GetString(UsedPrefix + key, "");
+        if (string.IsNullOrEmpty(raw)) return set;
+        foreach (string e in raw.Split(new[] { "\u001f" }, System.StringSplitOptions.RemoveEmptyEntries))
+            set.Add(e);
+        return set;
+    }
+
+    static void SaveUsedChoices(DialogueData dialogue,
+        System.Collections.Generic.HashSet<string> set)
+    {
+        string key = DialogueKey(dialogue);
+        if (string.IsNullOrEmpty(key)) return;
+        PlayerPrefs.SetString(UsedPrefix + key,
+            string.Join("\u001f", new System.Collections.Generic.List<string>(set).ToArray()));
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>Пометить выбор использованным (кнопка гаснет навсегда).</summary>
+    public static void MarkChoiceUsed(DialogueData dialogue, string nodeID, string choiceText)
+    {
+        if (dialogue == null) return;
+        var set = GetUsedChoices(dialogue);
+        if (set.Add(MakeUsedKey(nodeID, choiceText)))
+            SaveUsedChoices(dialogue, set);
+    }
+
+    /// <summary>Нажимался ли уже этот выбор.</summary>
+    public static bool IsChoiceUsed(DialogueData dialogue, string nodeID, string choiceText)
+    {
+        if (dialogue == null) return false;
+        return GetUsedChoices(dialogue).Contains(MakeUsedKey(nodeID, choiceText));
+    }
+
+    static void ClearUsedChoices(DialogueData dialogue)
+    {
+        string key = DialogueKey(dialogue);
+        if (string.IsNullOrEmpty(key)) return;
+        PlayerPrefs.DeleteKey(UsedPrefix + key);
     }
 
     /// <summary>
@@ -345,6 +426,76 @@ public class DialogueManager : MonoBehaviour
         int s = QuestSystem.GetState(questId);
         if (requiredState == 0) return s == QuestSystem.StateActive || s == QuestSystem.StateDone;
         return s == requiredState;
+    }
+
+    /// <summary>
+    /// Держит ли квест-гейт диалог: задан completionQuestId, а квест не выполнен.
+    /// Пока держит — диалог не засчитывается и цепочка дальше не идёт.
+    /// </summary>
+    public static bool IsQuestGateBlocking(DialogueData dialogue)
+    {
+        if (dialogue == null || string.IsNullOrEmpty(dialogue.completionQuestId)) return false;
+        return !QuestSystem.IsDone(dialogue.completionQuestId);
+    }
+
+    /// <summary>Суффикс подсказки E, если диалог упёрт в квест-гейт.</summary>
+    public static string GetQuestGateHint(DialogueData dialogue)
+    {
+        if (!IsQuestGateBlocking(dialogue)) return "";
+        return " — нужен: " + QuestSystem.GetTitle(dialogue.completionQuestId);
+    }
+
+    /// <summary>
+    /// Виден ли игрок с точки (нет ли стен между): рейкаст с высоты глаз.
+    /// Триггеры преградой не считаются, себя и игрока пропускаем.
+    /// Нужен, чтобы диалог не открывался из дома сквозь стену:
+    /// дистанция в норме, а прямой видимости нет.
+    /// </summary>
+    public static bool HasLineOfSight(Vector3 from, GameObject playerGO,
+        GameObject selfGO, LayerMask blockMask)
+    {
+        if (playerGO == null) return false;
+        Vector3 target = playerGO.transform.position + Vector3.up * 1.3f;
+        Vector3 dir = target - from;
+        float dist = dir.magnitude;
+        if (dist <= 0.05f) return true;
+        dir /= dist;
+
+        RaycastHit[] hits = Physics.RaycastAll(
+            new Ray(from, dir), dist, blockMask.value, QueryTriggerInteraction.Ignore);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        foreach (var h in hits)
+        {
+            if (h.collider == null) continue;
+            GameObject go = h.collider.gameObject;
+            if (IsSelfOrChild(go, selfGO)) continue; // свой коллайдер — мимо
+            if (IsSelfOrChild(go, playerGO)) return true; // дошли до игрока
+            return false; // стена/преграда раньше игрока
+        }
+        return true; // ничего твёрдого между
+    }
+
+    static bool IsSelfOrChild(GameObject go, GameObject root)
+    {
+        if (go == null || root == null) return false;
+        Transform t = go.transform;
+        while (t != null)
+        {
+            if (t.gameObject == root) return true;
+            t = t.parent;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Текст для показа: при prefixSpeakerNameInText и отсутствии отдельного
+    /// поля имени — «Имя: реплика». Иначе как есть.
+    /// </summary>
+    string WithSpeaker(string text, string speakerName)
+    {
+        if (!prefixSpeakerNameInText || speakerNameText != null) return text ?? "";
+        if (string.IsNullOrEmpty(speakerName)) return text ?? "";
+        return speakerName + ": " + (text ?? "");
     }
 
     /// <summary>Портрет: спрайт из узла или круглая заглушка в цвете персонажа.</summary>
@@ -453,10 +604,20 @@ public class DialogueManager : MonoBehaviour
             Cursor.lockState = CursorLockMode.None;
         }
 
-        // Блокировка камеры
-        var fpsController = FindObjectOfType<EasyPeasyFirstPersonController.FirstPersonController>();
-        if (fpsController != null)
-            fpsController.enabled = false;
+        // Блокировка ввода (заглушка): оружие — замком (скрипты живы, но молчат),
+        // движение/обзор — замком + выключением контроллера (у него своей проверки нет).
+        // Замки по владельцам, поэтому диалог и инвентарь не мешают друг другу.
+        PlayerInputLock.SetWeaponLock(this, true);
+        PlayerInputLock.SetMovementLock(this, true);
+        disabledControllersByUs.Clear();
+        foreach (var fps in FindObjectsOfType<EasyPeasyFirstPersonController.FirstPersonController>())
+        {
+            if (fps != null && fps.enabled)
+            {
+                fps.enabled = false;
+                disabledControllersByUs.Add(fps);
+            }
+        }
 
         currentDialogue = dialogue;
         currentTrigger = trigger;
@@ -518,10 +679,14 @@ public class DialogueManager : MonoBehaviour
         DialogueNode lastNode = currentNode;
         // Цель эха захватываем до сброса состояния (нужна для сохранения прогресса ниже).
         DialogueNode echoTarget = pendingEchoTarget;
+        // Триггер захватываем и сразу обнуляем, чтобы следующий StartDialogue
+        // (например автостарт цепочки из события OnDialogueEnded) не увидел чужой.
+        DialogueTrigger finishedTrigger = currentTrigger;
 
         isDialogueActive = false;
         currentNode = null;
         currentDialogue = null;
+        currentTrigger = null;
         isShowingChoices = false;
         isShowingEcho = false;
         pendingEchoTarget = null;
@@ -546,10 +711,19 @@ public class DialogueManager : MonoBehaviour
             Cursor.lockState = previousLockMode;
         }
 
-        // Разблокировка камеры
-        var fpsController = FindObjectOfType<EasyPeasyFirstPersonController.FirstPersonController>();
-        if (fpsController != null)
-            fpsController.enabled = true;
+        // Разблокировка ввода: свои замки снимаем, чужие (инвентарь) не трогаем.
+        // Контроллер включаем только если движение больше никто не держит —
+        // иначе диалог, закрытый поверх открытого инвентаря, отпустил бы игрока гулять.
+        PlayerInputLock.ReleaseAll(this);
+        if (!PlayerInputLock.MovementLocked)
+        {
+            for (int i = 0; i < disabledControllersByUs.Count; i++)
+            {
+                if (disabledControllersByUs[i] != null)
+                    disabledControllersByUs[i].enabled = true;
+            }
+        }
+        disabledControllersByUs.Clear();
 
         // Мгновенно скрываем панель, чтобы не было мигания
         if (dialoguePanel != null)
@@ -565,11 +739,30 @@ public class DialogueManager : MonoBehaviour
         if (choicesPanel != null) choicesPanel.SetActive(false);
         HideStaticButtons();
 
-        if (currentTrigger != null)
-            currentTrigger.OnDialogueEnded();
+        // Квест-гейт: диалог с completionQuestId засчитывается пройденным
+        // только при ВЫПОЛНЕННОМ квесте (ключ подобрали/принесли).
+        // Иначе — как ручной выход: панель закрывается (игроку надо идти за ключом),
+        // но прогресс сохраняется, done НЕ ставится и цепочка дальше не идёт.
+        // Следующее E продолжает с конца, а не с начала.
+        if (completed && IsQuestGateBlocking(finishedDialogue))
+        {
+            Debug.Log($"[DialogueManager] «{DialogueKey(finishedDialogue)}» не засчитан: " +
+                      $"сначала выполни «{QuestSystem.GetTitle(finishedDialogue.completionQuestId)}».", this);
+            completed = false;
+            string gateResume = ComputeResumeNodeID(echoTarget, lastNode);
+            if (string.IsNullOrEmpty(gateResume))
+                gateResume = echoTarget != null ? echoTarget.nodeID
+                    : (lastNode != null ? lastNode.nodeID : null);
+            if (!string.IsNullOrEmpty(gateResume))
+                SaveDialogueProgress(finishedDialogue, gateResume);
+        }
 
-        OnDialogueEnded?.Invoke();
-
+        // ВАЖНО: сначала сохраняем прогресс/done, ПОТОМ уведомляем подписчиков.
+        // Раньше было наоборот: NpcDialogueSequence.OnManagerDialogueEnded проверял
+        // IsDialogueDone(finished), а флаг ещё не стоял — автостарт следующего
+        // и любые хуки видели устаревшее состояние и цепочка 1->2->3 не двигалась.
+        LastFinishedDialogue = finishedDialogue;
+        LastFinishedCompleted = completed;
         if (finishedDialogue != null)
         {
             if (completed)
@@ -590,6 +783,11 @@ public class DialogueManager : MonoBehaviour
             GameState.Save();
             QuestSystem.Save();
         }
+
+        if (finishedTrigger != null)
+            finishedTrigger.OnDialogueEnded();
+
+        OnDialogueEnded?.Invoke();
     }
 
     void MoveToNode(DialogueNode node)
@@ -719,7 +917,7 @@ public class DialogueManager : MonoBehaviour
             }
         }
 
-        cursorBaseText = node.dialogueText ?? "";
+        cursorBaseText = WithSpeaker(node.dialogueText, node.speakerName);
         FitTextSize(cursorBaseText);
 
         // Текста нет, а выборы есть: пустое окно не показываем, выборы — сразу.
@@ -738,7 +936,8 @@ public class DialogueManager : MonoBehaviour
 
         float speed = node.textSpeed > 0 ? node.textSpeed : defaultTextSpeed;
         if (typingCoroutine != null) StopCoroutine(typingCoroutine);
-        typingCoroutine = StartCoroutine(TypeText(node.dialogueText, speed));
+        typingCoroutine = StartCoroutine(TypeText(
+            WithSpeaker(node.dialogueText, node.speakerName), speed));
 
         if (autoAdvanceCoroutine != null) StopCoroutine(autoAdvanceCoroutine);
         if (node.autoAdvanceDelay > 0 && !HasChoices(node))
@@ -962,19 +1161,20 @@ public class DialogueManager : MonoBehaviour
         // Допечатать эхо героя: база — текст выбора, а не старый узел.
         if (isShowingEcho)
         {
+            string echoShown = WithSpeaker(echoText, playerSpeakerName);
             if (dialogueText == null)
             {
                 isTyping = false;
-                revealedCharacters = echoText.Length;
+                revealedCharacters = echoShown.Length;
                 return;
             }
 
-            dialogueText.text = echoText;
+            dialogueText.text = echoShown;
             dialogueText.maxVisibleCharacters = int.MaxValue;
-            revealedCharacters = echoText.Length;
+            revealedCharacters = echoShown.Length;
             isTyping = false;
 
-            if (showTypingCursor && !string.IsNullOrEmpty(cursorSymbol) && echoText.IndexOf('<') < 0)
+            if (showTypingCursor && !string.IsNullOrEmpty(cursorSymbol) && echoShown.IndexOf('<') < 0)
                 cursorBlinkCoroutine = StartCoroutine(BlinkCursor());
             return;
         }
@@ -984,13 +1184,13 @@ public class DialogueManager : MonoBehaviour
         if (dialogueText == null)
         {
             isTyping = false;
-            revealedCharacters = (currentNode.dialogueText ?? "").Length;
+            revealedCharacters = WithSpeaker(currentNode.dialogueText, currentNode.speakerName).Length;
             if (currentNode.choices.Count > 0 && !isShowingChoices)
                 StartCoroutine(ShowChoicesAfterDelay(0f));
             return;
         }
 
-        string full = currentNode.dialogueText ?? "";
+        string full = WithSpeaker(currentNode.dialogueText, currentNode.speakerName);
         dialogueText.text = full;
         dialogueText.maxVisibleCharacters = int.MaxValue;
         revealedCharacters = full.Length;
@@ -1086,22 +1286,25 @@ public class DialogueManager : MonoBehaviour
             StopCoroutine(cursorBlinkCoroutine);
             cursorBlinkCoroutine = null;
             if (dialogueText != null && currentNode != null)
-                dialogueText.text = currentNode.dialogueText;
+                dialogueText.text = WithSpeaker(currentNode.dialogueText, currentNode.speakerName);
         }
 
         if (choicesPanel != null) choicesPanel.SetActive(true);
 
-        // Варианты с учётом условий, предметов и квестов.
+        // Варианты с учётом условий, предметов, квестов и одноразовости.
         // Скрытые (showWhenLocked выключен) выпадают из списка — нижние кнопки
         // сдвигаются вверх, пробелов нет. Помеченные showWhenLocked показываются
-        // заблокированными (UI5, нажать нельзя).
+        // заблокированными (UI5, нажать нельзя). Использованные показываются
+        // заблокированными ВСЕГДА (видно, что кнопка уже нажата).
         var entries = new System.Collections.Generic.List<ChoiceEntry>();
         foreach (var choice in currentNode.choices)
         {
-            bool available = IsChoiceAvailable(choice);
-            if (!available && (choice == null || !choice.showWhenLocked))
+            bool used = choice != null && currentDialogue != null &&
+                        IsChoiceUsed(currentDialogue, currentNode.nodeID, choice.choiceText);
+            bool available = !used && IsChoiceAvailable(choice);
+            if (!available && !used && (choice == null || !choice.showWhenLocked))
                 continue;
-            entries.Add(new ChoiceEntry(choice, available));
+            entries.Add(new ChoiceEntry(choice, available, used));
         }
 
         if (useStaticChoiceButtons)
@@ -1110,16 +1313,22 @@ public class DialogueManager : MonoBehaviour
             ShowTemplateChoices(entries);
     }
 
-    /// <summary>Вариант + доступен ли он прямо сейчас.</summary>
+    /// <summary>Вариант + доступен ли он + нажимался ли уже (одноразовый).</summary>
     private struct ChoiceEntry
     {
         public DialogueChoice choice;
         public bool available;
-        public ChoiceEntry(DialogueChoice choice, bool available)
+        public bool used;
+        public ChoiceEntry(DialogueChoice choice, bool available, bool used)
         {
             this.choice = choice;
             this.available = available;
+            this.used = used;
         }
+        /// <summary>Нажать нельзя: недоступен или уже использован.</summary>
+        public bool Locked => !available || used;
+        /// <summary>Кнопка видна, но только как spent/locked (не прятать).</summary>
+        public bool ForceShowLocked => used;
     }
 
     /// <summary>Проверка условий варианта: ассет-условие, предмет, квест.</summary>
@@ -1137,7 +1346,7 @@ public class DialogueManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>Варианты на готовых кнопках сцены (Button1..3). Скрытые пропускаем без пробелов, заблокированные — стиль UI5.</summary>
+    /// <summary>Варианты на готовых кнопках сцены (Button1..6). Скрытые пропускаем без пробелов, заблокированные — стиль UI5.</summary>
     void ShowStaticChoices(System.Collections.Generic.List<ChoiceEntry> entries)
     {
         // Слоты сортируем сверху вниз по позиции: нумерация кнопок в сцене
@@ -1177,10 +1386,10 @@ public class DialogueManager : MonoBehaviour
                     label.text = entry.choice.choiceText;
                     label.gameObject.SetActive(true);
                     RememberLabelColor(label);
-                    label.color = entry.available ? labelBaseColors[label] : lockedChoiceLabelColor;
+                    label.color = entry.Locked ? lockedChoiceLabelColor : labelBaseColors[label];
                 }
                 button.onClick.RemoveAllListeners();
-                if (entry.available)
+                if (!entry.Locked)
                 {
                     DialogueChoice capturedChoice = entry.choice;
                     button.onClick.AddListener(() => OnChoiceSelected(capturedChoice));
@@ -1188,7 +1397,7 @@ public class DialogueManager : MonoBehaviour
                 }
                 else
                 {
-                    // Заблокировано: нажать нельзя, кликов нет
+                    // Заблокировано или уже использовано: нажать нельзя, кликов нет
                     button.interactable = false;
                 }
                 ApplyLockedStyle(button);
@@ -1209,7 +1418,9 @@ public class DialogueManager : MonoBehaviour
         else if (entries.Count > slots.Count)
         {
             Debug.LogWarning($"[DialogueManager] Вариантов {entries.Count}, а кнопок {slots.Count} — " +
-                              "показаны первые. Добавь кнопки в staticChoiceButtons.", this);
+                               "показаны первые, остальные ветки НЕДОСТУПНЫ игроку! Продублируй последнюю " +
+                               $"кнопку на канвасе как Button{slots.Count + 1} (внутри текст \"{slots.Count + 1}\") — " +
+                               "адаптер подхватит её сам.", this);
         }
     }
 
@@ -1272,11 +1483,11 @@ public class DialogueManager : MonoBehaviour
             if (buttonText != null)
             {
                 buttonText.text = entry.choice.choiceText;
-                if (!entry.available)
+                if (entry.Locked)
                     buttonText.color = lockedChoiceLabelColor;
             }
 
-            if (entry.available)
+            if (!entry.Locked)
             {
                 DialogueChoice capturedChoice = entry.choice;
                 button.onClick.AddListener(() => OnChoiceSelected(capturedChoice));
@@ -1302,6 +1513,10 @@ public class DialogueManager : MonoBehaviour
         if (choicesPanel != null) choicesPanel.SetActive(false);
         HideStaticButtons();
         isShowingChoices = false;
+
+        // Одноразовость: выбор гаснет сразу и навсегда (до сброса диалога).
+        if (choice != null && currentDialogue != null && currentNode != null)
+            MarkChoiceUsed(currentDialogue, currentNode.nodeID, choice.choiceText);
 
         if (choice.onSelectCommands != null)
             foreach (var cmd in choice.onSelectCommands)
@@ -1403,9 +1618,10 @@ public class DialogueManager : MonoBehaviour
         float speed = defaultTextSpeed;
         if (currentNode != null && currentNode.textSpeed > 0)
             speed = currentNode.textSpeed;
-        cursorBaseText = echoText;
-        FitTextSize(echoText);
-        echoCoroutine = StartCoroutine(EchoTypeText(echoText, speed));
+        string echoShown = WithSpeaker(echoText, playerSpeakerName);
+        cursorBaseText = echoShown;
+        FitTextSize(echoShown);
+        echoCoroutine = StartCoroutine(EchoTypeText(echoShown, speed));
     }
 
     IEnumerator EchoTypeText(string text, float speed)
