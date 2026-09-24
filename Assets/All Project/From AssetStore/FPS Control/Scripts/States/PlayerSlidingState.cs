@@ -69,22 +69,18 @@ namespace EasyPeasyFirstPersonController
 
                 if (slopeAngle > 5f && projectedSlideDir.y < -0.05f)
                 {
-                    // Downhill: Regain timer (infinite slide)
                     slideTimer += Time.deltaTime;
                     slideTimer = Mathf.Min(slideTimer, ctx.slideDuration);
                 }
                 else if (slopeAngle > 5f && projectedSlideDir.y > 0.05f)
                 {
-                    // Uphill: Fast stop
                     slideTimer -= Time.deltaTime * ctx.slideUphillFriction;
                 }
                 else
                 {
-                    // Flat ground
                     slideTimer -= Time.deltaTime;
                 }
                 
-                // Keep the sliding direction parallel to the slope
                 slideDirection = projectedSlideDir;
             }
             else
@@ -121,36 +117,28 @@ namespace EasyPeasyFirstPersonController
             float speedCurve = Mathf.Pow(progress, 0.5f);
             float speed = ctx.slideSpeed * Mathf.Lerp(0.5f, 1f, speedCurve);
 
-            // Allow the player to steer left/right while sliding
             float strafeInput = ctx.input.moveInput.x;
             Vector3 steerVector = ctx.transform.right * strafeInput * ctx.slideSteerControl;
             
-            // Combine forward sliding momentum with sideways steering
             Vector3 finalMove = (slideDirection * speed) + steerVector;
             
-            // Update currentVelocity so momentum carries over if they jump
             ctx.currentVelocity = finalMove;
 
             ctx.characterController.Move(finalMove * Time.deltaTime);
 
-            // Crash Detection (Did we hit a wall while sliding?)
             Vector3 actualVelocity = ctx.characterController.velocity;
-            actualVelocity.y = 0; // Only care about horizontal crashes
+            actualVelocity.y = 0;
             
             float intendedSpeed = finalMove.magnitude;
             float actualSpeed = actualVelocity.magnitude;
 
-            // If we were sliding fast but our actual speed is near zero, we smashed into a wall!
             if (intendedSpeed > 4f && actualSpeed < intendedSpeed * 0.2f)
             {
-                // Calculate which side we hit
                 Vector3 crashVector = finalMove - actualVelocity;
                 Vector3 localCrashDirection = ctx.transform.InverseTransformDirection(crashVector);
 
-                // Trigger a lighter, directional camera shake!
                 ctx.TriggerCameraShake(0.15f, 0.4f, localCrashDirection);
                 
-                // End the slide forcefully since we crashed
                 SwitchState(factory.Crouching());
                 return;
             }

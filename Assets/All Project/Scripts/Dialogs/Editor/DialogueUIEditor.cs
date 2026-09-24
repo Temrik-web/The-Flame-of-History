@@ -4,23 +4,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Редактор интерфейса диалогов: Tools -> Диалоги -> Редактор интерфейса.
-///
-/// Канвас диалогов живёт в сцене (создаётся мастером «Создать канвас»),
-/// поэтому каждый его элемент можно выбрать и покрутить руками.
-/// Это окно — пульт для этого:
-///  - список всех элементов, которые создаёт код/мастер, с кнопкой «Выбрать»
-///    (объект подсвечивается в Hierarchy и Scene);
-///  - общие стили (цвета, шрифт, размеры) с кнопкой «Применить»;
-///  - показ/скрытие шаблона кнопки варианта (он лежит в выключенном контейнере).
-///
-/// Важно: кнопки вариантов в игре — клоны шаблона ChoiceTemplate.
-/// Правь сам шаблон — все ответы в игре унаследуют вид.
-///
-/// Если в сцене только кодовый DialogueUI (строит всё на лету),
-/// сначала нажми «Создать канвас» — появится редактируемая версия.
-/// </summary>
+/// <summary>Редактор интерфейса диалогов: Tools -> Диалоги -> Редактор интерфейса.</summary>
 public class DialogueUIEditor : EditorWindow
 {
     private DialogueCanvasUI ui;
@@ -40,7 +24,6 @@ public class DialogueUIEditor : EditorWindow
     private float choiceSize = 21f;
     private bool stylesLoaded;
 
-    [MenuItem("Tools/Диалоги/Редактор интерфейса", false, 1)]
     public static void Open()
     {
         GetWindow<DialogueUIEditor>("Интерфейс диалогов");

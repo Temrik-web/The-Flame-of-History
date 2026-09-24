@@ -10,7 +10,6 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class InventorySystem : MonoBehaviour
 {
-    // ---------- Слот ----------
     [Serializable]
     public class Slot
     {
@@ -27,18 +26,13 @@ public class InventorySystem : MonoBehaviour
         public int FreeSpace => item == null ? 0 : Mathf.Max(0, item.maxStack - amount);
     }
 
-    // ---------- Singleton (удобно для UI и других скриптов) ----------
     public static InventorySystem Instance { get; private set; }
-
-    // ---------- Ссылки ----------
     [Header("Ссылки")]
     [Tooltip("Если пусто — возьмётся Camera.main.")]
     public Camera playerCamera;
     [Tooltip("UI-панель инвентаря. Можно оставить пустой — тогда работает только логика.")]
     public GameObject inventoryPanel;
     public AudioSource audioSource;
-
-    // ---------- Подбор ----------
     [Header("Подбор")]
     public float pickupRange = 3f;
     [Tooltip("По каким слоям искать предметы.")]
@@ -68,7 +62,6 @@ public class InventorySystem : MonoBehaviour
     [Tooltip("Автоподбор при касании триггера, без нажатия клавиши.")]
     public bool autoPickupOnTouch = false;
 
-    // ---------- Инвентарь ----------
     [Header("Инвентарь")]
     public KeyCode toggleKey = KeyCode.Tab;
     [Min(1)] public int maxSlots = 20;
@@ -78,8 +71,6 @@ public class InventorySystem : MonoBehaviour
     public KeyCode sortKey = KeyCode.R;
     [Tooltip("Автоматически сортировать после каждого подбора.")]
     public bool autoSortOnPickup = false;
-
-    // ---------- Выбрасывание ----------
     [Header("Выбрасывание")]
     public KeyCode dropKey = KeyCode.G;
     [Tooltip("Универсальный префаб с компонентом Pickup для дропа предметов без своего worldPrefab.")]
@@ -87,14 +78,10 @@ public class InventorySystem : MonoBehaviour
     public float dropForwardOffset = 1.2f;
     public float dropUpOffset = 0.4f;
     public float dropThrowForce = 2.5f;
-
-    // ---------- Курсор / пауза ----------
     [Header("Поведение при открытии")]
     public bool manageCursor = true;
     [Tooltip("Ставить Time.timeScale = 0, пока инвентарь открыт.")]
     public bool pauseGameWhenOpen = false;
-
-    // ---------- Отладочный HUD ----------
     [Header("Отладочный HUD (OnGUI)")]
     [Tooltip("Рисовать подсказку и список через OnGUI. Выключи, когда сделаешь нормальный UI.")]
     public bool drawDebugGUI = true;
@@ -102,16 +89,11 @@ public class InventorySystem : MonoBehaviour
     [Header("Всплывающие подписи")]
     [Tooltip("Показывать «+2 Аптечка» в мире при подборе.")]
     public bool showFloatingText = true;
-
-    // ---------- Сохранение ----------
     [Header("Сохранение")]
     public bool autoSaveOnQuit = true;
     public bool autoLoadOnStart = false;
     public string saveKey = "inventory_v1";
-
-    // ---------- Состояние ----------
     public List<Slot> slots = new List<Slot>();
-
     private bool isOpen;
     private Pickup currentTarget;
     private float lastSortTime = -1f;
@@ -136,10 +118,6 @@ public class InventorySystem : MonoBehaviour
     public event Action<ItemData, int> OnItemPickedUp;
     /// <summary>Инвентарь отсортирован — для анимации перестроения UI.</summary>
     public event Action OnSorted;
-
-    // =====================================================================
-    // Жизненный цикл
-    // =====================================================================
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -180,7 +158,6 @@ public class InventorySystem : MonoBehaviour
 
     void Update()
     {
-        // Во время диалога инвентарь не мешает
         if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
         {
             SetTarget(null);
@@ -193,9 +170,7 @@ public class InventorySystem : MonoBehaviour
         if (isOpen)
         {
             SetTarget(null);
-
-            // Сортировка работает только при открытом инвентаре —
-            // иначе R конфликтовал бы с перезарядкой оружия.
+            // R только при открытом инвентаре, иначе конфликт с перезарядкой
             if (Input.GetKeyDown(sortKey)) SortAndStack();
 
             if (useHotkeys) HandleHotkeys();
@@ -234,7 +209,6 @@ public class InventorySystem : MonoBehaviour
         }
     }
 
-    /// <summary>Индекс первого слота с предметом, назначенным на данную цифру.</summary>
     public int FindSlotByHotbar(int digit)
     {
         if (digit < 1 || digit > 9) return -1;
@@ -247,28 +221,13 @@ public class InventorySystem : MonoBehaviour
         return -1;
     }
 
-    /// <summary>Предмет, назначенный на цифру (null — ничего).</summary>
     public ItemData GetHotbarItem(int digit)
     {
         int index = FindSlotByHotbar(digit);
         return index >= 0 ? slots[index].item : null;
     }
 
-    // =====================================================================
-    // Наведение
-    // =====================================================================
-    /// <summary>
-    /// Найти предмет под прицелом.
-    ///
-    /// Почему не один SphereCast: он не находит коллайдер, внутри которого уже
-    /// находится начало сферы. Стоя вплотную к предмету игрок оказывался внутри
-    /// зоны каста, и подсказка пропадала — ровно в тот момент, когда предмет
-    /// занимает пол экрана. Плюс каст останавливался на первом же коллайдере,
-    /// поэтому предмет, лежащий на столе, перекрывался столешницей.
-    ///
-    /// Теперь собираются все кандидаты (каст + сфера вокруг игрока для вплотную),
-    /// а из них выбирается тот, что ближе к центру экрана и реально виден.
-    /// </summary>
+    // Каст + сфера вплотную: один SphereCast слепнет внутри коллайдера и перекрывается столешницей
     void DetectPickup()
     {
         if (playerCamera == null)
@@ -283,17 +242,12 @@ public class InventorySystem : MonoBehaviour
 
         Pickup best = null;
         float bestScore = float.MaxValue;
-
-        // 1) Всё, что задел луч прицела. SphereCastAll вместо SphereCast:
-        //    нужен весь список, а не только первое попадание.
         float radius = Mathf.Max(0.01f, pickupCastRadius);
         RaycastHit[] hits = Physics.SphereCastAll(origin, radius, dir, pickupRange,
                                                   pickupMask, QueryTriggerInteraction.Collide);
 
         foreach (RaycastHit hit in hits)
             Consider(hit.collider, cam, ref best, ref bestScore);
-
-        // 2) Предметы вплотную: их каст не видит, потому что сфера уже внутри них
         Collider[] near = Physics.OverlapSphere(origin, nearPickupRadius, pickupMask,
                                                 QueryTriggerInteraction.Collide);
 
@@ -303,11 +257,7 @@ public class InventorySystem : MonoBehaviour
         SetTarget(best);
     }
 
-    /// <summary>
-    /// Проверить кандидата и запомнить, если он лучше текущего.
-    /// Оценка — угол от центра экрана: предмет прямо под прицелом всегда
-    /// выигрывает у того, что задет краем сферы.
-    /// </summary>
+    // Оценка — угол от центра: прицел всегда бьёт край сферы. Вплотную угол = 0
     void Consider(Collider col, Transform cam, ref Pickup best, ref float bestScore)
     {
         if (col == null) return;
@@ -320,16 +270,10 @@ public class InventorySystem : MonoBehaviour
         float distance = toTarget.magnitude;
 
         if (distance > pickupRange) return;
-
-        // Угол от центра экрана в градусах. Вплотную угол считать бессмысленно:
-        // предмет занимает полкадра, поэтому такие цели получают приоритет.
         float angle = distance < nearPickupRadius
             ? 0f
             : Vector3.Angle(cam.forward, toTarget.normalized);
-
         if (angle > maxPickupAngle) return;
-
-        // Оценка: сначала угол, при равном угле — что ближе
         float score = angle * 10f + distance;
         if (score >= bestScore) return;
 
@@ -384,17 +328,12 @@ public class InventorySystem : MonoBehaviour
         OnTargetChanged?.Invoke(currentTarget);
     }
 
-    // Автоподбор при касании
     void OnTriggerEnter(Collider other)
     {
         if (!autoPickupOnTouch) return;
         Pickup p = other.GetComponentInParent<Pickup>();
         if (p != null) TryPickUp(p);
     }
-
-    // =====================================================================
-    // Подбор
-    // =====================================================================
     public void TryPickUp(Pickup pickup)
     {
         if (pickup == null) return;
@@ -432,16 +371,11 @@ public class InventorySystem : MonoBehaviour
         if (autoSortOnPickup) SortAndStack();
     }
 
-    /// <summary>
-    /// Добавить предмет. Возвращает СКОЛЬКО реально влезло (0 — не влезло ничего).
-    /// </summary>
+    // Возвращает сколько реально влезло (0 — не влезло ничего)
     public int AddItem(ItemData item, int amount)
     {
         if (item == null || amount <= 0) return 0;
-
         int remaining = amount;
-
-        // 1) Досыпаем в существующие стаки
         if (item.stackable)
         {
             for (int i = 0; i < slots.Count && remaining > 0; i++)
@@ -455,7 +389,6 @@ public class InventorySystem : MonoBehaviour
             }
         }
 
-        // 2) Создаём новые слоты
         while (remaining > 0 && slots.Count < maxSlots)
         {
             int perSlot = item.stackable ? Mathf.Min(item.maxStack, remaining) : 1;
@@ -472,13 +405,7 @@ public class InventorySystem : MonoBehaviour
         return added;
     }
 
-    /// <summary>Совместимость: true — влезло всё целиком.</summary>
     public bool AddItemFull(ItemData item, int amount) => AddItem(item, amount) == amount;
-
-    // =====================================================================
-    // Удаление / использование / выбрасывание
-    // =====================================================================
-    /// <summary>Убрать количество предмета. true — убрали всё запрошенное.</summary>
     public bool RemoveItem(ItemData item, int amount)
     {
         if (item == null || amount <= 0) return false;
@@ -521,10 +448,7 @@ public class InventorySystem : MonoBehaviour
         Debug.Log($"[Inventory] Использовано: {item.itemName}");
     }
 
-    /// <summary>Выбросить один предмет из слота в мир.</summary>
     public void DropOne(int index) => Drop(index, 1);
-
-    /// <summary>Выбросить весь слот в мир.</summary>
     public void DropSlot(int index)
     {
         if (!IsValidIndex(index)) return;
@@ -577,10 +501,6 @@ public class InventorySystem : MonoBehaviour
             rb.AddForce(origin.forward * dropThrowForce, ForceMode.Impulse);
     }
 
-    // =====================================================================
-    // Запросы
-    // =====================================================================
-    /// <summary>Влезет ли столько предметов без фактического добавления.</summary>
     public bool HasSpaceFor(ItemData item, int amount)
     {
         if (item == null || amount <= 0) return false;
@@ -598,7 +518,6 @@ public class InventorySystem : MonoBehaviour
         return freeSlots * perSlot >= remaining;
     }
 
-    /// <summary>Сколько всего таких предметов в инвентаре.</summary>
     public int CountItem(ItemData item)
     {
         if (item == null) return 0;
@@ -608,7 +527,6 @@ public class InventorySystem : MonoBehaviour
         return total;
     }
 
-    /// <summary>Сколько предметов с данным id (удобно для квестов и дверей).</summary>
     public int CountItemById(string id)
     {
         if (string.IsNullOrEmpty(id)) return 0;
@@ -635,11 +553,7 @@ public class InventorySystem : MonoBehaviour
         return false;
     }
 
-    /// <summary>
-    /// Ассет предмета, экипирующего оружие с данным id (null — такого нет).
-    /// Нужен расходуемому снаряжению: граната после броска должна пропасть
-    /// из сумки, а сама она знает только свой weaponId.
-    /// </summary>
+    // Граната после броска знает только weaponId — по нему ищем ассет для списания
     public ItemData GetWeaponItem(string weaponId)
     {
         if (string.IsNullOrEmpty(weaponId)) return null;
@@ -650,7 +564,6 @@ public class InventorySystem : MonoBehaviour
         return null;
     }
 
-    /// <summary>Сколько предметов, экипирующих оружие с данным id, лежит в сумке.</summary>
     public int CountWeaponItem(string weaponId)
     {
         if (string.IsNullOrEmpty(weaponId)) return 0;

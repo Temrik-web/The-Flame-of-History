@@ -2,18 +2,7 @@ using UnityEngine;
 
 namespace FlameOfHistory.AI
 {
-    /// <summary>
-    /// Голос и звуки врага: крики при обнаружении, боль, смерть, шаги, перезарядка.
-    ///
-    /// Все клипы — массивы: из массива берётся случайный, поэтому отряд не звучит
-    /// как один и тот же семпл. Питч слегка рандомизируется.
-    ///
-    /// Реплики (voice) и звуки тела (шаги) идут через разные AudioSource, чтобы
-    /// крик не обрывался шагом. Если источники не заданы — создаются автоматически
-    /// в Awake, так что компонент работает «из коробки»: достаточно закинуть клипы.
-    ///
-    /// Крики дополнительно эмитят шум в NoiseSystem — союзники их слышат.
-    /// </summary>
+    /// <summary>Голос врага: крики, боль, смерть, шаги. Реплики идут через отдельный сорс, шаги — через свой.</summary>
     [DisallowMultipleComponent]
     public sealed class EnemyVoice : MonoBehaviour
     {
@@ -92,7 +81,7 @@ namespace FlameOfHistory.AI
                 return existing;
             }
 
-            // Отдельный дочерний объект — чтобы не конфликтовать с AudioSource оружия.
+            // Отдельный объект, чтобы не конфликтовать с сорсом оружия.
             Transform child = transform.Find(childName);
             GameObject host;
 
@@ -121,46 +110,28 @@ namespace FlameOfHistory.AI
             source.maxDistance = maximumDistance;
         }
 
-        // =====================================================================
-        // Реплики — вызываются из EnemyAI
-        // =====================================================================
-
-        /// <summary>«Вижу цель!» — при входе в бой.</summary>
         public void PlaySpotted()
         {
             if (PlayVoice(spottedLines, 1f) && shoutsMakeNoise)
                 EmitShoutNoise(1f);
         }
 
-        /// <summary>«Что это было?» — при переходе в настороженность.</summary>
         public void PlayAlert() => PlayVoice(alertLines, 0.9f);
-
-        /// <summary>«Потерял его» — при потере цели.</summary>
         public void PlayLostTarget() => PlayVoice(lostTargetLines, 0.85f);
 
-        /// <summary>Боевой выкрик — со своим длинным кулдауном.</summary>
         public void PlayCombatChatter()
         {
             if (Time.time < _nextChatterTime) return;
             if (!PlayVoice(combatChatterLines, 0.85f)) return;
-
             _nextChatterTime = Time.time + chatterCooldown;
         }
-
-        /// <summary>«Перезаряжаюсь!»</summary>
         public void PlayReload() => PlayVoice(reloadLines, 0.9f);
 
-        /// <summary>«Отходим!» / «Прикройте!»</summary>
         public void PlayRetreat()
         {
-            if (PlayVoice(retreatLines, 1f) && shoutsMakeNoise)
-                EmitShoutNoise(0.8f);
+            if (PlayVoice(retreatLines, 1f) && shoutsMakeNoise) EmitShoutNoise(0.8f);
         }
-
-        /// <summary>Крик под плотным огнём.</summary>
         public void PlaySuppressed() => PlayVoice(suppressedLines, 0.95f);
-
-        /// <summary>Вскрик от полученного урона.</summary>
         public void PlayPain()
         {
             if (Time.time < _nextPainTime) return;
@@ -170,10 +141,7 @@ namespace FlameOfHistory.AI
                 EmitShoutNoise(0.7f);
         }
 
-        /// <summary>
-        /// Предсмертный крик. Проигрывается «отвязанно» от объекта, потому что
-        /// сам враг обычно тут же выключается/удаляется и оборвал бы звук.
-        /// </summary>
+        /// <summary>Смерть проигрывается на отдельном объекте — труп сразу глушится и оборвал бы звук.</summary>
         public void PlayDeath()
         {
             AudioClip clip = PickClip(deathLines);
@@ -184,14 +152,7 @@ namespace FlameOfHistory.AI
             if (shoutsMakeNoise) EmitShoutNoise(0.9f);
         }
 
-        // =====================================================================
-        // Шаги
-        // =====================================================================
-
-        /// <summary>
-        /// Обновление шагов. Вызывать каждый кадр, передавая текущую скорость
-        /// врага в м/с и признак касания земли.
-        /// </summary>
+        /// <summary>Дёргать каждый кадр: скорость в м/с + стоит ли на земле.</summary>
         public void UpdateFootsteps(float speed, bool grounded)
         {
             if (footstepClips == null || footstepClips.Length == 0) return;
@@ -214,18 +175,12 @@ namespace FlameOfHistory.AI
             bodySource.PlayOneShot(clip, footstepVolume);
         }
 
-        /// <summary>Разовый звук тела (экипировка, падение и т.п.).</summary>
         public void PlayBodyOneShot(AudioClip clip, float volume = 1f)
         {
             if (clip == null || bodySource == null) return;
-
             bodySource.pitch = Random.Range(pitchRange.x, pitchRange.y);
             bodySource.PlayOneShot(clip, volume);
         }
-
-        // =====================================================================
-        // Внутреннее
-        // =====================================================================
 
         private bool PlayVoice(AudioClip[] clips, float volumeScale, bool ignoreCooldown = false)
         {
@@ -245,8 +200,7 @@ namespace FlameOfHistory.AI
         private static AudioClip PickClip(AudioClip[] clips)
         {
             if (clips == null || clips.Length == 0) return null;
-
-            // Пропускаем пустые слоты в массиве — частая ситуация в инспекторе.
+            // В инспекторе часто бывают пустые слоты — пропускаем их.
             for (int attempt = 0; attempt < 4; attempt++)
             {
                 AudioClip candidate = clips[Random.Range(0, clips.Length)];
@@ -259,7 +213,7 @@ namespace FlameOfHistory.AI
             return null;
         }
 
-        /// <summary>Звук, который доигрывает, даже если враг уже выключен.</summary>
+        /// <summary>Звук доигрывает даже после выключения врага.</summary>
         private void PlayDetached(AudioClip clip, float volume)
         {
             var host = new GameObject($"Voice_{clip.name}");

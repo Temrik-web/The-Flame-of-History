@@ -28,15 +28,10 @@ public class DialogueData : ScriptableObject
         return null;
     }
 
-    /// <summary>
-    /// Проверка связности в редакторе: пустым узлам выдаём ID, дубликаты ID
-    /// и висячие ссылки (nextNodeID в никуда) подсвечиваем ошибками.
-    /// Именно висячие ссылки раньше молча обрывали диалог («фраза NPC не видна»).
-    /// </summary>
+    /// <summary>Проверка связности: выдаём ID, ловим дубли и висячие ссылки.</summary>
     void OnValidate()
     {
         if (nodes == null) return;
-
         var seen = new System.Collections.Generic.HashSet<string>();
         foreach (var node in nodes)
         {

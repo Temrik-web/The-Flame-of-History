@@ -3,10 +3,7 @@ using UnityEngine;
 
 namespace FlameOfHistory.AI
 {
-/// <summary>
-/// Событие «пуля пролетела по отрезку от start до end».
-/// Промахи и попадания оба эмитят проход — слушатели проверяют близость к себе.
-/// </summary>
+/// <summary>Пролет пули по отрезку start→end. Эмитят и промахи, и попадания.</summary>
 public static class ProjectilePass
 {
     public readonly struct Shot
@@ -29,7 +26,6 @@ public static class ProjectilePass
             DidHitSomething = didHitSomething;
         }
 
-        /// <summary>Кратчайшее расстояние от точки до отрезка траектории.</summary>
         public float DistanceToPoint(Vector3 point)
         {
             Vector3 ab = End - Origin;
@@ -42,7 +38,6 @@ public static class ProjectilePass
             return Vector3.Distance(point, closest);
         }
     }
-
     public static event Action<Shot> ShotFired;
 
     public static void Emit(Shot shot) => ShotFired?.Invoke(shot);

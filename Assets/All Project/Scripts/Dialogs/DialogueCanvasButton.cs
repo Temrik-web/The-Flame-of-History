@@ -2,19 +2,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-/// <summary>
-/// Визуальное поведение кнопки диалогового канваса. При наведении меняет
-/// свою ФОНОВУЮ картинку (спрайт), при нажатии — на свою. Текст внутри
-/// кнопки при этом не трогается.
-///
-/// Три состояния задаются слотaми спрайтов (normal/hover/pressed) прямо в
-/// инспекторе на компоненте. Если спрайты не назначены — кнопка работает
-/// только цветом + лёгким масштабированием, как раньше.
-///
-/// Вешается мастером «Tools -> Диалоги -> Создать канвас» на кнопки-варианты,
-/// кнопку отмены и кнопку-продолжение. Работает вместе с Button: у самой
-/// Button переход ставится в None, чтобы состояния не конфликтовали.
-/// </summary>
+/// <summary>Кнопка канваса: меняет фон/цвет/масштаб при наведении и нажатии.</summary>
 [DisallowMultipleComponent]
 public class DialogueCanvasButton : MonoBehaviour,
     IPointerEnterHandler, IPointerExitHandler,
@@ -88,8 +76,7 @@ public class DialogueCanvasButton : MonoBehaviour,
 
     void Update()
     {
-        // Заблокированная кнопка (interactable=false): спрайт UI5 как есть,
-        // без него — обычный спрайт + серый цвет. Анимаций наведения нет.
+        // Заблокированная кнопка: спрайт UI5 или серый, без анимаций.
         if (button != null && !button.interactable)
         {
             blend = targetBlend = 0f;
@@ -102,11 +89,8 @@ public class DialogueCanvasButton : MonoBehaviour,
             return;
         }
 
-        // Плавное «дыхание» между состояниями (игнорирует паузу)
         float k = 1f - Mathf.Exp(-animationSpeed * Time.unscaledDeltaTime);
         blend = Mathf.Lerp(blend, targetBlend, k);
-
-        // Спрайт переключается, когда бленда перевалила середину состояния
         int newState = state;
         if (blend >= 1.5f) newState = 2;
         else if (blend >= 0.5f) newState = 1;
@@ -131,13 +115,12 @@ public class DialogueCanvasButton : MonoBehaviour,
         rect.localScale = new Vector3(scale, scale, scale);
     }
 
-    /// <summary>Выбрать и применить спрайт текущего состояния (с мягким проявлением).</summary>
+    /// <summary>Применить спрайт текущего состояния.</summary>
     void ApplyStateSprite()
     {
         if (image == null) return;
 
         Sprite s = state == 2 ? pressedSprite : (state == 1 ? hoverSprite : normalSprite);
-        // Если для состояния нет своего спрайта — берём ближайшее слева
         if (s == null)
         {
             if (state == 2) s = hoverSprite != null ? hoverSprite : normalSprite;

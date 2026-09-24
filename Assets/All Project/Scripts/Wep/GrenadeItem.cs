@@ -1,24 +1,10 @@
 using System.Collections;
 using UnityEngine;
 
-/// <summary>
-/// Граната в руках: замах, бросок, полёт, взрыв.
-///
-/// Управление:
-///   ПКМ (удерживать) — поднять гранату, приготовиться к броску;
-///   ЛКМ             — замах и бросок;
-///   ЛКМ+ПКМ         — короткий подкат под ноги (слабый бросок), если включено;
-///   X (настраивается) — выдернуть запал заранее, чтобы граната рванула в воздухе.
-///
-/// После броска граната списывается из инвентаря, а модель в руках прячется.
-/// Если гранат больше нет — руки пустеют через WeaponSlotManager.
-///
-/// Вешается на модель гранаты рядом с EquippableWeapon.
-/// </summary>
+/// <summary>Граната в руках: замах, бросок, взрыв. ПКМ — приготовиться, ЛКМ — бросок, X — выдернуть запал заранее.</summary>
 [DisallowMultipleComponent]
 public class GrenadeItem : HeldItem
 {
-    // =====================================================================
     [Header("Снаряд")]
     [Tooltip("Префаб летящей гранаты. Пусто — будет создана копия модели из рук " +
              "с добавленным Rigidbody, коллайдером и ThrownGrenade.")]
@@ -127,8 +113,6 @@ public class GrenadeItem : HeldItem
 
     [Header("Отладка")]
     public bool logActions = true;
-
-    // =====================================================================
     private EquippableWeapon equippable;
     private Coroutine throwRoutine;
 
@@ -144,21 +128,13 @@ public class GrenadeItem : HeldItem
 
     /// <summary>Сколько осталось до взрыва, если запал выдернут.</summary>
     public float CookTimeLeft => pinPulled ? Mathf.Max(0f, fuseTime - cookTimer) : fuseTime;
-
-    // =====================================================================
     protected override void Awake()
     {
         base.Awake();
-
         equippable = GetComponent<EquippableWeapon>();
         if (equippable == null) equippable = GetComponentInParent<EquippableWeapon>();
-
         if (string.IsNullOrEmpty(inventoryWeaponId) && equippable != null)
             inventoryWeaponId = equippable.weaponId;
-
-        // Гранате в руках физика не нужна: позой управляет HeldItem.
-        // Rigidbody на модели вырывал бы её из держателя и ронял на землю —
-        // отсюда и брался эффект «граната появилась в мире».
         DisableHeldPhysics();
     }
 
@@ -192,16 +168,11 @@ public class GrenadeItem : HeldItem
         ClearPoseOverride();
     }
 
-    /// <summary>
-    /// Уронить «горящую» гранату под ноги. Вызывается, когда игрок убирает
-    /// из рук гранату с выдернутым запалом.
-    /// </summary>
+    // Сброс запала убором в карман запрещён — роняем живую под ноги, иначе был бесплатный сброс кольцом
     void DropLiveGrenade()
     {
-        // Выгрузка сцены и выход из Play: создавать объекты нельзя
         if (!Application.isPlaying) return;
         if (!gameObject.scene.isLoaded) return;
-
         float remainingFuse = Mathf.Max(0.3f, fuseTime - cookTimer);
 
         Transform cam = playerCamera != null ? playerCamera.transform : transform;
@@ -243,19 +214,12 @@ public class GrenadeItem : HeldItem
     protected override void Update()
     {
         base.Update();
-
         if (!pinPulled || isThrowing) return;
-
-        // Граната горит в руке даже во время диалога: запал не знает про UI
         cookTimer += Time.deltaTime;
         SetPoseOverride(cookedPosition, cookedRotation, 0.7f);
-
         if (cookTimer >= fuseTime && explodeInHandsIfOvercooked)
             ExplodeInHands();
     }
-
-    // =====================================================================
-    /// <summary>Выдернуть запал, не бросая гранату.</summary>
     public void PullPin()
     {
         if (pinPulled || isThrowing) return;
@@ -284,15 +248,11 @@ public class GrenadeItem : HeldItem
     IEnumerator ThrowSequence(float force)
     {
         isThrowing = true;
-
-        // Первый бросок после экипировки: модель ещё едет к позе «в руках»,
-        // и замах стартовал бы с произвольной точки (тот же баг был у ножа)
+        // Модель ещё едет к hip-позе после экипировки — стартуем замах строго от неё
         Transform model = itemModel != null ? itemModel : transform;
         model.localPosition = hipPosition;
         model.localRotation = Quaternion.Euler(hipRotation);
         SetPoseOverride(hipPosition, hipRotation, 1f);
-
-        // --- замах ---
         float t = 0f;
         while (t < windupTime)
         {
@@ -306,17 +266,12 @@ public class GrenadeItem : HeldItem
         }
 
         if (!pinPulled) PullPin();
-
-        // --- вылет ---
         SetPoseOverride(releasePosition, releaseRotation, 1f);
         SpawnGrenade(force);
         SetModelVisible(false);
         PlaySound(throwSound, soundVolume);
         AddKick(throwKickPosition, throwKickRotation);
-
         bool hasMore = ConsumeGrenade();
-
-        // --- проводка ---
         t = 0f;
         while (t < followThroughTime)
         {
@@ -335,18 +290,13 @@ public class GrenadeItem : HeldItem
 
         if (!hasMore)
         {
-            // Гранат не осталось: убираем из рук, иначе игрок «держит» пустоту
             isThrowing = false;
             throwRoutine = null;
-
             if (WeaponSlotManager.Instance != null) WeaponSlotManager.Instance.Holster();
             else SetModelVisible(false);
-
             if (logActions) Debug.Log("[Grenade] Последняя граната брошена, руки пустые.");
             yield break;
         }
-
-        // --- достаём следующую ---
         if (rearmTime > 0f) yield return new WaitForSeconds(rearmTime);
 
         SetModelVisible(true);
@@ -356,45 +306,25 @@ public class GrenadeItem : HeldItem
         throwRoutine = null;
     }
 
-    // =====================================================================
-    /// <summary>Создать летящую гранату и запустить её.</summary>
     void SpawnGrenade(float force)
     {
         Vector3 origin = GetThrowOrigin();
         Vector3 direction = GetThrowDirection();
-
         GameObject instance = grenadePrefab != null
             ? Instantiate(grenadePrefab, origin, Quaternion.LookRotation(direction))
             : BuildRuntimeGrenade(origin, direction);
-
         ThrownGrenade thrown = instance.GetComponent<ThrownGrenade>();
         if (thrown == null) thrown = instance.AddComponent<ThrownGrenade>();
         ApplyExplosionSettings(thrown);
-
         Vector3 velocity = direction * force;
         if (inheritPlayerVelocity) velocity += PlayerVelocity;
-
-        // Оставшееся время запала: подготовленная граната рванёт раньше
         float remainingFuse = pinPulled ? Mathf.Max(0.15f, fuseTime - cookTimer) : fuseTime;
-
         GameObject thrower = Controller != null ? Controller.gameObject : gameObject;
         thrown.Launch(velocity, throwSpin * Mathf.Deg2Rad * 30f, thrower, remainingFuse);
-
         if (logActions)
             Debug.Log($"[Grenade] Брошена: сила {force:0.#}, запал {remainingFuse:0.##} с.");
     }
-
-    /// <summary>
-    /// Перенести настройки взрыва из инспектора гранаты на созданный снаряд.
-    ///
-    /// Нужно потому, что ThrownGrenade обычно навешивается через AddComponent
-    /// на копию модели из рук: такой компонент получает только значения по
-    /// умолчанию из кода, и ни эффекта, ни звука, ни настроенного урона у него
-    /// нет — задать их в инспекторе было негде.
-    ///
-    /// Ссылки на эффект и звуки переносим только если они заданы здесь: иначе
-    /// пустое поле стирало бы то, что уже настроено на префабе снаряда.
-    /// </summary>
+    // Настройки взрыва переносим на снаряд-копию: у AddComponent иначе только дефолты без эффекта и звука
     void ApplyExplosionSettings(ThrownGrenade thrown)
     {
         if (thrown == null) return;
@@ -422,17 +352,11 @@ public class GrenadeItem : HeldItem
         thrown.edgeDamageFactor = explosionEdgeDamageFactor;
     }
 
-    /// <summary>
-    /// Копия модели из рук как снаряд. Нужна, чтобы граната летала даже без
-    /// заранее собранного префаба: в сцене есть только модель в руках.
-    /// </summary>
+    // Копия модели из рук как снаряд — чтобы летала даже без префаба
     GameObject BuildRuntimeGrenade(Vector3 origin, Vector3 direction)
     {
         Vector3 worldScale = transform.lossyScale;
         Quaternion rotation = Quaternion.LookRotation(direction);
-
-        // Копия не должна цепляться к руке в своём Awake, иначе она сначала
-        // прыгнет в держатель и полетит от него, а не от точки броска
         GameObject copy;
         HeldItem.SuppressAttachOnAwake = true;
         try
@@ -443,12 +367,8 @@ public class GrenadeItem : HeldItem
         {
             HeldItem.SuppressAttachOnAwake = false;
         }
-
         copy.name = name + " (Thrown)";
-
-        // Логика «в руках» на снаряде не нужна и мешает. Сначала гасим скрипты:
-        // Destroy срабатывает только в конце кадра, а до него Update успел бы
-        // вернуть копию в позу «в руках».
+        // Destroy срабатывает в конце кадра — скрипты гасим сразу, иначе Update вернёт копию в руки
         foreach (HeldItem held in copy.GetComponentsInChildren<HeldItem>(true))
         {
             held.enabled = false;
@@ -479,12 +399,10 @@ public class GrenadeItem : HeldItem
         return copy;
     }
 
-    /// <summary>Снаряду нужен непустой не-триггерный коллайдер, иначе он провалится сквозь пол.</summary>
     void EnsureProjectileColliders(GameObject target)
     {
         Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
         bool hasSolid = false;
-
         foreach (Collider c in colliders)
         {
             if (c == null) continue;
@@ -492,14 +410,10 @@ public class GrenadeItem : HeldItem
             c.enabled = true;
             hasSolid = true;
         }
-
         if (hasSolid) return;
-
-        // Радиус по габаритам модели: сфера точнее «магической» константы
         float radius = 0.08f;
         Renderer rend = target.GetComponentInChildren<Renderer>();
         if (rend != null) radius = Mathf.Max(0.03f, rend.bounds.extents.magnitude * 0.5f);
-
         SphereCollider sphere = target.AddComponent<SphereCollider>();
         sphere.radius = radius;
     }
@@ -521,19 +435,14 @@ public class GrenadeItem : HeldItem
         return Quaternion.AngleAxis(-throwUpwardAngle, cam.right) * cam.forward;
     }
 
-    // =====================================================================
-    /// <summary>Есть ли ещё граната в сумке. Без инвентаря считаем, что да.</summary>
     bool HasGrenadeInInventory()
     {
         if (!consumeFromInventory) return true;
-
         InventorySystem inv = InventorySystem.Instance;
         if (inv == null || string.IsNullOrEmpty(inventoryWeaponId)) return true;
-
         return inv.CountWeaponItem(inventoryWeaponId) > 0;
     }
-
-    /// <summary>Списать одну гранату. Возвращает true, если ещё осталось.</summary>
+    /// <summary>Списать одну. True если ещё осталось.</summary>
     bool ConsumeGrenade()
     {
         if (!consumeFromInventory) return true;
@@ -563,21 +472,15 @@ public class GrenadeItem : HeldItem
         if (thrown == null) thrown = instance.AddComponent<ThrownGrenade>();
         ApplyExplosionSettings(thrown);
 
-        // Thrower не указываем: игрок должен получить урон от своей же ошибки
+        // Thrower не указываем: игрок должен получить урон за свою ошибку
         thrown.Launch(Vector3.zero, Vector3.zero, null, 0.01f);
         thrown.Explode();
-
         pinPulled = false;
         cookTimer = 0f;
         ConsumeGrenade();
-
         if (WeaponSlotManager.Instance != null) WeaponSlotManager.Instance.Holster();
     }
-
-    /// <summary>
-    /// Убрать физику у модели в руках: Rigidbody вырвал бы её из держателя,
-    /// а коллайдер толкал бы игрока.
-    /// </summary>
+    // Rigidbody вырвал бы модель из держателя — в руках физику гасим, коллайдер оставляем для копии-снаряда
     void DisableHeldPhysics()
     {
         foreach (Rigidbody rb in GetComponentsInChildren<Rigidbody>(true))

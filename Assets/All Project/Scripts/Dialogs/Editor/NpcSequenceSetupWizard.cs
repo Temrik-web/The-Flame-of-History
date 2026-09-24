@@ -5,22 +5,11 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-/// <summary>
-/// Мастер цепочек диалогов. Меню: Tools -> Диалоги.
-///  - «Проверить связки»: ассеты диалогов, триггеры/цепочки в сцене,
-///    инфраструктура (игрок, менеджер, канвас).
-///  - «Создать NPC-куб»: один куб + NpcDialogueSequence с диалогами по порядку
-///    (выделение в Project, иначе цепочка D1..D8 одного НПС), конфликтующие
-///    DialogueTrigger на кубе удаляются, сейвы этих диалогов сбрасываются.
-///  - «Сбросить ВСЁ (новая игра)»: полный вайп — диалоги, квесты, флаги,
-///    инвентарь, счётчики. Для честного ретеста с D1.
-///  - «Сбросить сохранения диалогов/квестов»: точечный сброс.
-/// </summary>
+/// <summary>Мастер цепочек: Tools -> Диалоги (проверка, NPC-куб, сбросы, ключ и дверь).</summary>
 public static class NpcSequenceSetupWizard
 {
     const string MenuRoot = "Tools/Диалоги/";
 
-    [MenuItem(MenuRoot + "Проверить связки (диалоги + сцена)", false, 21)]
     public static void ValidateAll()
     {
         int errors = 0, warnings = 0;
@@ -222,7 +211,6 @@ public static class NpcSequenceSetupWizard
             $"Ошибок: {errors}, предупреждений: {warnings}.\nДетали — в консоли.", "Ок");
     }
 
-    [MenuItem(MenuRoot + "Создать NPC-куб (все диалоги)", false, 22)]
     public static void CreateNpcCube()
     {
         if (!RequireEditMode("Создать NPC-куб")) return;
@@ -348,7 +336,6 @@ public static class NpcSequenceSetupWizard
             $"Сохрани сцену (Ctrl+S) и жми Play, затем E у куба.{warn}", "Ок");
     }
 
-    [MenuItem(MenuRoot + "Связать ключ и дверь (квест 1)", false, 26)]
     public static void WireKeyAndDoor()
     {
         if (!RequireEditMode("Связать ключ и дверь")) return;
@@ -627,7 +614,6 @@ public static class NpcSequenceSetupWizard
         return data;
     }
 
-    [MenuItem(MenuRoot + "Переимпортировать диалоги (лечит «0 узлов»)", false, 23)]
     public static void ReimportDialogues()
     {
         if (!RequireEditMode("Переимпортировать диалоги")) return;
@@ -753,7 +739,6 @@ public static class NpcSequenceSetupWizard
         return false;
     }
 
-    [MenuItem(MenuRoot + "Сбросить сохранения диалогов", false, 24)]
     public static void ResetDialogueSaves()
     {
         int n = 0;
@@ -781,7 +766,6 @@ public static class NpcSequenceSetupWizard
         Debug.Log($"[Диалоги] Сейвы стёрты ({n} диалогов: прогресс, done, кнопки, история). Цепочки включены. Сохрани сцену и жми Play.");
     }
 
-    [MenuItem(MenuRoot + "Сбросить квесты", false, 25)]
     public static void ResetQuests()
     {
         QuestSystem.ResetAll(true);

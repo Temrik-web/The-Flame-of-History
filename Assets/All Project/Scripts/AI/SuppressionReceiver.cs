@@ -2,12 +2,7 @@ using UnityEngine;
 
 namespace FlameOfHistory.AI
 {
-/// <summary>
-/// Реагирует на пролетающие рядом пули.
-/// На игроке — звук свиста пули у виска (whizz).
-/// На враге — рост подавления: он хуже целится и жмётся в укрытие.
-/// Тряски камеры здесь нет намеренно — только звук.
-/// </summary>
+/// <summary>Реакция на пролёт пуль: игроку — свист, врагу — подавление. Без тряски камеры.</summary>
 [DisallowMultipleComponent]
 public sealed class SuppressionReceiver : MonoBehaviour
 {
@@ -24,7 +19,6 @@ public sealed class SuppressionReceiver : MonoBehaviour
 
     [Header("Враг: подавление")]
     [SerializeField] private EnemyAI enemyAI;
-
     private CharacterHealth _health;
     private float _nextWhizzTime;
 
@@ -40,18 +34,12 @@ public sealed class SuppressionReceiver : MonoBehaviour
     private void OnShot(ProjectilePass.Shot shot)
     {
         if (_health == null || !_health.IsAlive) return;
-
-        // Не реагируем на дружественный огонь.
         if (shot.ShooterTeam == _health.Team) return;
-
-        // Не реагируем на собственные выстрелы.
         if (shot.Shooter != null &&
             shot.Shooter.GetComponentInParent<CharacterHealth>() == _health) return;
-
         float distance = shot.DistanceToPoint(transform.position);
         if (distance > nearMissRadius) return;
-
-        // 1 у самого уха → 0 на краю радиуса.
+        // 1 у уха → 0 на краю радиуса.
         float closeness = 1f - Mathf.Clamp01(distance / nearMissRadius);
 
         if (isPlayer)

@@ -2,9 +2,7 @@ using UnityEngine;
 using System;
 using FlameOfHistory.AI;
 
-/// <summary>
-/// Эффекты смерти и совместимые события. HP принадлежат только CharacterHealth.
-/// </summary>
+/// <summary>Эффекты смерти. HP хранит только CharacterHealth.</summary>
 [RequireComponent(typeof(CharacterHealth))]
 [DisallowMultipleComponent]
 public class Enemy : MonoBehaviour
@@ -13,20 +11,15 @@ public class Enemy : MonoBehaviour
     private CharacterHealth Health => combatHealth != null
         ? combatHealth : combatHealth = GetComponent<CharacterHealth>();
     public float maxHealth => Health.MaximumHealth;
-
     [Header("Смерть")]
-    public GameObject deathEffectPrefab;   // частицы крови/взрыва (необязательно)
-    public AudioClip deathSound;           // звук смерти (необязательно)
-    public bool destroyOnDeath = false;    // false = труп остаётся лежать на сцене (рекомендуется для шутера)
+    public GameObject deathEffectPrefab;
+    public AudioClip deathSound;
+    public bool destroyOnDeath = false;
     [Tooltip("Задержка перед уничтожением трупа. Должна быть >= длины анимации смерти.")]
     public float destroyDelay = 3f;
-
     private AudioSource audioSource;
-
-    // События — на них подписывается EnemyAI, не создавая жёсткой зависимости
     public event Action OnDeath;
-    public event Action<float, Vector3> OnDamaged; // (урон, позиция атакующего)
-
+    public event Action<float, Vector3> OnDamaged;
     public bool IsDead => !Health.IsAlive;
     public float CurrentHealth => Health.CurrentHealth;
     public float HealthPercent => Health.NormalizedHealth;
@@ -37,7 +30,7 @@ public class Enemy : MonoBehaviour
         if (audioSource == null && deathSound != null)
         {
             audioSource = gameObject.AddComponent<AudioSource>();
-            audioSource.spatialBlend = 1f; // 3D звук
+            audioSource.spatialBlend = 1f;
         }
     }
 
@@ -58,14 +51,12 @@ public class Enemy : MonoBehaviour
         damage.Attacker != null ? damage.Attacker.transform.position : damage.Point - damage.Direction);
     void HandleDeath(DamageInfo damage) => Die();
 
-    // Старый метод — оставлен для совместимости с уже написанным оружием игрока
+    // Оставлен для совместимости с оружием игрока
     public void TakeDamage(float damage)
     {
         TakeDamage(damage, transform.position);
     }
-
-    // Новый метод — с позицией атакующего. Это то, что нужно ИИ,
-    // чтобы понимать, откуда стреляют, даже если он не видит игрока.
+    // С позицией атакующего — нужно ИИ, чтобы понимать откуда стреляют
     public void TakeDamage(float damage, Vector3 attackerPosition)
     {
         Health.TakeDamage(new DamageInfo(damage, transform.position,
@@ -76,17 +67,14 @@ public class Enemy : MonoBehaviour
     {
         Debug.Log($"{gameObject.name} погиб.");
         OnDeath?.Invoke();
-
         if (deathEffectPrefab != null)
         {
             Instantiate(deathEffectPrefab, transform.position, Quaternion.identity);
         }
-
         if (deathSound != null && audioSource != null)
         {
             audioSource.PlayOneShot(deathSound);
         }
-
         if (destroyOnDeath)
         {
             float delay = Mathf.Max(destroyDelay,
@@ -95,9 +83,7 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            // Труп остаётся видимым на месте — отключаем только коллайдер,
-            // чтобы по нему больше нельзя было стрелять и он не мешал навигации.
-            // Анимация падения (Death trigger в EnemyAI) сама укладывает тело на землю.
+            // Труп остаётся: гасим коллайдер, падение отыграет EnemyAI через Death trigger
             Collider col = GetComponent<Collider>();
             if (col != null) col.enabled = false;
         }

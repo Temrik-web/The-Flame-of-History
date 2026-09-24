@@ -104,35 +104,28 @@ public class DialogueManager : MonoBehaviour
     private Coroutine cursorBlinkCoroutine;
     private bool isShowingChoices = false;
 
-    // Эхо выбора: герой произносит выбранный ответ перед переходом дальше.
-    // currentNode при этом остаётся старым узлом, цель хранится отдельно.
+    // Эхо выбора: currentNode остаётся старым, цель хранится отдельно.
     private bool isShowingEcho = false;
     private DialogueNode pendingEchoTarget;
     private string echoText = "";
     private Coroutine echoCoroutine;
 
-    // Контроллеры, выключенные нами на время диалога (включаем только свои;
-    // чужое (например уже выключенное инвентарём) не трогаем).
+    // Контроллеры, выключенные нами на время диалога.
     private readonly System.Collections.Generic.List<MonoBehaviour> disabledControllersByUs =
         new System.Collections.Generic.List<MonoBehaviour>();
 
-    // Исходные цвета подписей кнопок — чтобы вернуть их после разблокировки.
+    // Исходные цвета подписей кнопок.
     private readonly System.Collections.Generic.Dictionary<TextMeshProUGUI, Color> labelBaseColors =
         new System.Collections.Generic.Dictionary<TextMeshProUGUI, Color>();
 
-    // Сколько символов текста уже показано.
     private int revealedCharacters = 0;
-    // Базовый текст для мигающего курсора. Отдельное поле (а не currentNode),
-    // чтобы курсор корректно работал и на эхе реплики героя.
     private string cursorBaseText = "";
-    // Текст, содержащий rich-text теги, нельзя резать через Substring —
-    // для него используется режим maxVisibleCharacters (курсор при этом не рисуется).
+    // Rich-text нельзя резать через Substring — режим maxVisibleCharacters.
     private bool textHasRichTags = false;
 
     private AudioSource typingAudioSource;
 
-    // Базовый размер шрифта реплики (для shrinkLongText): запоминаем один раз,
-    // перед каждым диалогом возвращаем его, в конце диалога — тоже.
+    // Базовый размер шрифта для shrinkLongText.
     private float baseFontSize = -1f;
 
     /// <summary>Идёт ли посимвольная печать прямо сейчас.</summary>
@@ -178,20 +171,12 @@ public class DialogueManager : MonoBehaviour
 
     void OnDisable()
     {
-        // Страховка от «повисшего» замка: менеджер умер (смена сцены) —
-        // игрок не должен остаться без оружия и движения.
+        // Менеджер умер (смена сцены) — не оставляем игрока без ввода.
         PlayerInputLock.ReleaseAll(this);
     }
-
-    // =====================================================================
-    // Сохранение прогресса: последний узел + признак прохождения (PlayerPrefs).
-    // =====================================================================
     const string ProgressPrefix = "flame_dlg_";
 
-    /// <summary>
-    /// Гарантия интерфейса перед стартом: привязки нет — ищем канвас,
-    /// адаптер есть, но не привязал — повторяем поиск.
-    /// </summary>
+    /// <summary>Гарантия интерфейса перед стартом.</summary>
     void EnsureUserInterface()
     {
         if (dialogueText != null) return;
@@ -215,10 +200,7 @@ public class DialogueManager : MonoBehaviour
         return null;
     }
 
-    /// <summary>
-    /// Сам находит канвас пользователя (ищет кнопку Button1, включая скрытые)
-    /// и вешает на него адаптер. Работает без единого клика в редакторе.
-    /// </summary>
+    /// <summary>Сам находит канвас пользователя по Button1 и вешает адаптер.</summary>
     void TryAutoWireUserCanvas()
     {
         if (dialogueText != null) return;
@@ -227,16 +209,13 @@ public class DialogueManager : MonoBehaviour
         Transform btn = FindInSceneByName("Button1");
         if (btn == null) return;
 
-        // Хост — самый верхний предок кнопки (канвас), НИКОГДА сама кнопка:
-        // иначе прятанье окна спрячет кнопку, а проверки её потом не найдут
+        // Хост — верхний предок кнопки, никогда сама кнопка.
         Transform top = btn;
         while (top.parent != null) top = top.parent;
 
         if (top.GetComponent<UserDialogueUI>() != null) return;
-        top.gameObject.AddComponent<UserDialogueUI>(); // Awake адаптера всё найдёт и спрячет окно
+        top.gameObject.AddComponent<UserDialogueUI>();
         Debug.Log($"[DialogueManager] Нашёл твой канвас ({top.gameObject.name}) — адаптер подключён сам.", this);
-
-        // Убираем остатки моего старого канваса, чтобы не мешался
         foreach (Canvas c in FindObjectsOfType<Canvas>(true))
         {
             if (c != null && c.gameObject.name == "DialogueCanvas" && c.gameObject != top.gameObject)
@@ -268,7 +247,6 @@ public class DialogueManager : MonoBehaviour
     static string DialogueKey(DialogueData dialogue)
     {
         if (dialogue == null) return "";
-        // Имя ассета стабильнее русского dialogueName
         return string.IsNullOrEmpty(dialogue.name) ? dialogue.dialogueName : dialogue.name;
     }
 
@@ -324,11 +302,7 @@ public class DialogueManager : MonoBehaviour
         PlayerPrefs.Save();
     }
 
-    // =====================================================================
-    // Одноразовые кнопки: нажал выбор — второй раз он уже не работает.
-    // Храним "nodeID\nchoiceText" диалога (PlayerPrefs flame_dlg_used_*),
-    // показываем использованные заблокированными (UI5), а не прячем.
-    // =====================================================================
+    // Одноразовые кнопки: "nodeID\nchoiceText" в PlayerPrefs, показ блокировкой, а не скрытием.
     const string UsedPrefix = "flame_dlg_used_";
 
     static string MakeUsedKey(string nodeID, string choiceText) =>
@@ -380,12 +354,7 @@ public class DialogueManager : MonoBehaviour
         PlayerPrefs.DeleteKey(UsedPrefix + key);
     }
 
-    /// <summary>
-    /// С какой реплики продолжать после ручного выхода (Esc):
-    /// уже показанное НЕ повторяем. Линейная реплика без выборов —
-    /// она прочитана, идём на следующий узел. Узел с выбором или эхо героя —
-    /// выбор ещё не сделан / ответ уже выбран, продолжаем с цели.
-    /// </summary>
+    /// <summary>С какой реплики продолжать после Esc: показанное не повторяем.</summary>
     static string ComputeResumeNodeID(DialogueNode echoTarget, DialogueNode lastNode)
     {
         if (echoTarget != null) return echoTarget.nodeID;
@@ -445,12 +414,7 @@ public class DialogueManager : MonoBehaviour
         return " — нужен: " + QuestSystem.GetTitle(dialogue.completionQuestId);
     }
 
-    /// <summary>
-    /// Виден ли игрок с точки (нет ли стен между): рейкаст с высоты глаз.
-    /// Триггеры преградой не считаются, себя и игрока пропускаем.
-    /// Нужен, чтобы диалог не открывался из дома сквозь стену:
-    /// дистанция в норме, а прямой видимости нет.
-    /// </summary>
+    /// <summary>Виден ли игрок с точки (рейкаст с высоты глаз, триггеры игнорятся).</summary>
     public static bool HasLineOfSight(Vector3 from, GameObject playerGO,
         GameObject selfGO, LayerMask blockMask)
     {
@@ -468,13 +432,12 @@ public class DialogueManager : MonoBehaviour
         {
             if (h.collider == null) continue;
             GameObject go = h.collider.gameObject;
-            if (IsSelfOrChild(go, selfGO)) continue; // свой коллайдер — мимо
-            if (IsSelfOrChild(go, playerGO)) return true; // дошли до игрока
-            return false; // стена/преграда раньше игрока
+            if (IsSelfOrChild(go, selfGO)) continue;
+            if (IsSelfOrChild(go, playerGO)) return true;
+            return false;
         }
-        return true; // ничего твёрдого между
+        return true;
     }
-
     static bool IsSelfOrChild(GameObject go, GameObject root)
     {
         if (go == null || root == null) return false;
@@ -487,10 +450,7 @@ public class DialogueManager : MonoBehaviour
         return false;
     }
 
-    /// <summary>
-    /// Текст для показа: при prefixSpeakerNameInText и отсутствии отдельного
-    /// поля имени — «Имя: реплика». Иначе как есть.
-    /// </summary>
+    /// <summary>Текст для показа: при префиксе и без поля имени — «Имя: реплика».</summary>
     string WithSpeaker(string text, string speakerName)
     {
         if (!prefixSpeakerNameInText || speakerNameText != null) return text ?? "";
@@ -509,7 +469,6 @@ public class DialogueManager : MonoBehaviour
 
     void Start()
     {
-        // Сцена уже загружена целиком — тут поиск канваса надёжен (в Awake рано)
         TryAutoWireUserCanvas();
 
         if (dialoguePanel != null)
@@ -536,8 +495,7 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
-        // Пока показаны варианты — пробел и продвижение не работают:
-        // выбор делается только мышкой (клик по кнопке).
+        // Пока выборы на экране — пробел не двигает диалог, только мышь.
         if (isShowingChoices) return;
 
         if (isTyping && allowSkipTyping && Input.GetKeyDown(advanceKey))
@@ -550,10 +508,7 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Сбросить фокус EventSystem: иначе кликнутая кнопка остаётся выбранной
-    /// и следующий пробел/Enter срабатывает как клик по ней (скип выбора).
-    /// </summary>
+    /// <summary>Сбросить фокус: иначе пробел сработает как клик по кнопке.</summary>
     static void ClearSelection()
     {
         if (EventSystem.current != null)
@@ -569,10 +524,7 @@ public class DialogueManager : MonoBehaviour
         button.navigation = nav;
     }
 
-    /// <summary>
-    /// Начать диалог. startNodeID — продолжить с узла (загрузка прогресса);
-    /// пусто/не найден — с начала.
-    /// </summary>
+    /// <summary>Начать диалог. startNodeID — продолжить с узла, пусто — с начала.</summary>
     public void StartDialogue(DialogueData dialogue, DialogueTrigger trigger, string startNodeID = null)
     {
         if (isDialogueActive) return;
@@ -582,7 +534,6 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
-        // Останавливаем возможную старую анимацию fade out и мгновенно готовим панель
         if (fadeRoutine != null)
         {
             StopCoroutine(fadeRoutine);
@@ -604,9 +555,6 @@ public class DialogueManager : MonoBehaviour
             Cursor.lockState = CursorLockMode.None;
         }
 
-        // Блокировка ввода (заглушка): оружие — замком (скрипты живы, но молчат),
-        // движение/обзор — замком + выключением контроллера (у него своей проверки нет).
-        // Замки по владельцам, поэтому диалог и инвентарь не мешают друг другу.
         PlayerInputLock.SetWeaponLock(this, true);
         PlayerInputLock.SetMovementLock(this, true);
         disabledControllersByUs.Clear();
@@ -625,12 +573,7 @@ public class DialogueManager : MonoBehaviour
         isShowingChoices = false;
         HideStaticButtons();
 
-        // Вдруг канвас появился позже / привязка не взлетела — чиним прямо сейчас
         EnsureUserInterface();
-
-        // Длинные реплики: запоминаем базовый шрифт один раз, дальше только масштабируем.
-        // Если канвас пересоздали со своим размером — подхватываем заново, когда текущий
-        // совпадает с обычным (т.е. не наш уменьшенный).
         if (dialogueText != null && !dialogueText.enableAutoSizing)
         {
             if (baseFontSize <= 0f)
@@ -666,21 +609,14 @@ public class DialogueManager : MonoBehaviour
         MoveToNode(start);
     }
 
-    /// <summary>
-    /// Закончить диалог. completed=true — прошли до конца (прогресс стираем,
-    /// диалог помечаем пройденным); false — вышли вручную (Esc/Отмена),
-    /// прогресс остаётся и в следующий раз предложим продолжить.
-    /// </summary>
+    /// <summary>Закончить диалог. true — прошли до конца, false — ручной выход с сохранением прогресса.</summary>
     public void EndDialogue(bool completed = true)
     {
         if (!isDialogueActive) return;
 
         DialogueData finishedDialogue = currentDialogue;
         DialogueNode lastNode = currentNode;
-        // Цель эха захватываем до сброса состояния (нужна для сохранения прогресса ниже).
         DialogueNode echoTarget = pendingEchoTarget;
-        // Триггер захватываем и сразу обнуляем, чтобы следующий StartDialogue
-        // (например автостарт цепочки из события OnDialogueEnded) не увидел чужой.
         DialogueTrigger finishedTrigger = currentTrigger;
 
         isDialogueActive = false;
@@ -703,17 +639,12 @@ public class DialogueManager : MonoBehaviour
         if (fadeRoutine != null) { StopCoroutine(fadeRoutine); fadeRoutine = null; }
 
         if (pauseGameDuringDialogue) Time.timeScale = 1f;
-
-        // Восстановление курсора
         if (showCursorDuringDialogue)
         {
             Cursor.visible = previousCursorVisible;
             Cursor.lockState = previousLockMode;
         }
 
-        // Разблокировка ввода: свои замки снимаем, чужие (инвентарь) не трогаем.
-        // Контроллер включаем только если движение больше никто не держит —
-        // иначе диалог, закрытый поверх открытого инвентаря, отпустил бы игрока гулять.
         PlayerInputLock.ReleaseAll(this);
         if (!PlayerInputLock.MovementLocked)
         {
@@ -725,7 +656,6 @@ public class DialogueManager : MonoBehaviour
         }
         disabledControllersByUs.Clear();
 
-        // Мгновенно скрываем панель, чтобы не было мигания
         if (dialoguePanel != null)
         {
             dialoguePanel.SetActive(false);
@@ -739,11 +669,7 @@ public class DialogueManager : MonoBehaviour
         if (choicesPanel != null) choicesPanel.SetActive(false);
         HideStaticButtons();
 
-        // Квест-гейт: диалог с completionQuestId засчитывается пройденным
-        // только при ВЫПОЛНЕННОМ квесте (ключ подобрали/принесли).
-        // Иначе — как ручной выход: панель закрывается (игроку надо идти за ключом),
-        // но прогресс сохраняется, done НЕ ставится и цепочка дальше не идёт.
-        // Следующее E продолжает с конца, а не с начала.
+        // Квест-гейт: без выполненного квеста done не ставим, прогресс сохраняем.
         if (completed && IsQuestGateBlocking(finishedDialogue))
         {
             Debug.Log($"[DialogueManager] «{DialogueKey(finishedDialogue)}» не засчитан: " +
@@ -757,10 +683,7 @@ public class DialogueManager : MonoBehaviour
                 SaveDialogueProgress(finishedDialogue, gateResume);
         }
 
-        // ВАЖНО: сначала сохраняем прогресс/done, ПОТОМ уведомляем подписчиков.
-        // Раньше было наоборот: NpcDialogueSequence.OnManagerDialogueEnded проверял
-        // IsDialogueDone(finished), а флаг ещё не стоял — автостарт следующего
-        // и любые хуки видели устаревшее состояние и цепочка 1->2->3 не двигалась.
+        // Сначала сейв/done, потом события — иначе хуки видят старое состояние.
         LastFinishedDialogue = finishedDialogue;
         LastFinishedCompleted = completed;
         if (finishedDialogue != null)
@@ -772,10 +695,7 @@ public class DialogueManager : MonoBehaviour
             }
             else
             {
-                // Вышли вручную (Esc): уже показанную реплику НЕ повторяем —
-                // продолжаем со следующей непрочитанной (PlayerPrefs flame_dlg_node_*).
-                // Узел с выбором (выбор ещё не сделан) — остаёмся на нём,
-                // иначе ветка потеряется.
+                // Esc: показанное не повторяем, узел с выбором держим.
                 string progressNodeID = ComputeResumeNodeID(echoTarget, lastNode);
                 if (!string.IsNullOrEmpty(progressNodeID))
                     SaveDialogueProgress(finishedDialogue, progressNodeID);
@@ -811,8 +731,7 @@ public class DialogueManager : MonoBehaviour
             return;
         }
 
-        // Пустой сервисный узел без выборов: команды выполняем, текст не показываем,
-        // идём дальше сразу — иначе игрок видит пустое окно («фраза не видна»).
+        // Пустой сервисный узел: команды выполняем, текст не показываем, идём дальше.
         if (string.IsNullOrEmpty(node.dialogueText) && !HasChoices(node))
         {
             if (skipDepth > 100)
@@ -868,7 +787,6 @@ public class DialogueManager : MonoBehaviour
         if (currentDialogue != null)
             SaveDialogueProgress(currentDialogue, node.nodeID);
 
-        // История (бэклог на H): кто что сказал, переживает перезапуск
         DialogueHistory history = GetComponent<DialogueHistory>();
         if (history == null) history = gameObject.AddComponent<DialogueHistory>();
         history.Record(DialogueKey(currentDialogue), node.speakerName, node.dialogueText, ResolveSpeakerColor(node));
@@ -919,8 +837,7 @@ public class DialogueManager : MonoBehaviour
 
         cursorBaseText = WithSpeaker(node.dialogueText, node.speakerName);
         FitTextSize(cursorBaseText);
-
-        // Текста нет, а выборы есть: пустое окно не показываем, выборы — сразу.
+        // Текста нет, а выборы есть: окно не показываем, выборы сразу.
         if (string.IsNullOrEmpty(node.dialogueText) && HasChoices(node))
         {
             isTyping = false;
@@ -953,7 +870,6 @@ public class DialogueManager : MonoBehaviour
 
         if (dialogueText == null)
         {
-            // Интерфейс не привязан: показать нечего, но логика (выборы, квесты) идёт дальше
             isTyping = false;
             typingCoroutine = null;
             revealedCharacters = text.Length;
@@ -965,7 +881,7 @@ public class DialogueManager : MonoBehaviour
         revealedCharacters = 0;
         textHasRichTags = text.IndexOf('<') >= 0;
 
-        // Курсор несовместим с rich-text: обрезка строки посреди тега её ломает.
+        // Курсор несовместим с rich-text: обрезка посреди тега ломает разметку.
         bool useCursor = showTypingCursor && !string.IsNullOrEmpty(cursorSymbol) && !textHasRichTags;
 
         if (cursorBlinkCoroutine != null)
@@ -974,13 +890,9 @@ public class DialogueManager : MonoBehaviour
             cursorBlinkCoroutine = null;
         }
 
-        // Длина видимых символов для режима rich-text. Объявлена снаружи блока,
-        // потому что используется и после цикла — финальная установка maxVisibleCharacters.
         int visibleLength = 0;
-
         if (textHasRichTags)
         {
-            // Печатаем через maxVisibleCharacters — теги остаются целыми
             dialogueText.text = text;
             dialogueText.maxVisibleCharacters = 0;
             visibleLength = GetVisibleLength(text);
@@ -1010,8 +922,7 @@ public class DialogueManager : MonoBehaviour
         }
         else
         {
-            // Печатаем по границам текстовых элементов: суррогатные пары
-            // (эмодзи) и комбинируемые символы не рвём пополам.
+            // Не рвём суррогатные пары и комбинируемые символы.
             int[] cuts = GetCutPoints(text);
             foreach (int cut in cuts)
             {
@@ -1039,8 +950,6 @@ public class DialogueManager : MonoBehaviour
 
         isTyping = false;
         typingCoroutine = null;
-
-        // Мигающий курсор в конце реплики — знак «жми пробел»
         if (useCursor)
             cursorBlinkCoroutine = StartCoroutine(BlinkCursor());
 
@@ -1106,17 +1015,12 @@ public class DialogueManager : MonoBehaviour
                 typingAudioSource.spatialBlend = 0f;
             }
         }
-
-        // Легкий разброс тона — печать перестаёт звучать механически
         typingAudioSource.pitch = Random.Range(0.94f, 1.06f);
         typingAudioSource.PlayOneShot(typingSound, typingSoundVolume);
     }
 
     IEnumerator BlinkCursor()
     {
-        // Курсор дописывается к уже показанному тексту, а не вырезается из него —
-        // поэтому отрицательная длина в Substring больше невозможна.
-        // База берётся из поля (узел или эхо героя), а не из currentNode.
         string baseText = cursorBaseText ?? "";
         if (baseText == null) baseText = "";
 
@@ -1136,10 +1040,7 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Мгновенно допечатать текущую реплику. Вызывается кнопкой продолжения
-    /// (клик по тексту) или пробелом.
-    /// </summary>
+    /// <summary>Мгновенно допечатать реплику (пробел/клик).</summary>
     public void CompleteTyping()
     {
         if (typingCoroutine != null)
@@ -1158,7 +1059,7 @@ public class DialogueManager : MonoBehaviour
             cursorBlinkCoroutine = null;
         }
 
-        // Допечатать эхо героя: база — текст выбора, а не старый узел.
+        // Допечатать эхо героя.
         if (isShowingEcho)
         {
             string echoShown = WithSpeaker(echoText, playerSpeakerName);
@@ -1203,18 +1104,11 @@ public class DialogueManager : MonoBehaviour
             StartCoroutine(ShowChoicesAfterDelay(0f));
     }
 
-    /// <summary>
-    /// Двигает диалог дальше (эхо героя, следующий узел или показ вариантов).
-    /// Вызывается кнопкой продолжения, Space или автоматически.
-    /// Ввод больше не блокируется таймером автопродвижения: клик/пробел
-    /// всегда работает, а таймер гасится переходом.
-    /// </summary>
+    /// <summary>Двигает диалог дальше (эхо, следующий узел, выборы).</summary>
     public void AdvanceDialogue()
     {
         if (isTyping) return;
         if (isShowingChoices) return;
-
-        // Эхо героя прочитано — идём в целевой узел.
         if (isShowingEcho)
         {
             DialogueNode target = pendingEchoTarget;
@@ -1256,8 +1150,6 @@ public class DialogueManager : MonoBehaviour
     IEnumerator AutoAdvance(float delay)
     {
         yield return new WaitForSecondsRealtime(delay);
-        // Ссылку сбрасываем ДО продвижения: иначе AdvanceDialogue видит
-        // «таймер ещё идёт» и молча отменяется (таймер душил сам себя).
         autoAdvanceCoroutine = null;
         if (isDialogueActive && !isTyping && !isShowingChoices && !isShowingEcho)
         {
@@ -1291,11 +1183,7 @@ public class DialogueManager : MonoBehaviour
 
         if (choicesPanel != null) choicesPanel.SetActive(true);
 
-        // Варианты с учётом условий, предметов, квестов и одноразовости.
-        // Скрытые (showWhenLocked выключен) выпадают из списка — нижние кнопки
-        // сдвигаются вверх, пробелов нет. Помеченные showWhenLocked показываются
-        // заблокированными (UI5, нажать нельзя). Использованные показываются
-        // заблокированными ВСЕГДА (видно, что кнопка уже нажата).
+        // Скрытые выпадают из списка, showWhenLocked и использованные — блокировкой.
         var entries = new System.Collections.Generic.List<ChoiceEntry>();
         foreach (var choice in currentNode.choices)
         {
@@ -1346,12 +1234,10 @@ public class DialogueManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>Варианты на готовых кнопках сцены (Button1..6). Скрытые пропускаем без пробелов, заблокированные — стиль UI5.</summary>
+    /// <summary>Варианты на готовых кнопках сцены.</summary>
     void ShowStaticChoices(System.Collections.Generic.List<ChoiceEntry> entries)
     {
-        // Слоты сортируем сверху вниз по позиции: нумерация кнопок в сцене
-        // может не совпадать с визуальным порядком (Button1, Button3, Button2).
-        // Видимые ветки занимают верхние слоты подряд — дырок не бывает.
+        // Слоты сортируем по Y: нумерация в сцене может не совпадать с порядком.
         var slots = new System.Collections.Generic.List<Button>();
         if (staticChoiceButtons != null)
         {
@@ -1367,8 +1253,6 @@ public class DialogueManager : MonoBehaviour
             Debug.LogWarning("[DialogueManager] Есть варианты, но нет кнопок (staticChoiceButtons пуст). " +
                 "Добавь UserDialogueUI на свой канвас: Tools -> Диалоги -> Подключить мой канвас.", this);
             isShowingChoices = false;
-            // Ошибка конфигурации, а не конец истории: прогресс сохраняем,
-            // completed=false — после починки канваса диалог можно пройти заново.
             EndDialogue(false);
             return;
         }
@@ -1397,7 +1281,6 @@ public class DialogueManager : MonoBehaviour
                 }
                 else
                 {
-                    // Заблокировано или уже использовано: нажать нельзя, кликов нет
                     button.interactable = false;
                 }
                 ApplyLockedStyle(button);
@@ -1424,7 +1307,7 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    /// <summary>Y-позиция слота (чем больше, тем выше на экране).</summary>
+    /// <summary>Y слота (чем больше, тем выше).</summary>
     static float SlotY(Button button)
     {
         if (button == null) return 0f;
@@ -1432,7 +1315,7 @@ public class DialogueManager : MonoBehaviour
         return rect != null ? rect.anchoredPosition.y : 0f;
     }
 
-    /// <summary>Индекс кнопки в staticChoiceButtons (для поиска её подписи).</summary>
+    /// <summary>Индекс кнопки в staticChoiceButtons.</summary>
     int StaticButtonIndex(Button button)
     {
         if (staticChoiceButtons == null || button == null) return -1;
@@ -1443,7 +1326,7 @@ public class DialogueManager : MonoBehaviour
         return -1;
     }
 
-    /// <summary>Запомнить исходный цвет подписи, чтобы вернуть его после разблокировки.</summary>
+    /// <summary>Запомнить исходный цвет подписи.</summary>
     void RememberLabelColor(TextMeshProUGUI label)
     {
         if (label != null && !labelBaseColors.ContainsKey(label))
@@ -1467,7 +1350,7 @@ public class DialogueManager : MonoBehaviour
         return button != null ? button.GetComponentInChildren<TextMeshProUGUI>(true) : null;
     }
 
-    /// <summary>Варианты из шаблона (создание/удаление кнопок). Заблокированные — UI5, нажать нельзя.</summary>
+    /// <summary>Варианты из шаблона. Заблокированные — нажать нельзя.</summary>
     void ShowTemplateChoices(System.Collections.Generic.List<ChoiceEntry> entries)
     {
         if (choicesContainer == null || choiceButtonPrefab == null) return;
@@ -1513,8 +1396,6 @@ public class DialogueManager : MonoBehaviour
         if (choicesPanel != null) choicesPanel.SetActive(false);
         HideStaticButtons();
         isShowingChoices = false;
-
-        // Одноразовость: выбор гаснет сразу и навсегда (до сброса диалога).
         if (choice != null && currentDialogue != null && currentNode != null)
             MarkChoiceUsed(currentDialogue, currentNode.nodeID, choice.choiceText);
 
@@ -1543,8 +1424,7 @@ public class DialogueManager : MonoBehaviour
             }
         }
 
-        // Эхо героя: выбранный ответ показываем как его реплику отдельным шагом.
-        // Иначе фраза героя видна только на кнопке и исчезает в момент клика.
+        // Эхо: ответ показываем репликой героя, иначе фраза видна только на кнопке.
         if (echoPlayerChoice && target != null && !string.IsNullOrEmpty(choice.choiceText))
         {
             ShowEcho(choice.choiceText, target);
@@ -1561,10 +1441,7 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Показать выбранный ответ как реплику героя. Дальше — пробел/клик
-    /// (AdvanceDialogue уведут в целевой узел), Esc сохранит прогресс на цели.
-    /// </summary>
+    /// <summary>Показать ответ как реплику героя. Дальше — пробел/клик в целевой узел.</summary>
     void ShowEcho(string text, DialogueNode target)
     {
         pendingEchoTarget = target;
@@ -1582,8 +1459,6 @@ public class DialogueManager : MonoBehaviour
         }
         if (choicesPanel != null) choicesPanel.SetActive(false);
         HideStaticButtons();
-
-        // История (бэклог на H): реплика героя пишется как обычная строка.
         DialogueHistory history = GetComponent<DialogueHistory>();
         if (history == null) history = gameObject.AddComponent<DialogueHistory>();
         history.Record(DialogueKey(currentDialogue), playerSpeakerName, echoText, ResolvePlayerColor());
@@ -1603,12 +1478,8 @@ public class DialogueManager : MonoBehaviour
             }
         }
 
-        // У эха нет своего портрета: чужой прячем, чтобы не висел от прошлой реплики.
         if (speakerPortraitImage != null)
             speakerPortraitImage.gameObject.SetActive(false);
-
-        // Интерфейс (цвет реплики) переключаем на героя через лицевой узел:
-        // обработчики читают только имя/цвет, списки им не нужны.
         OnNodeChanged?.Invoke(new DialogueNode
         {
             speakerName = playerSpeakerName,
@@ -1634,7 +1505,6 @@ public class DialogueManager : MonoBehaviour
 
         if (dialogueText == null)
         {
-            // Интерфейс не привязан: эхо пропускаем молча, цель ждёт продвижения.
             isTyping = false;
             echoCoroutine = null;
             revealedCharacters = text.Length;
@@ -1681,11 +1551,7 @@ public class DialogueManager : MonoBehaviour
             cursorBlinkCoroutine = StartCoroutine(BlinkCursor());
     }
 
-    /// <summary>
-    /// Уменьшить шрифт под длинную реплику (две ступени), чтобы текст не вылезал
-    /// из окна. Короткие реплики — базовый размер. Если на тексте включён
-    /// TMP-автосайз — сами ничего не крутим, уважаем настройку дизайнера.
-    /// </summary>
+    /// <summary>Уменьшить шрифт под длинную реплику. Автосайз уважаем, не трогаем.</summary>
     void FitTextSize(string text)
     {
         if (!shrinkLongText || dialogueText == null || dialogueText.enableAutoSizing) return;
@@ -1699,7 +1565,7 @@ public class DialogueManager : MonoBehaviour
 
     public void SetBackground(Sprite bg)
     {
-        // Реализуйте свой способ установки фона
+        // TODO: свой фон
     }
 
     IEnumerator FadeAndScale(Transform target, CanvasGroup cg, Vector3 targetScale, float targetAlpha, float duration, AnimationCurve curve, System.Action onComplete = null)

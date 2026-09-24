@@ -2,28 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Лёгкая система заданий без ассетов: id квеста -> статус + счётчик.
-/// Определения (название/описание) лежат в коде, состояние — в PlayerPrefs.
-/// Связка с остальным:
-///  - DialogueCommand: StartQuest / CompleteQuest / FailQuest (stringParam = id квеста);
-///  - DialogueChoice: requiredQuestId + requiredQuestState (ветвление по квестам);
-///  - DoorController: questToCompleteOnOpen;
-///  - InventorySystem.AddItem -> NotifyItemAdded (авто-закрытие q_cart_key).
-///
-/// Квесты сюжета (id зафиксированы, используются в диалогах D1/D2/D4/D5/D9/D10/D11):
-///  q_cart_key    «Ключ от дома деда» — ПЕРВЫЙ квест: игрок отбился от отряда и попал
-///                в деревню покойного деда (Михалыча). Степан отправляет к повозке —
-///                найти ключ от дома деда. Ключ (Rusty key, key_cellar) виден на повозке
-///                только пока квест активен (QuestKeyPickup); подбор ставит флаг
-///                has_cellar_key, а закрывает квест только ПЕРЕДАЧА ключа Степану
-///                («Ключ у меня» в D1 → N_give): там же стартует q_cellar_door.
-///  q_forest_chest «Сундук в лесу» — проверить сундук у вишен, забрать письмо.
-///  q_ammo        «Мне бы патронов» — Степан один раз делится диском к ППШ;
-///  q_stepan_aid  «Чем перевязаться» — Степан делится бинтами (раз, за доверие);
-///  q_raid_watch  «Дозор» — подменить Василия на шухере (второй разговор — налёт);
-///  q_raid        «Налёт» — отбить немецкий патруль у околицы.
-/// </summary>
+/// <summary>Задания без ассетов: id -> статус + счётчик, состояние в PlayerPrefs.</summary>
 public static class QuestSystem
 {
     public const int StateNone = 0;
@@ -79,7 +58,7 @@ public static class QuestSystem
 
     private const string Prefix = "flame_q_";
 
-    /// <summary>Новое задание / журнал. Подпишись, чтобы показывать тосты в UI.</summary>
+    /// <summary>Новое задание / журнал.</summary>
     public static event Action<string> OnQuestStarted;
     public static event Action<string> OnQuestCompleted;
     public static event Action<string> OnQuestFailed;
@@ -149,13 +128,7 @@ public static class QuestSystem
         Save();
     }
 
-    /// <summary>
-    /// Вызывается из InventorySystem.AddItem. Реакции на подбор без правок сцены:
-    /// ключ подвала взводит флаг has_cellar_key, письмо из лесного сундука
-    /// закрывает q_forest_chest. ВАЖНО: подбор ключа НЕ закрывает q_cart_key —
-    /// квест закрывается только передачей ключа Степану («Ключ у меня» в D1),
-    /// там же стартует q_cellar_door.
-    /// </summary>
+    /// <summary>Реакции на подбор: key_cellar ставит флаг, letter_old закрывает q_forest_chest.</summary>
     public static void NotifyItemAdded(string itemId)
     {
         if (string.IsNullOrEmpty(itemId)) return;

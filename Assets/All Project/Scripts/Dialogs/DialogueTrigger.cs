@@ -42,9 +42,7 @@ public class DialogueTrigger : MonoBehaviour
 
     void Start()
     {
-        // На одном NPC должен рулить кто-то один: если рядом висит NpcDialogueSequence
-        // (1 NPC = все диалоги 1->2->3), триггер гасится сам — иначе оба дерутся за E
-        // и подсказку, а повторное E может перезапустить D1 вместо D2.
+        // На объекте уже есть цепочка — триггер гасится, чтобы не драться за E.
         NpcDialogueSequence seq = GetComponent<NpcDialogueSequence>();
         if (seq != null && seq.enabled)
         {
@@ -58,7 +56,7 @@ public class DialogueTrigger : MonoBehaviour
         if (cachedManager == null)
             cachedManager = FindObjectOfType<DialogueManager>();
 
-        // Прохождение переживает перезапуск: playOnce-триггер не оживает
+        // Прохождение переживает перезапуск.
         if (playOnce && dialogue != null && DialogueManager.IsDialogueDone(dialogue))
         {
             hasPlayed = true;
@@ -66,11 +64,7 @@ public class DialogueTrigger : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Доступен ли диалог прямо сейчас: цепочка (предшественник пройден?)
-    /// и квест-условие. Недоступный триггер ведёт себя так, будто игрока рядом нет:
-    /// ни подсказки, ни запуска. Так второй диалог на том же NPC «ждёт» первый.
-    /// </summary>
+    /// <summary>Доступен ли диалог: предшественник пройден + квест сошёлся.</summary>
     public bool IsAvailable()
     {
         if (requireDialogueDone != null && !DialogueManager.IsDialogueDone(requireDialogueDone))
@@ -85,7 +79,6 @@ public class DialogueTrigger : MonoBehaviour
     {
         if (!IsAvailable())
         {
-            // Цепочка не сошлась: прячем чужую подсказку, если она висела от нас.
             if (hintShownByUs && cachedManager != null && cachedManager.interactHint != null)
             {
                 cachedManager.interactHint.SetActive(false);
@@ -117,7 +110,7 @@ public class DialogueTrigger : MonoBehaviour
             return;
         }
 
-        // Открыт инвентарь — разговор не предлагаем и не стартуем (см. StartDialogue).
+        // Открыт инвентарь — разговор не предлагаем.
         if (InventorySystem.Instance != null && InventorySystem.Instance.IsOpen)
         {
             if (hintShownByUs && cachedManager.interactHint != null)
@@ -130,7 +123,6 @@ public class DialogueTrigger : MonoBehaviour
 
         float dist = Vector3.Distance(transform.position, cachedPlayer.transform.position);
         playerInRange = dist <= interactDistance;
-        // Стена между (игрок в доме, НПС на улице): подсказки нет, E молчит.
         bool visible = !requireLineOfSight || DialogueManager.HasLineOfSight(
             transform.position + Vector3.up * 1.6f, cachedPlayer, gameObject, losBlockMask);
 
@@ -174,7 +166,7 @@ public class DialogueTrigger : MonoBehaviour
                            $"(0 узлов, ассет {dialogue.name}) — E откроет пустоту. Проверь ассет в папке Dialog.", this);
             return;
         }
-        if (!IsAvailable()) return; // цепочка/квест не сошлись — молчим
+        if (!IsAvailable()) return; // цепочка/квест не сошлись
         if (DialogueManager.Instance == null)
         {
             Debug.LogWarning($"[DialogueTrigger] {name}: DialogueManager.Instance = null.", this);
@@ -185,8 +177,7 @@ public class DialogueTrigger : MonoBehaviour
             Debug.LogWarning($"[DialogueTrigger] {name}: менеджер уже занят другим диалогом.", this);
             return;
         }
-        // Открытый инвентарь и диалог не совмещаем: иначе менеджер включит
-        // контроллер при закрытии диалога, а сумка ещё открыта — игрок пойдёт с инвентарём.
+        // Инвентарь и диалог не совмещаем.
         if (InventorySystem.Instance != null && InventorySystem.Instance.IsOpen)
             return;
 

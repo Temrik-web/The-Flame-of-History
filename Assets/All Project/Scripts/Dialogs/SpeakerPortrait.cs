@@ -1,14 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Временная замена портретного арта: цветной круг с ободком.
-/// Когда художник даст спрайты — просто проставь их в DialogueNode.speakerPortrait,
-/// этот класс сам перестанет использоваться для этих персонажей.
-///
-/// Цвета персонажей тоже здесь, чтобы имя и заглушка совпадали:
-/// Степан — янтарный, Алесь — голубой, Василий — зелёный.
-/// </summary>
+/// <summary>Заглушка портрета: цветной круг. Есть спрайт в узле — заглушка не используется.</summary>
 public static class SpeakerPortrait
 {
     private static readonly Dictionary<string, Sprite> cache = new Dictionary<string, Sprite>();

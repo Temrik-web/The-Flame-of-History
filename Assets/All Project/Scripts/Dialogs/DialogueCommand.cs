@@ -58,7 +58,7 @@ public class DialogueCommand
                     DialogueManager.Instance.SetBackground(spriteParam);
                 break;
             case CommandType.PlayBGM:
-                // Реализуйте свою логику музыки
+                // TODO: логика музыки
                 break;
             case CommandType.StopBGM:
                 break;
@@ -74,9 +74,7 @@ public class DialogueCommand
                 TeleportPlayer(gameObjectParam);
                 break;
             case CommandType.CustomEvent:
-                // Главный «отросток» механики: узел/выбор кидает строковое событие
-                // в DialogueEventBus (например "raid_germans"), а мир реагирует:
-                // GermanRaidDirector спавнит немцев, квесты стартуют и т.д.
+                // Узел/выбор кидает строковое событие в шину, мир реагирует (например спавн немцев)
                 DialogueEventBus.Raise(stringParam);
                 break;
             case CommandType.StartQuest:
@@ -94,10 +92,7 @@ public class DialogueCommand
         }
     }
 
-    /// <summary>
-    /// Выдать предмет в инвентарь по строковому id (stringParam = itemId, intParam = количество).
-    /// Работает через ItemDatabase + InventorySystem. Без них — только лог.
-    /// </summary>
+    /// <summary>Выдать предмет по id (stringParam = itemId, intParam = количество).</summary>
     public static void GiveItemToPlayer(string itemId, int amount = 1)
     {
         if (string.IsNullOrEmpty(itemId))
@@ -158,10 +153,7 @@ public class DialogueCommand
         return inv.CountItemById(itemId) >= Mathf.Max(1, amount);
     }
 
-    /// <summary>
-    /// Телепортировать игрока к точке (gameObjectParam). Пусто — ничего не делать.
-    /// Удобно для «отростков» после диалога: поговорил — очнулся у сарая и т.п.
-    /// </summary>
+    /// <summary>Телепорт игрока к точке. Пусто — ничего не делать.</summary>
     public static void TeleportPlayer(GameObject destination)
     {
         if (destination == null) return;

@@ -1,9 +1,4 @@
 using UnityEngine;
-
-/// <summary>
-/// Предмет, лежащий в мире и доступный для подбора.
-/// Вешается на GameObject с коллайдером.
-/// </summary>
 [DisallowMultipleComponent]
 public class Pickup : MonoBehaviour
 {
@@ -52,9 +47,8 @@ public class Pickup : MonoBehaviour
 
     private Light glowLight;
     private float glowBaseIntensity;
-    private float glowBlend;      // 0 — обычное, 1 — под прицелом
-
-    // Кэш id свойства эмиссии (работает и в URP/HDRP, и в Built-in Standard)
+    private float glowBlend;
+    // Id эмиссии закэшированы: разные пайплайны используют разные имена свойств
     private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
     private static readonly int EmissiveColorId = Shader.PropertyToID("_EmissiveColor");
     private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
@@ -77,21 +71,18 @@ public class Pickup : MonoBehaviour
         if (createGlowLight) CreateGlow();
     }
 
-    /// <summary>Перекрасить материал в цвет редкости через MaterialPropertyBlock.</summary>
     void TintMaterial(Color color)
     {
         if (highlightRenderers == null) return;
-
-        // Приглушённая версия цвета: предмет читается, но не выглядит игрушечным
+        // Приглушаем цвет редкости (0.45), чтобы не выглядело игрушечным
         Color tint = Color.Lerp(color, new Color(0.35f, 0.36f, 0.40f), 0.45f);
-
         var block = new MaterialPropertyBlock();
         foreach (Renderer r in highlightRenderers)
         {
             if (r == null) continue;
             r.GetPropertyBlock(block);
-            block.SetColor(BaseColorId, tint);  // URP / HDRP
-            block.SetColor(ColorId, tint);      // Built-in Standard
+            block.SetColor(BaseColorId, tint);
+            block.SetColor(ColorId, tint);
             r.SetPropertyBlock(block);
         }
     }
@@ -107,8 +98,7 @@ public class Pickup : MonoBehaviour
         glowLight.color = highlightColor;
         glowLight.range = glowRange;
         glowLight.intensity = glowIntensity;
-        glowLight.shadows = LightShadows.None; // тени от подбираемого мусора не нужны
-
+        glowLight.shadows = LightShadows.None;
         glowBaseIntensity = glowIntensity;
     }
 
@@ -116,7 +106,6 @@ public class Pickup : MonoBehaviour
     {
         if (spin)
             transform.Rotate(Vector3.up, spinSpeed * Time.deltaTime, Space.World);
-
         if (bob)
         {
             bobTimer += Time.deltaTime * bobSpeed;
@@ -131,8 +120,6 @@ public class Pickup : MonoBehaviour
     void UpdateGlow()
     {
         if (glowLight == null) return;
-
-        // Плавный переход к «под прицелом» вместо резкого щелчка
         float target = isHighlighted ? 1f : 0f;
         glowBlend = Mathf.Lerp(glowBlend, target, 1f - Mathf.Exp(-10f * Time.deltaTime));
 
@@ -143,7 +130,6 @@ public class Pickup : MonoBehaviour
         glowLight.range = glowRange * Mathf.Lerp(1f, 1.35f, glowBlend);
     }
 
-    /// <summary>Текст подсказки для HUD.</summary>
     public string GetPrompt()
     {
         if (!string.IsNullOrEmpty(promptText)) return promptText;
@@ -153,7 +139,6 @@ public class Pickup : MonoBehaviour
             : $"E — {item.itemName}";
     }
 
-    /// <summary>Включить/выключить подсветку. Вызывает инвентарь при наведении.</summary>
     public void SetHighlight(bool on)
     {
         if (isHighlighted == on || highlightRenderers == null) return;
@@ -179,10 +164,7 @@ public class Pickup : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Забрано столько-то штук. Если забрали всё — объект уничтожается,
-    /// иначе остаётся с уменьшенным количеством (инвентарь был почти полон).
-    /// </summary>
+    // Частичный подбор: остаток остаётся лежать, если инвентарь был почти полон
     public void OnPickedUp(int takenAmount)
     {
         amount -= takenAmount;
@@ -193,7 +175,6 @@ public class Pickup : MonoBehaviour
         }
     }
 
-    /// <summary>Совместимость со старым кодом: забрать всё.</summary>
     public void OnPickedUp() => OnPickedUp(amount);
 
 #if UNITY_EDITOR

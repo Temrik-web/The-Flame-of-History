@@ -30,8 +30,7 @@ public class InventoryInputBlocker : MonoBehaviour
     [Header("Дополнительные скрипты")]
     [Tooltip("Любые свои компоненты, которые надо выключить при открытии инвентаря.")]
     public List<MonoBehaviour> extraToDisable = new List<MonoBehaviour>();
-
-    // Что было выключено нами — чтобы не включить то, что было выключено раньше
+    // Не включаем чужое: только то, что выключили сами
     private readonly List<MonoBehaviour> disabledByUs = new List<MonoBehaviour>();
 
     void Awake()
@@ -67,8 +66,6 @@ public class InventoryInputBlocker : MonoBehaviour
     void Block()
     {
         Unblock();
-
-        // Оружие: замок, а не выключение компонентов
         if (blockWeapons) PlayerInputLock.SetWeaponLock(this, true);
 
         if (blockMovement)

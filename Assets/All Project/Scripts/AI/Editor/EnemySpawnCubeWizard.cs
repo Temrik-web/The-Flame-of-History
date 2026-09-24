@@ -1,17 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>
-/// Тестовый визард: создаёт красный куб, который по E включает 3 немцев.
-/// Меню: Tools -> Тест -> Создать куб спавна немцев.
-///
-/// Что делает:
-/// 1) Создаёт куб 1x1x1 перед игроком (BoxCollider + EnemySpawnCube).
-/// 2) Сам находит на сцене (включая выключенные):
-///    "== Enemy Template (клонируй меня) ==", "(1)", "(2)"
-///    и подставляет их в массив enemiesToEnable.
-/// 3) Выделяет куб — осталось нажать Play, подойти и нажать E.
-/// </summary>
+/// <summary>Тестовый куб: по E включает 3 немцев. Tools -> Тест -> Создать куб спавна немцев.</summary>
 public static class EnemySpawnCubeWizard
 {
     [MenuItem("Tools/Тест/Создать куб спавна немцев", false, 0)]
@@ -38,13 +28,10 @@ public static class EnemySpawnCubeWizard
         cube.name = "== TEST: Куб спавна немцев (E) ==";
         cube.transform.position = pos;
 
-        // Куб — декорация/кнопка: сквозь него ходить нельзя, но триггер не нужен
-        // (дистанция проверяется в скрипте). Оставляем обычный коллайдер.
         EnemySpawnCube spawner = Undo.AddComponent<EnemySpawnCube>(cube);
         spawner.interactDistance = 3.5f;
         spawner.hintMessage = "Нажмите E — выпустить немцев (тест)";
 
-        // Красный полупрозрачный материал, чтобы куб было видно издалека.
         Renderer rend = cube.GetComponent<Renderer>();
         if (rend != null)
         {
@@ -53,7 +40,6 @@ public static class EnemySpawnCubeWizard
             rend.sharedMaterial = mat;
         }
 
-        // Автопривязка 3 немцев (включая неактивных).
         spawner.enemiesToEnable = FindThreeTemplates();
 
         Undo.RegisterCreatedObjectUndo(cube, "Create enemy spawn cube");

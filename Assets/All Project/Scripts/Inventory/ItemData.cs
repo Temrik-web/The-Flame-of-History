@@ -1,38 +1,21 @@
 using UnityEngine;
-
-/// <summary>
-/// Категория предмета. Определяет, что произойдёт при использовании.
-///
-/// ВАЖНО: числовые значения зафиксированы явно. Unity сохраняет enum в ассетах
-/// как int, поэтому менять порядок нельзя — уже созданные ItemData сломаются.
-/// Порядок отображения в инвентаре задаётся через CategoryOrder, а не через enum.
-/// </summary>
+/// <summary>ВАЖНО: порядок enum менять нельзя — Unity хранит его как int в ассетах.</summary>
 public enum ItemType
 {
-    Misc = 0,        // хлам / квестовое / просто лежит в инвентаре
-    Weapon = 1,      // оружие
-    Consumable = 2,  // аптечка, еда — лечит
-    Ammo = 3,        // патроны / магазины
-    Key = 4          // ключ для двери
+    Misc = 0,
+    Weapon = 1,
+    Consumable = 2,
+    Ammo = 3,
+    Key = 4
 }
-
-/// <summary>
-/// Редкость предмета. Влияет только на визуал: цвет рамки и названия.
-/// </summary>
 public enum ItemRarity
 {
-    Common = 0,     // обычный — серый
-    Uncommon = 1,   // необычный — зелёный
-    Rare = 2,       // редкий — синий
-    Epic = 3,       // эпический — фиолетовый
-    Legendary = 4   // легендарный — золотой
+    Common = 0,
+    Uncommon = 1,
+    Rare = 2,
+    Epic = 3,
+    Legendary = 4
 }
-
-/// <summary>
-/// Описание типа предмета (ассет). Один ассет = один вид предмета:
-/// "Автомат", "Аптечка", "Патроны 5.45" и т.д.
-/// Создаётся через Assets -> Create -> Inventory -> Item.
-/// </summary>
 [CreateAssetMenu(fileName = "NewItem", menuName = "Inventory/Item")]
 public class ItemData : ScriptableObject
 {
@@ -85,22 +68,11 @@ public class ItemData : ScriptableObject
     public AudioClip pickupSound;
     public AudioClip useSound;
 
-    /// <summary>Безопасный id: если поле пустое — имя ассета.</summary>
     public string Id => string.IsNullOrEmpty(itemId) ? name : itemId;
-
-    /// <summary>Порядок категории при сортировке: оружие, патроны, медицина, ключи, прочее.</summary>
     public int CategoryOrder => GetCategoryOrder(itemType);
-
-    /// <summary>Человеческое название категории для заголовков и вкладок.</summary>
     public string CategoryName => GetCategoryName(itemType);
-
-    /// <summary>Цвет редкости для рамки ячейки и названия.</summary>
     public Color RarityColor => GetRarityColor(rarity);
-
-    /// <summary>
-    /// Порядок категорий в отсортированном инвентаре. Отделён от значений enum,
-    /// чтобы порядок можно было менять без порчи существующих ассетов.
-    /// </summary>
+    // Порядок отображения отделён от enum, чтобы не ломать ассеты при пересортировке
     public static int GetCategoryOrder(ItemType type)
     {
         switch (type)
@@ -113,7 +85,6 @@ public class ItemData : ScriptableObject
         }
     }
 
-    /// <summary>Категории в порядке отображения.</summary>
     public static readonly ItemType[] DisplayOrder =
     {
         ItemType.Weapon,
@@ -122,7 +93,6 @@ public class ItemData : ScriptableObject
         ItemType.Key,
         ItemType.Misc
     };
-
     public static string GetCategoryName(ItemType type)
     {
         switch (type)
@@ -147,7 +117,6 @@ public class ItemData : ScriptableObject
         }
     }
 
-    /// <summary>Цвет-акцент категории — для вкладок и подписей.</summary>
     public static Color GetCategoryColor(ItemType type)
     {
         switch (type)
@@ -160,21 +129,11 @@ public class ItemData : ScriptableObject
         }
     }
 
-    /// <summary>Можно ли этот предмет экипировать в руки.</summary>
     public bool IsEquippable =>
         itemType == ItemType.Weapon && !string.IsNullOrEmpty(equipWeaponId);
-
-    /// <summary>Экипирован ли этот предмет прямо сейчас (только для оружия).</summary>
     public bool IsCurrentlyEquipped =>
         IsEquippable && WeaponSlotManager.IsEquippedById(equipWeaponId);
-
-    /// <summary>Назначен ли предмету быстрый слот.</summary>
     public bool HasHotbarSlot => hotbarSlot >= 1 && hotbarSlot <= 9;
-
-    /// <summary>
-    /// Применить предмет. Возвращает true, если использование сработало
-    /// (и предмет нужно потратить, если consumeOnUse).
-    /// </summary>
     public bool Use(GameObject user)
     {
         if (user == null) return false;
@@ -201,10 +160,8 @@ public class ItemData : ScriptableObject
 
             case ItemType.Ammo:
             {
-                // Магазины не «используются» вручную: они расходуются сами
-                // при перезарядке. За синхронизацию отвечает WeaponAmmoLink,
-                // для которого инвентарь — единственный источник правды.
-                // Прибавлять spareMagazines здесь нельзя: счётчики разойдутся.
+                // Магазины расходуются сами при перезарядке через WeaponAmmoLink.
+                // Прибавлять spareMagazines здесь нельзя: счётчики разойдутся
                 Debug.Log($"[ItemData] {itemName}: расходуется автоматически при перезарядке (R).");
                 return false;
             }
@@ -222,8 +179,7 @@ public class ItemData : ScriptableObject
 
             case ItemType.Weapon:
             {
-                // Оружие не «используется», а экипируется — этим занимается
-                // WeaponSlotManager. Возврат false означает «предмет не потратился».
+                // Оружие экипируется через WeaponSlotManager и не тратится (return false)
                 if (IsEquippable)
                 {
                     WeaponSlotManager.EquipById(equipWeaponId);

@@ -3,13 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// История диалога (бэклог как в визуальных новеллах).
-/// Открывается клавишей H в любой момент: кто что говорил, имена в цветах персонажей.
-/// Пишет текущий диалог в память + в PlayerPrefs, переживает перезапуск.
-///
-/// Вешается рядом с DialogueManager. Если его нет — DialogueManager добавит сам.
-/// </summary>
+/// <summary>История диалога (бэклог на H). Висит рядом с менеджером, пишет в PlayerPrefs.</summary>
 [DisallowMultipleComponent]
 public class DialogueHistory : MonoBehaviour
 {
@@ -69,18 +63,14 @@ public class DialogueHistory : MonoBehaviour
     public void Show() { if (panelRoot != null && !panelRoot.activeSelf) Toggle(); }
     public void Hide() { if (panelRoot != null && panelRoot.activeSelf) Toggle(); }
 
-    /// <summary>
-    /// Записать реплику. Вызывает DialogueManager при переходе к узлу.
-    /// Пустые служебные узлы (без имени и текста) пропускаем.
-    /// </summary>
+    /// <summary>Записать реплику. Пустые служебные узлы пропускаем.</summary>
     public void Record(string dialogueKey, string speaker, string text, Color color)
     {
         if (string.IsNullOrEmpty(text) && string.IsNullOrEmpty(speaker)) return;
 
         if (dialogueKey != loadedKey)
             LoadFor(dialogueKey);
-
-        // Дедуп: при продолжении с того же узла узел запишется повторно
+        // Дедуп при продолжении с того же узла.
         if (entries.Count > 0)
         {
             Entry last = entries[entries.Count - 1];
@@ -161,13 +151,9 @@ public class DialogueHistory : MonoBehaviour
         Color32 c32 = c;
         return string.Format("#{0:X2}{1:X2}{2:X2}", c32.r, c32.g, c32.b);
     }
-
-    // TMP rich text: экранируем только угловые скобки, остальное (ё, тире) можно как есть
+    // TMP: экранируем только скобки.
     static string Escape(string s) => (s ?? "").Replace("<", "&lt;").Replace(">", "&gt;");
-
-    // =====================================================================
-    // Сохранение: записи разделяем \x1E, внутри — \x1F (имя/текст)
-    // =====================================================================
+    // Разделители: записи \x1E, внутри \x1F.
     void LoadFor(string dialogueKey)
     {
         entries.Clear();
@@ -226,16 +212,11 @@ public class DialogueHistory : MonoBehaviour
     static string Unescape(string s) =>
         (s ?? "").Replace("\\u", "\x1F").Replace("\\e", "\x1E").Replace("\\n", "\n").Replace("\\\\", "\\");
 
-    // =====================================================================
-    // Панель: затемнение + окно с прокруткой, строится кодом
-    // =====================================================================
     void BuildUI()
     {
         canvas = new GameObject("DialogueHistoryCanvas").AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 96; // над диалогами (90), под инвентарём (100)
-        // Без DontDestroyOnLoad: канвас живёт в сцене как остальной UI диалогов,
-        // записи подтягиваются из PlayerPrefs при следующей реплике
+        canvas.sortingOrder = 96; // над диалогами, под инвентарём
 
         CanvasScaler scaler = canvas.gameObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;

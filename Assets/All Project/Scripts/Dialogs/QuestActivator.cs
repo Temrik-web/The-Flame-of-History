@@ -1,20 +1,6 @@
 using UnityEngine;
 
-/// <summary>
-/// Включение/выключение объекта по статусу квеста.
-///
-/// Связка: DialogueCommand (StartQuest/CompleteQuest) -> QuestSystem -> сюда.
-///
-/// ВАЖНО: вешать на АКТИВНЫЙ объект — компонент должен получать события.
-/// Скрывать можно что угодно через поле target (цель может стартовать выключенной).
-/// Сохранения переживает: состояние применяется в Start (после QuestSystem.Load).
-///
-/// Примеры:
-///  - ключ на повозке: компонент на группе повозки, target = ключ,
-///    questId = q_cart_key, visibleWhenState = 1 (виден, пока квест активен);
-///  - сундук в лесу: компонент на корне сундука, target = содержимое,
-///    questId = q_forest_chest, visibleWhenState = 1.
-/// </summary>
+/// <summary>Включение объекта по статусу квеста. Вешать на активный объект, прятать через target.</summary>
 [DisallowMultipleComponent]
 public class QuestActivator : MonoBehaviour
 {

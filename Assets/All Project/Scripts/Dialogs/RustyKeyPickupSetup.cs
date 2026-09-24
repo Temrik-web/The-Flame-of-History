@@ -1,25 +1,6 @@
 using UnityEngine;
 
-/// <summary>
-/// Находит в сцене модель «Rusty key» (FBX без логики) и превращает её в
-/// подбираемый квестовый ключ первого квеста:
-///
-///  - добавляет BoxCollider (иначе E-подбор невозможен — лучу не во что попасть);
-///  - добавляет Pickup (item = key_cellar): даёт стандартную подсказку
-///    инвентаря «E — Ключ от подвала» по центру экрана + подбор по E;
-///  - добавляет QuestKeyPickup (questId = q_cart_key): ключ виден только
-///    пока квест активен (до D1 и после подбора его нет).
-///
-/// Как пользоваться:
-///  1. Создай пустой объект (например «RustyKeySetup») рядом с повозкой;
-///  2. Повесь этот скрипт;
-///  3. Play — в консоли увидишь «[RustyKey] Готов: ...».
-/// Никаких правок префаба/меша не нужно, модель остаётся родной.
-///
-/// Подбор ставит флаг has_cellar_key (InventorySystem.AddItem ->
-/// QuestSystem.NotifyItemAdded). Сам квест закрывается передачей ключа
-/// Степану («Ключ у меня» в D1 → узел N_give).
-/// </summary>
+/// <summary>Превращает модель «Rusty key» в подбираемый ключ q_cart_key: коллайдер + Pickup + гейт.</summary>
 [DisallowMultipleComponent]
 public class RustyKeyPickupSetup : MonoBehaviour
 {
@@ -59,11 +40,7 @@ public class RustyKeyPickupSetup : MonoBehaviour
 
     void OnEnable()
     {
-        // Форвард квест-событий на гейт ключа. Нужен потому, что сам ключ
-        // обычно стартует СКРЫТЫМ: на выключенном объекте Unity не вызывает
-        // OnEnable/Start у только что добавленных компонентов — гейт на ключе
-        // никогда не подписался бы и ключ не появился бы при старте квеста.
-        // Сетап висит на активном объекте, поэтому ведёт гейт сам.
+        // Сетап висит на активном объекте и форвардит события на гейт скрытого ключа.
         QuestSystem.OnQuestStarted += OnQuestChanged;
         QuestSystem.OnQuestCompleted += OnQuestChanged;
         QuestSystem.OnQuestFailed += OnQuestChanged;
@@ -97,13 +74,12 @@ public class RustyKeyPickupSetup : MonoBehaviour
             return;
         }
 
-        // 0) Размер — ПЕРЕД коллайдером: бокс считается от мировых габаритов.
-        // Идемпотентно (повторный вызов не раздует модель дважды).
+        // Размер до коллайдера: бокс считается от мировых габаритов.
         if (baseKeyScale == Vector3.zero)
             baseKeyScale = key.transform.localScale;
         key.transform.localScale = baseKeyScale * Mathf.Max(0.5f, keyScale);
 
-        // 1) Коллайдер — без него InventorySystem лучом не найдёт предмет.
+        // Коллайдер нужен лучу подбора.
         Collider col = key.GetComponentInChildren<Collider>();
         if (col == null)
         {
@@ -132,8 +108,7 @@ public class RustyKeyPickupSetup : MonoBehaviour
             Debug.Log($"[RustyKey] {key.name}: добавлен BoxCollider для подбора.", key);
         }
 
-        // Дотягиваем бокс до удобного размера, даже если коллайдер уже был
-        // (модель ключа мелкая — иначе луч pickup'а пролетает мимо).
+        // Дотягиваем мелкий бокс до удобного размера.
         BoxCollider owned = key.GetComponent<BoxCollider>();
         if (owned != null)
         {
@@ -174,9 +149,6 @@ public class RustyKeyPickupSetup : MonoBehaviour
         pickup.amount = 1;
         pickup.spin = keySpin;
         pickup.bob = keyBob;
-        // Света нет вообще: ни точки-лампы, ни эмиссии при наведении.
-        // (Старые сериализованные значения createGlowLight/highlightIntensity
-        // затираем принудительно — иначе свет останется.)
         pickup.createGlowLight = false;
         pickup.highlightIntensity = 0f;
         Transform oldGlow = key.transform.Find("Glow");

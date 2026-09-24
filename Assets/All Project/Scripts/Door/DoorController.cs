@@ -4,14 +4,13 @@ using System.Collections;
 public class DoorController : MonoBehaviour
 {
     [Header("Настройки двери")]
-    public float openAngle = 90f;        // Угол открытия (знак определяет сторону)
-    public float openSpeed = 2f;         // Скорость открывания
-    public float closeSpeed = 2f;        // Скорость закрывания
-
+    public float openAngle = 90f; // знак = сторона открытия
+    public float openSpeed = 2f;
+    public float closeSpeed = 2f;
     [Header("Взаимодействие")]
-    public float interactDistance = 3f;       // Дистанция, с которой можно открыть дверь
-    public LayerMask interactMask = 1 << 8;    // Слой, на котором находится триггер двери (по умолчанию слой 8)
-    public bool showHint = true;               // Показывать подсказку "Нажмите E"
+    public float interactDistance = 3f;
+    public LayerMask interactMask = 1 << 8;
+    public bool showHint = true;
 
     [Header("Блокировка")]
     public bool isLocked = false;
@@ -36,7 +35,7 @@ public class DoorController : MonoBehaviour
     public AudioSource audioSource;
 
     [Header("Физический коллайдер проёма")]
-    public Collider physicalCollider;    // Коллайдер, блокирующий проход (не триггер)
+    public Collider physicalCollider;
 
     private Quaternion closedRotation;
     private Quaternion targetRotation;
@@ -48,13 +47,10 @@ public class DoorController : MonoBehaviour
     {
         closedRotation = transform.rotation;
         targetRotation = closedRotation;
-
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
             audioSource = gameObject.AddComponent<AudioSource>();
-
-        // Если физический коллайдер не назначен, попытаемся найти его среди дочерних (не триггер)
         if (physicalCollider == null)
         {
             Collider[] cols = GetComponentsInChildren<Collider>();
@@ -67,24 +63,19 @@ public class DoorController : MonoBehaviour
                 }
             }
         }
-
-        // Устанавливаем начальное состояние физического коллайдера
         if (physicalCollider != null)
             physicalCollider.enabled = !isOpen;
     }
 
     void Update()
     {
-        // Автоснятие замка по квесту (ключ подобрали — q_cellar_door взят):
-        // состояние, а не ввод, поэтому проверяем раньше всех early-return.
+        // Замок снимается состоянием квеста, не вводом — проверка до всех return.
         if (isLocked && !string.IsNullOrEmpty(autoUnlockQuestId) &&
             DialogueManager.IsQuestStateMatch(autoUnlockQuestId, autoUnlockQuestState))
         {
             isLocked = false;
             Debug.Log($"[Door] {name}: замок снят по квесту '{autoUnlockQuestId}'.", this);
         }
-
-        // Проверяем, смотрит ли игрок на дверь (рейкаст)
         isLookingAtDoor = false;
         if (Camera.main != null)
         {
@@ -92,15 +83,12 @@ public class DoorController : MonoBehaviour
             RaycastHit hit;
             if (Physics.Raycast(ray, out hit, interactDistance, interactMask))
             {
-                // Попадание в триггер двери? (коллайдер принадлежит этой двери)
                 if (hit.collider.transform.IsChildOf(transform) || hit.collider.transform == transform)
                 {
                     isLookingAtDoor = true;
                 }
             }
         }
-
-        // Плавное вращение, только если не идёт анимация
         if (!isAnimating)
         {
             float speed = isOpen ? openSpeed : closeSpeed;
@@ -108,15 +96,12 @@ public class DoorController : MonoBehaviour
             if (Quaternion.Angle(transform.rotation, targetRotation) < 0.01f)
                 transform.rotation = targetRotation;
         }
-
-        // Обработка нажатия E. Во время диалога клавиша принадлежит диалогу:
-        // иначе E, открывшее разговор с НПС, в тот же кадр дёрнуло бы и дверь.
+        // E во время диалога принадлежит диалогу, иначе дверь дёрнется в том же кадре.
         if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
             return;
         if (isLookingAtDoor && Input.GetKeyDown(KeyCode.E))
         {
             if (isAnimating) return;
-
             if (isLocked)
             {
                 if (TryUnlockWithKey())
@@ -129,18 +114,15 @@ public class DoorController : MonoBehaviour
                     return;
                 }
             }
-
             ToggleDoor();
         }
     }
-
     public void ToggleDoor()
     {
         if (isAnimating || isLocked) return;
         if (isOpen) Close();
         else Open();
     }
-
     public void Open()
     {
         if (isAnimating || isOpen || isLocked) return;
@@ -151,37 +133,29 @@ public class DoorController : MonoBehaviour
         }
         StartCoroutine(MoveDoor(true));
     }
-
     public void Close()
     {
         if (isAnimating || !isOpen) return;
         StartCoroutine(MoveDoor(false));
     }
-
     private IEnumerator MoveDoor(bool opening)
     {
         isAnimating = true;
         isOpen = opening; // временно для расчёта targetRotation
         SetTargetRotation();
-
         PlaySound(opening ? openSound : closeSound);
-
-        // Отключаем физический коллайдер при открытии, включаем при закрытии
         if (physicalCollider != null)
             physicalCollider.enabled = !opening;
-
         Quaternion startRot = transform.rotation;
         Quaternion endRot = targetRotation;
         float speed = opening ? openSpeed : closeSpeed;
         float distance = Quaternion.Angle(startRot, endRot);
-
         if (distance < 0.01f)
         {
             isAnimating = false;
             isOpen = opening;
             yield break;
         }
-
         float progress = 0f;
         while (progress < 1f)
         {
@@ -189,25 +163,18 @@ public class DoorController : MonoBehaviour
             transform.rotation = Quaternion.Slerp(startRot, endRot, Mathf.Clamp01(progress));
             yield return null;
         }
-
         transform.rotation = endRot;
         isOpen = opening;
         isAnimating = false;
     }
-
     private void SetTargetRotation()
     {
         targetRotation = isOpen ? closedRotation * Quaternion.AngleAxis(openAngle, Vector3.up) : closedRotation;
     }
-
-    /// <summary>
-    /// Пробует снять замок ключом из инвентаря. true — ключ подошёл, замок снят.
-    /// </summary>
     public bool TryUnlockWithKey()
     {
         if (!isLocked) return true;
         if (string.IsNullOrEmpty(requiredKeyId)) return false;
-
         InventorySystem inv = InventorySystem.Instance;
         if (inv == null) inv = FindObjectOfType<InventorySystem>();
         if (inv != null && inv.HasKey(requiredKeyId))
@@ -217,14 +184,12 @@ public class DoorController : MonoBehaviour
         }
         return false;
     }
-
     private void PlaySound(AudioClip clip)
     {
         if (clip != null && audioSource != null)
             audioSource.PlayOneShot(clip);
     }
-
-    // Подсказка на экране (во время диалога прячем — E занята разговором)
+    // Во время диалога прячем — E занята разговором.
     void OnGUI()
     {
         if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
@@ -240,8 +205,6 @@ public class DoorController : MonoBehaviour
             GUI.Label(new Rect(Screen.width / 2 - 160, Screen.height / 2 + 50, 320, 30), text, style);
         }
     }
-
-    // Визуализация в редакторе
     void OnDrawGizmosSelected()
     {
         if (Camera.main != null)

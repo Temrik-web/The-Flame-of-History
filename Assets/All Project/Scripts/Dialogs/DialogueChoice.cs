@@ -9,7 +9,7 @@ public class DialogueChoice
     public string choiceText;
 
     [Header("Условие показа (может быть пустым)")]
-    public DialogueCondition condition; // ссылка на ассет условия
+    public DialogueCondition condition;
 
     [Header("Требования без ассетов (пусто = не проверять)")]
     [Tooltip("Id предмета из ItemDatabase (например key_cellar). Кнопка видна, только если предмет есть.")]

@@ -2,25 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Кнопочный интерфейс диалогов. Вешается на созданный мастером канвас
-/// («Tools -> Диалоги -> Создать канвас») и подключает его элементы к
-/// DialogueManager.
-///
-/// Раскладка (всё внутри одного окна DialogueBox, поверх игры):
-///  - слева снизу — имя говорящего;
-///  - слева — текст реплики (клик по нему = продолжить);
-///  - справа — кнопки вариантов ответа и «Отмена».
-///
-/// DialogueBox — плавающее окно не на весь экран; двигается в Scene view,
-/// и весь интерфейс диалога переезжает вместе с ним.
-///
-/// Все кнопки настраиваются в инспекторе: стандартный Button + компонент
-/// DialogueCanvasButton на каждом элементе (цвета наведения/нажатия и масштаб).
-///
-/// Ссылки заполняет мастер, но если компонент повесить вручную на канвас
-/// с правильными именами элементов, он найдёт всё сам.
-/// </summary>
+/// <summary>Кнопочный интерфейс диалогов: окно поверх игры, слева текст, справа выборы.</summary>
 [DisallowMultipleComponent]
 public class DialogueCanvasUI : MonoBehaviour
 {
@@ -81,11 +63,8 @@ public class DialogueCanvasUI : MonoBehaviour
             return;
         }
 
-        // Если мастер не разложил ссылки — найдём элементы по именам
         AutoDiscover();
-
         ApplyFont();
-
         WireToManager();
 
         if (continueButton != null)
@@ -113,7 +92,6 @@ public class DialogueCanvasUI : MonoBehaviour
 
     void HandleNodeChanged(DialogueNode node)
     {
-        // Цвет имени = цвет персонажа, чтобы было видно, кто говорит
         if (speakerNameText != null && node != null && !string.IsNullOrEmpty(node.speakerName))
             speakerNameText.color = DialogueManager.ResolveSpeakerColor(node);
     }
@@ -129,11 +107,6 @@ public class DialogueCanvasUI : MonoBehaviour
 
         UpdateContinuePrompt();
     }
-
-    // =====================================================================
-    // Применение оформления
-    // =====================================================================
-    /// <summary>Перекрасить все надписи канваса выбранным в инспекторе шрифтом.</summary>
     void ApplyFont()
     {
         if (fontAsset == null) return;
@@ -143,7 +116,6 @@ public class DialogueCanvasUI : MonoBehaviour
             if (label != null) label.font = fontAsset;
         }
     }
-
     // =====================================================================
     void HandleContinueClick()
     {

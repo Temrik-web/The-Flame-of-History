@@ -7,7 +7,7 @@ public class DialogueNode
 {
     [Header("Идентификатор узла")]
     public string nodeID;
-    public string nextNodeID;  // для линейных переходов, если нет ответов
+    public string nextNodeID;
 
     [Header("Персонаж и текст")]
     public string speakerName;
@@ -20,7 +20,7 @@ public class DialogueNode
 
     [Header("Скорость и паузы")]
     public float textSpeed = 0.05f;
-    public float autoAdvanceDelay = 0f; // 0 = ждать ввода
+    public float autoAdvanceDelay = 0f;
 
     [Header("Команды при входе")]
     public List<DialogueCommand> onEnterCommands = new List<DialogueCommand>();

@@ -1,25 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Цепочка диалогов на ОДНОМ кубе НПС (например Степан: D1 -> D2 -> ... -> D8).
-///
-/// Как работает:
-///  - в список dialogues положи ассеты по порядку (D1_Znakomstvo ... D8_Proschanie);
-///  - куб каждый кадр ищет ПЕРВЫЙ непройденный диалог (DialogueManager.IsDialogueDone)
-///    и предлагает его по E;
-///  - диалог закончился (completed=true) -> менеджер сам пометил его done,
-///    значит в следующий раз предложится уже СЛЕДУЮЩИЙ по списку;
-///  - вышел досрочно (Esc) -> прогресс внутри диалога сохранён (resumeFromSave),
-///    предложится ТОТ ЖЕ диалог с того же узла.
-///
-/// Зачем вместо 8 кубов: один НПС = один куб, порядок гарантирован,
-///  игроку не надо искать «какой куб следующий».
-/// Старые DialogueTrigger на отдельных кубах после переезда можно выключить/удалить.
-///
-/// Сохранения: прохождение диалогов лежит в PlayerPrefs (flame_dlg_done_*),
-///  переживает перезапуск. Сброс — кнопка в контекстном меню.
-/// </summary>
+/// <summary>Цепочка диалогов на одном NPC: первый непройденный предлагается по E.</summary>
 [DisallowMultipleComponent]
 public class NpcDialogueSequence : MonoBehaviour
 {
@@ -61,8 +43,7 @@ public class NpcDialogueSequence : MonoBehaviour
 
     void Awake()
     {
-        // Страховка от драки за E: глушим чужие DialogueTrigger на этом же NPC.
-        // (В редакторе это делает «Создать NPC-куб», здесь — защита от ручной настройки.)
+        // Глушим чужие триггеры на этом же NPC.
         foreach (DialogueTrigger t in GetComponents<DialogueTrigger>())
         {
             if (t != null && t.enabled)
@@ -97,16 +78,13 @@ public class NpcDialogueSequence : MonoBehaviour
     void Start()
     {
         DialogueManager m = DialogueManager.Instance;
-        if (m == null)
-            m = FindObjectOfType<DialogueManager>();
+        if (m == null) m = FindObjectOfType<DialogueManager>();
         if (m != null && m != cachedManager)
         {
-            if (cachedManager != null)
-                cachedManager.OnDialogueEnded -= OnManagerDialogueEnded;
+            if (cachedManager != null) cachedManager.OnDialogueEnded -= OnManagerDialogueEnded;
             cachedManager = m;
             cachedManager.OnDialogueEnded += OnManagerDialogueEnded;
         }
-        // Диагностика связок: сразу видно пустой ассет (узлов 0) до нажатия E.
         if (dialogues != null)
             foreach (var d in dialogues)
             {
@@ -180,7 +158,7 @@ public class NpcDialogueSequence : MonoBehaviour
             return;
         }
 
-        // Менеджер занят чужим диалогом — прячем свою подсказку и ждём.
+        // Менеджер занят чужим диалогом — ждём.
         if (cachedManager.isDialogueActive)
         {
             HideHint();
@@ -214,7 +192,6 @@ public class NpcDialogueSequence : MonoBehaviour
 
         float dist = Vector3.Distance(transform.position, cachedPlayer.transform.position);
         bool inRange = dist <= interactDistance;
-        // Стена между (игрок в доме, НПС на улице): подсказки нет, E молчит.
         bool visible = !requireLineOfSight || DialogueManager.HasLineOfSight(
             transform.position + Vector3.up * 1.6f, cachedPlayer, gameObject, losBlockMask);
 
@@ -229,8 +206,7 @@ public class NpcDialogueSequence : MonoBehaviour
                     if (idx >= 0)
                         msg += $" ({idx + 1}/{dialogues.Count})";
                 }
-                // Диалог бросили на середине (Esc) — честно пишем, что продолжим,
-                // а не начнём сначала (прогресс лежит в flame_dlg_node_*).
+                // Бросили на середине (Esc) — честно пишем «продолжить».
                 if (resumeFromSave && !string.IsNullOrEmpty(DialogueManager.GetSavedNodeID(current)))
                     msg += " — продолжить";
                 // Квест-гейт (D1 + ключ): сразу видно, почему цепочка стоит.
@@ -259,9 +235,7 @@ public class NpcDialogueSequence : MonoBehaviour
         if (InventorySystem.Instance != null && InventorySystem.Instance.IsOpen)
             return;
 
-        // Пустой ассет в рантайме (рассинхрон импорта — лечится
-        // «Переимпортировать диалоги»): не стартуем, иначе менеджер мгновенно
-        // закроет диалог без отметки и E будет молотить в пустоту.
+        // Пустой ассет в рантайме не стартуем.
         if (dialogue.nodes == null || dialogue.nodes.Count == 0)
         {
             if (Time.time >= nextEmptyWarnTime)
@@ -288,30 +262,22 @@ public class NpcDialogueSequence : MonoBehaviour
         Debug.Log($"[NpcSequence] {name}: старт «{dialogue.dialogueName}» " +
                   $"({CurrentIndex() + 1}/{dialogues.Count}).", this);
         lastStarted = dialogue;
-        // Триггер не передаём (null): EndDialogue переживёт null-триггер,
-        // а done-флаг менеджер выставит сам. Цепочка движется по done-флагам.
         DialogueManager.Instance.StartDialogue(dialogue, null, resumeNode);
-        // Старт мог не взлететь (менеджер заняли в тот же кадр) — тогда не висим
-        // в lastStarted, иначе чужой OnDialogueEnded притянет нас за собой.
         if (!DialogueManager.Instance.isDialogueActive)
             lastStarted = null;
     }
 
-    /// <summary>
-    /// Диалог закрылся. Если это был НАШ и он пройден до конца (done) —
-    /// тянем следующий по цепочке сами, жать E не надо.
-    /// Вышел по Esc (не done) — молчим, в подсказке будет «продолжить».
-    /// </summary>
+    /// <summary>Диалог закрылся: наш и пройден — тянем следующий, Esc — молчим.</summary>
     void OnManagerDialogueEnded()
     {
         if (lastStarted == null) return;
         DialogueData finished = lastStarted;
         lastStarted = null;
-        // Чужой диалог закрылся (в сцене 2 цепочки) — не наш, игнорируем.
-        DialogueManager m = cachedManager != null ? cachedManager : DialogueManager.Instance;
+        DialogueManager m = cachedManager;
+        if (m == null) m = DialogueManager.Instance;
         if (m != null && m.LastFinishedDialogue != null && m.LastFinishedDialogue != finished)
             return;
-        // Esc/Отмена — не тянем дальше, в подсказке будет «продолжить тот же».
+        // Esc — не тянем дальше.
         if (m != null && !m.LastFinishedCompleted && !DialogueManager.IsDialogueDone(finished))
             return;
         if (!DialogueManager.IsDialogueDone(finished)) return;

@@ -7,7 +7,7 @@ public static class GameState
     private static Dictionary<string, int> intVariables = new Dictionary<string, int>();
     private static Dictionary<string, string> stringVariables = new Dictionary<string, string>();
 
-    // Ключи, которых касались в этой сессии — только их пишем/читаем в PlayerPrefs.
+    // Только затронутые ключи уходят в PlayerPrefs.
     private static readonly HashSet<string> touchedFlags = new HashSet<string>();
     private static readonly HashSet<string> touchedInts = new HashSet<string>();
     private static readonly HashSet<string> touchedStrings = new HashSet<string>();
@@ -61,7 +61,7 @@ public static class GameState
         }
     }
 
-    /// <summary>Загрузить сохранение (вызывать при старте сцены до диалогов).</summary>
+    /// <summary>Загрузить сохранение (до первых диалогов).</summary>
     public static void Load()
     {
         flags.Clear();
@@ -135,11 +135,9 @@ public static class GameState
         return s.Split(';');
     }
 
-    // Строки храним с экранированием ; = \ — ключи считаем простыми идентификаторами.
+    // Строки храним с экранированием ; = \
     static string Escape(string s) => (s ?? "").Replace("\\", "\\\\").Replace(";", "\\s").Replace("=", "\\e");
-
-    // Декодируем слева направо, чтобы не повреждать исходные последовательности
-    // "\\e", "\\s" и "\\\\".
+    // Декодируем слева направо, чтобы не бить последовательности "\\e", "\\s", "\\\\".
     static string Unescape(string s)
     {
         if (string.IsNullOrEmpty(s)) return s ?? "";

@@ -2,10 +2,7 @@ using UnityEngine;
 
 namespace FlameOfHistory.AI
 {
-    /// <summary>
-    /// Оружие, выпавшее из рук убитого врага.
-    /// Гарантированная укладка на левый/правый бок плашмя.
-    /// </summary>
+    /// <summary>Выпавшее оружие: само укладывается на бок и замирает.</summary>
     [DisallowMultipleComponent]
     public sealed class DroppedWeapon : MonoBehaviour
     {
@@ -104,12 +101,7 @@ namespace FlameOfHistory.AI
 
         private void Awake() => PrepareBody();
 
-        /// <summary>
-        /// Если Initialize не позвали (компонент положили на префаб вручную),
-        /// доинициализируемся сами. Без этого PrepareBody оставил бы оружие
-        /// kinematic и с выключенными коллайдерами — оно навсегда зависло бы
-        /// в воздухе, потому что гравитацию включает только Initialize.
-        /// </summary>
+        /// <summary>Без Initialize оружие зависло бы в воздухе (kinematic + глухие коллайдеры).</summary>
         private void Start()
         {
             if (initialized) return;
@@ -131,12 +123,10 @@ namespace FlameOfHistory.AI
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             body.interpolation = RigidbodyInterpolation.Interpolate;
 
-            // Гарантируем наличие коллайдера: если нет ни одного, создаём BoxCollider
             ownColliders = GetComponentsInChildren<Collider>();
             if (ownColliders.Length == 0)
             {
                 BoxCollider box = gameObject.AddComponent<BoxCollider>();
-                // Определяем размер по рендереру или задаём приблизительный (1м длина, 0.2м ширина, 0.3м высота)
                 Renderer rend = GetComponentInChildren<Renderer>();
                 if (rend != null)
                 {
@@ -145,7 +135,7 @@ namespace FlameOfHistory.AI
                 }
                 else
                 {
-                    box.size = new Vector3(1.0f, 0.2f, 0.3f); // длина, толщина, высота
+                    box.size = new Vector3(1.0f, 0.2f, 0.3f);
                 }
                 ownColliders = new Collider[] { box };
             }
@@ -208,11 +198,7 @@ namespace FlameOfHistory.AI
             }
 
             aliveSinceGravity += Time.deltaTime;
-
-            // Раньше вызов был закомментирован, потому что старая версия метода
-            // при первом же ложном срабатывании глушила физику и оружие «вставало».
-            // Теперь провал определяется по нижней точке коллайдера и не мешает
-            // укладке, поэтому проверку можно вернуть.
+            // Проверка провала идёт по низу коллайдера, укладке не мешает.
             if (guardAgainstFallThrough && watchTimer < watchDuration && !isLayingFlat)
             {
                 watchTimer += Time.deltaTime;
@@ -309,8 +295,7 @@ namespace FlameOfHistory.AI
                 if (Physics.Raycast(worldPoint + Vector3.up * 0.1f, Vector3.down, out RaycastHit hit,
                                     0.25f, groundMask, QueryTriggerInteraction.Ignore))
                 {
-                    // Собственный коллайдер полом не считается: без проверки
-                    // оружие всегда «на земле» и заморозка срабатывает в воздухе
+                    // Свой коллайдер — не пол, иначе заморозка сработает в воздухе.
                     if (hit.collider.transform.IsChildOf(transform)) continue;
                     return true;
                 }
@@ -395,13 +380,7 @@ namespace FlameOfHistory.AI
             body.angularVelocity = Vector3.zero;
         }
 
-        /// <summary>
-        /// Прервать укладку и вернуть оружие обычной физике.
-        ///
-        /// Нужно как аварийный выход: во время укладки тело kinematic, и если
-        /// фаза не завершится (нет пола, застряло в стене), оружие навсегда
-        /// осталось бы висеть в воздухе неподвижным.
-        /// </summary>
+        /// <summary>Аварийный выход из укладки: иначе kinematic зависнет в воздухе.</summary>
         private void AbortLayFlat()
         {
             isLayingFlat = false;
@@ -416,12 +395,7 @@ namespace FlameOfHistory.AI
             body.WakeUp();
         }
 
-        /// <summary>
-        /// Определяет целевую ориентацию, при которой оружие ложится плашмя на самую
-        /// большую грань (на бок), а не стоит на самом тонком ребре (дуле/магазине).
-        /// Габариты считаются в локальной системе координат оружия, поэтому результат
-        /// не зависит от того, под каким углом оружие упало на землю.
-        /// </summary>
+        /// <summary>Кладём на самую большую грань (тонкая ось — вверх), а не на дуло.</summary>
         private void ComputeLayOrientation()
         {
             if (!GetLocalBounds(out Vector3 size, out Vector3 center))
@@ -465,11 +439,7 @@ namespace FlameOfHistory.AI
             targetLayRotation = Quaternion.LookRotation(worldForward, worldUp);
         }
 
-        /// <summary>
-        /// Габариты коллайдеров оружия в его локальном пространстве. Мировой AABB
-        /// (col.bounds) зависит от поворота оружия и может неправильно указать на
-        /// «тонкую» ось — локальные размеры такого недостатка лишены.
-        /// </summary>
+        /// <summary>Габариты в локальных координатах — мировой AABB врёт при повороте.</summary>
         private bool GetLocalBounds(out Vector3 size, out Vector3 center)
         {
             if (ownColliders == null) ownColliders = GetComponentsInChildren<Collider>();
@@ -582,9 +552,7 @@ namespace FlameOfHistory.AI
                                 transform.rotation = Quaternion.Slerp(transform.rotation, limited, 0.5f);
                             }
 
-                            // Опускаем до касания НИЗОМ коллайдера, а не центром объекта.
-                            // Раньше на землю ставился origin, и половина модели
-                            // уходила в пол — тот же баг, что был у гранаты.
+                            // Ставим низом коллайдера, иначе половина модели уйдёт в пол.
                             float bottomOffset = transform.position.y - GetBottomY();
                             float targetY = groundPoint.y + bottomOffset + 0.01f;
 
@@ -634,7 +602,7 @@ namespace FlameOfHistory.AI
                 Vector3 normal;
                 if (IsNearGround(out groundPoint, out normal))
                 {
-                    // Низом коллайдера на поверхность, а не центром объекта
+                    // Низом коллайдера, а не центром.
                     float bottomOffset = transform.position.y - GetBottomY();
                     Vector3 targetPos = new Vector3(transform.position.x,
                                                     groundPoint.y + bottomOffset + 0.02f,
@@ -645,9 +613,7 @@ namespace FlameOfHistory.AI
             }
 
             bool isLaying = Vector3.Angle(transform.up, Vector3.up) > 45f;
-
-            // freezeAfterCalm раньше не использовался: заморозка срабатывала
-            // в первый же спокойный кадр, и оружие замирало, не докатившись
+            // Ждём freezeAfterCalm, иначе замрёт не докатившись.
             bool calmLongEnough;
             if (grounded && calmLinear && calmAngular && isLaying)
             {
@@ -676,10 +642,7 @@ namespace FlameOfHistory.AI
             if (rescueAttempts >= 3) return;
 
             if (!TryGetGroundY(out float groundY)) return;
-
-            // Сравниваем нижнюю точку коллайдера, а не центр объекта: у длинного
-            // автомата центр висит высоко над полом, и сравнение по нему давало
-            // ложные «провалы» либо, наоборот, пропускало настоящие.
+            // Меряем по низу коллайдера: центр у автомата висит высоко и врёт.
             float bottomY = GetBottomY();
             if (bottomY >= groundY - fallThroughTolerance)
             {
@@ -696,7 +659,6 @@ namespace FlameOfHistory.AI
 
             if (rescueAttempts >= 3)
             {
-                // Три попытки — физика не держит. Кладём намертво, но на поверхности.
                 hasTouchedGround = true;
                 body.velocity = Vector3.zero;
                 body.angularVelocity = Vector3.zero;
@@ -708,10 +670,7 @@ namespace FlameOfHistory.AI
             }
         }
 
-        /// <summary>
-        /// Оружие не двигается, но до земли далеко — значит застряло в геометрии
-        /// или зависло на «спящем» теле. Толкаем вниз, пока не коснётся пола.
-        /// </summary>
+        /// <summary>Застряло в геометрии: висит без движения далеко от пола — толкаем вниз.</summary>
         private void CheckStuckInAir(float groundY)
         {
             if (hasTouchedGround) return;
@@ -727,7 +686,6 @@ namespace FlameOfHistory.AI
                           ForceMode.Impulse);
         }
 
-        /// <summary>Нижняя точка всех коллайдеров оружия в мировых координатах.</summary>
         private float GetBottomY()
         {
             if (ownColliders == null || ownColliders.Length == 0) return transform.position.y;
@@ -742,11 +700,7 @@ namespace FlameOfHistory.AI
             return lowest < float.MaxValue ? lowest : transform.position.y;
         }
 
-        /// <summary>
-        /// Высота пола под оружием. Возвращает false, если пола нет вовсе:
-        /// тогда трогать оружие нельзя — оно может законно падать в пропасть,
-        /// и телепорт «наверх» отправил бы его в случайное место.
-        /// </summary>
+        /// <summary>Пол под оружием. False — пола нет, трогать нельзя (может падать в пропасть).</summary>
         private bool TryGetGroundY(out float groundY)
         {
             groundY = 0f;

@@ -1,11 +1,6 @@
 using UnityEngine;
 
-/// <summary>
-/// Тестовый куб: подходишь, видишь подсказку, жмёшь E — включаются 3 немца.
-/// Немцев НЕ спавним из префаба, а просто включаем уже лежащие на сцене объекты
-/// (== Enemy Template (клонируй меня) == и его клоны). Перетащи их в массив в инспекторе
-/// или оставь пустым — скрипт сам найдёт выключенные объекты с именем "Enemy Template".
-/// </summary>
+/// <summary>Тестовый куб: подходишь, жмёшь E — включаются лежащие на сцене немцы.</summary>
 public class EnemySpawnCube : MonoBehaviour
 {
     [Header("Немцы (выключенные объекты на сцене)")]
@@ -29,9 +24,7 @@ public class EnemySpawnCube : MonoBehaviour
 
     private void Start()
     {
-        // Автопоиск, если в инспекторе ничего не назначили (удобно для теста).
-        if (!HasAssignedEnemies())
-            AutoFindEnemies();
+        if (!HasAssignedEnemies()) AutoFindEnemies();
 
         if (!HasAssignedEnemies())
             Debug.LogWarning($"[EnemySpawnCube] {name}: немцы не назначены и не найдены по имени " +
@@ -60,22 +53,13 @@ public class EnemySpawnCube : MonoBehaviour
         }
 
         playerInRange = Vector3.Distance(transform.position, cachedPlayer.transform.position) <= interactDistance;
+        if (!playerInRange) return;
+        // E во время диалога занята диалогом.
+        if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive) return;
 
-        if (!playerInRange)
-            return;
-
-        // Во время диалога клавиша E принадлежит диалогу.
-        if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
-            return;
-
-        if (spawnOnce && hasSpawned)
-            return;
-
-        if (Input.GetKeyDown(interactKey))
-            EnableEnemies();
+        if (spawnOnce && hasSpawned) return;
+        if (Input.GetKeyDown(interactKey)) EnableEnemies();
     }
-
-    /// <summary>Включить всех назначенных немцев. Вызывается по E, можно дёрнуть и из UnityEvent/кнопки.</summary>
     public void EnableEnemies()
     {
         int enabled = 0;
@@ -113,9 +97,7 @@ public class EnemySpawnCube : MonoBehaviour
 
     private void AutoFindEnemies()
     {
-        // Ищем ВСЕ объекты сцены, включая выключенные, с нужным именем.
-        // Берём ровно 3: сначала точное "== Enemy Template (клонируй меня) ==",
-        // потом "(1)", "(2)" — как просил автор теста.
+        // Ищем и выключенные объекты по точным именам, запасной вариант — по подстроке.
         Transform[] all = FindObjectsOfType<Transform>(true);
         System.Collections.Generic.List<GameObject> found =
             new System.Collections.Generic.List<GameObject>();
@@ -140,7 +122,6 @@ public class EnemySpawnCube : MonoBehaviour
             if (found.Count >= 3) break;
         }
 
-        // Запасной вариант: любые 3 объекта с подстрокой "Enemy Template".
         if (found.Count < 3)
         {
             foreach (Transform t in all)

@@ -2,15 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using FlameOfHistory.AI;
 
-/// <summary>
-/// Граната, уже выпущенная из руки: летит, тикает запалом, взрывается.
-///
-/// Урон раздаётся всем в радиусе с проверкой линии видимости, чтобы
-/// стена принимала осколки на себя. Урон падает от центра к краю радиуса:
-/// у самой границы он почти нулевой, рядом с центром — полный.
-///
-/// Вешается на объект в полёте. Обычно создаётся GrenadeItem, а не вручную.
-/// </summary>
+/// <summary>Выпущенная граната: летит, тикает, взрывается. Урон падает к краю радиуса, стена укрывает.</summary>
 [DisallowMultipleComponent]
 public class ThrownGrenade : MonoBehaviour
 {
@@ -114,37 +106,23 @@ public class ThrownGrenade : MonoBehaviour
     private bool hasLanded;
     private float settleTimer;
     private bool isSettled;
-
-    // =====================================================================
-    /// <summary>
-    /// Запустить гранату: направление, сила, вращение и владелец.
-    /// Вызывается сразу после Instantiate.
-    /// </summary>
     public void Launch(Vector3 velocity, Vector3 angularVelocity, GameObject thrower, float fuse = -1f)
     {
         Thrower = thrower;
         if (fuse > 0f) fuseTime = fuse;
         fuseTimer = fuseTime;
-
         Rigidbody rb = EnsureBody();
-
         rb.isKinematic = false;
         rb.useGravity = true;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
-
-        // Без этого предела Unity разрешает 7 рад/с по умолчанию, но при ударе
-        // о землю мелкий коллайдер получает огромный импульс вращения —
-        // отсюда и «бешеное» кручение гранаты на земле
+        // Без лимита мелкий коллайдер после удара получает бешеное вращение
         if (maxAngularVelocity > 0f) rb.maxAngularVelocity = maxAngularVelocity;
-
         rb.velocity = velocity;
         rb.angularVelocity = ClampAngular(angularVelocity);
-
         hasLanded = false;
         isSettled = false;
         settleTimer = 0f;
-
         IgnoreThrowerCollisions();
     }
 
@@ -158,115 +136,69 @@ public class ThrownGrenade : MonoBehaviour
     {
         if (snapToGroundOnStart) SnapAboveGround();
     }
-
-    /// <summary>
-    /// Поднять гранату на поверхность, если она утонула в полу.
-    ///
-    /// Берётся не первая поверхность сверху, а самая высокая из тех, что лежат
-    /// НЕ ВЫШЕ низа гранаты. Иначе граната, закатившаяся под стол или стеллаж,
-    /// телепортировалась бы на его столешницу: первый луч сверху попадал именно
-    /// в неё.
-    /// </summary>
+    // Берём самую высокую поверхность не выше низа гранаты — иначе закатившуюся под стол телепортирует на столешницу
     void SnapAboveGround()
     {
         Collider col = FindOwnCollider();
         float bottomY = col != null ? col.bounds.min.y : transform.position.y;
-
-        // Старт заведомо выше гранаты: иначе луч начнётся внутри пола
         float lift = Mathf.Max(0.5f, GetColliderHeight(col));
         Vector3 origin = transform.position + Vector3.up * lift;
-
         RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, lift + groundSearchDistance,
                                                groundMask, QueryTriggerInteraction.Ignore);
-
         bool found = false;
         float bestY = 0f;
-
         foreach (RaycastHit hit in hits)
         {
             if (hit.collider == null) continue;
-            if (hit.collider.transform.IsChildOf(transform)) continue;   // свой коллайдер
+            if (hit.collider.transform.IsChildOf(transform)) continue;
             if (Thrower != null && hit.collider.transform.IsChildOf(Thrower.transform.root)) continue;
-
-            // Поверхности выше низа гранаты — это потолок/полка над ней, не пол.
-            // Небольшой допуск, чтобы поймать пол, в который граната уже влезла.
             if (hit.point.y > bottomY + groundClearance + 0.02f) continue;
-
             if (!found || hit.point.y > bestY)
             {
                 bestY = hit.point.y;
                 found = true;
             }
         }
-
         if (found) PlaceAboveSurface(bestY, col);
     }
-
-    /// <summary>
-    /// Поставить гранату так, чтобы низ её коллайдера стоял на поверхности.
-    ///
-    /// Считаем через bounds.min: это фактический низ с учётом масштаба и
-    /// поворота. Разница между центром и низом добавляется к высоте пола —
-    /// так модель садится ровно на поверхность, а не половиной в неё.
-    /// </summary>
+    // Ставим по bounds.min: фактический низ с учётом поворота и масштаба
     void PlaceAboveSurface(float surfaceY, Collider col)
     {
         float bottomOffset = col != null
             ? transform.position.y - col.bounds.min.y
             : 0.08f;
-
         float targetY = surfaceY + bottomOffset + groundClearance;
-        if (transform.position.y >= targetY) return;   // уже стоит выше
-
+        if (transform.position.y >= targetY) return;
         transform.position = new Vector3(transform.position.x, targetY, transform.position.z);
-
         if (body != null && !body.isKinematic)
         {
             body.velocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
         }
     }
-
-    /// <summary>Первый рабочий коллайдер гранаты.</summary>
     Collider FindOwnCollider()
     {
         foreach (Collider c in GetComponentsInChildren<Collider>())
             if (c != null && c.enabled && !c.isTrigger) return c;
-
         return GetComponentInChildren<Collider>();
     }
-
-    /// <summary>Высота коллайдера — нужна как безопасный подъём для луча.</summary>
     float GetColliderHeight(Collider col) =>
         col != null ? col.bounds.size.y : 0.16f;
-
     void Update()
     {
         if (hasExploded) return;
-
         UpdateSettling();
-
         fuseTimer -= Time.deltaTime;
         if (fuseTimer <= 0f) Explode();
     }
-
-    /// <summary>
-    /// Дожать гранату до полной остановки после приземления.
-    /// Kinematic вместо Sleep: спящий Rigidbody просыпается от любого касания
-    /// и граната опять начинает крутиться.
-    /// </summary>
+    // Kinematic вместо Sleep: спящий Rigidbody просыпается от любого касания
     void UpdateSettling()
     {
         if (!hasLanded || isSettled || settleDelay <= 0f || body == null) return;
-
         settleTimer += Time.deltaTime;
         if (settleTimer < settleDelay) return;
-
         if (settleOnlyWhenSlow && body.velocity.magnitude > settleSpeedThreshold)
-            return;   // ещё катится — не примораживаем в воздухе или на склоне
-
-        // Перед заморозкой выставляем ровно на поверхность: иначе граната
-        // застынет наполовину в текстуре и так и останется
+            return;
         if (keepAboveGroundAlways) SnapAboveGround();
 
         body.velocity = Vector3.zero;
@@ -278,32 +210,23 @@ public class ThrownGrenade : MonoBehaviour
     void OnCollisionEnter(Collision collision)
     {
         if (hasExploded) return;
-
         float impactSpeed = collision.relativeVelocity.magnitude;
-
         if (!bounceSoundPlayed && bounceSound != null && impactSpeed > 1.5f)
         {
             bounceSoundPlayed = true;
             AudioSource.PlayClipAtPoint(bounceSound, transform.position, bounceVolume);
         }
-
         if (explodeOnImpact && impactSpeed >= impactSpeedThreshold)
         {
             Explode();
             return;
         }
-
-        // Первый контакт с землёй запускает отсчёт до полной остановки
         if (!hasLanded)
         {
             hasLanded = true;
             settleTimer = 0f;
         }
-
-        // Быстрый удар вплотную к полу может протолкнуть мелкий коллайдер
-        // сквозь него до следующего кадра физики — выправляем сразу
         if (keepAboveGroundAlways) SnapAboveGround();
-
         if (dampenOnImpact && body != null && !body.isKinematic)
         {
             body.velocity *= impactVelocityDamping;
@@ -326,37 +249,25 @@ public class ThrownGrenade : MonoBehaviour
         return Vector3.ClampMagnitude(angular, maxAngularVelocity);
     }
 
-    // =====================================================================
-    /// <summary>Взорваться немедленно.</summary>
     public void Explode()
     {
         if (hasExploded) return;
         hasExploded = true;
-
         Vector3 center = transform.position;
-
-        // Коллайдеры гасим до раздачи урона: иначе OverlapSphere находит саму
-        // гранату, а рейкаст укрытия может принять её корпус за стену
+        // Коллайдеры гасим до урона: OverlapSphere иначе найдёт саму гранату, а рейкаст примет корпус за стену
         foreach (Collider c in GetComponentsInChildren<Collider>())
             if (c != null) c.enabled = false;
-
-        // Модель прячем сразу: Destroy сработает только в конце кадра,
-        // и граната была бы видна внутри вспышки взрыва
+        // Модель прячем сразу: Destroy в конце кадра, иначе граната видна внутри вспышки
         foreach (Renderer r in GetComponentsInChildren<Renderer>())
             if (r != null) r.enabled = false;
-
         SpawnEffects(center);
         ApplyDamage(center);
         ApplyPhysics(center);
         ShakeCamera(center);
-
         if (noiseRadius > 0f)
             NoiseSystem.Emit(center, noiseRadius, Thrower, 1f);
-
         Destroy(gameObject);
     }
-
-    // =====================================================================
     void SpawnEffects(Vector3 center)
     {
         if (explosionEffectPrefab != null)
@@ -364,68 +275,40 @@ public class ThrownGrenade : MonoBehaviour
             GameObject fx = Instantiate(explosionEffectPrefab, center, Quaternion.identity);
             Destroy(fx, effectLifetime);
         }
-
         if (explosionSound != null)
             AudioSource.PlayClipAtPoint(explosionSound, center, explosionVolume);
     }
-
-    /// <summary>
-    /// Раздать урон всем в радиусе взрыва.
-    ///
-    /// Один объект получает урон один раз, даже если у него несколько
-    /// коллайдеров: без этого враг с коллайдерами на конечностях получал бы
-    /// урон кратно их числу. При этом из всех коллайдеров одной цели берётся
-    /// самый выгодный — ближайший к взрыву и не закрытый стеной. Иначе взрыв
-    /// у ног не убивал бы врага, потому что первой в списке OverlapSphere
-    /// оказалась, например, спрятанная за укрытием рука.
-    /// </summary>
+    // Один объект бьёт один раз: без словаря враг с коллайдерами на конечностях получал бы урон кратно их числу
     void ApplyDamage(Vector3 center)
     {
         Collider[] overlapped = Physics.OverlapSphere(center, damageRadius, targetMask,
                                                      QueryTriggerInteraction.Collide);
-
-        // Получатель урона, а не transform.root: несколько врагов могут
-        // находиться под одним организационным объектом сцены.
         var best = new Dictionary<FlameOfHistory.AI.IDamageable, KeyValuePair<Collider, float>>();
-
         foreach (Collider col in overlapped)
         {
             if (col == null) continue;
-
             var target = col.GetComponentInParent<FlameOfHistory.AI.IDamageable>();
             if (target == null || !target.IsAlive) continue;
-
-            // Ближайшая точка коллайдера, а не его центр: у крупной капсулы
-            // центр может лежать далеко, и урон занижался бы вдвое
             Vector3 targetPoint = col.ClosestPoint(center);
             if (IsBehindCover(center, targetPoint, col)) continue;
-
             float dealt = DamageAtDistance(Vector3.Distance(center, targetPoint));
             if (dealt <= 0.01f) continue;
-
             if (best.TryGetValue(target, out var current) && current.Value >= dealt) continue;
-
             best[target] = new KeyValuePair<Collider, float>(col, dealt);
         }
-
         foreach (var pair in best)
         {
             Collider col = pair.Value.Key;
             float dealt = pair.Value.Value;
             Vector3 targetPoint = col.ClosestPoint(center);
-
             if (DealDamage(col, dealt, center, targetPoint) && logDamage)
                 Debug.Log($"[Grenade] {col.name} получил {dealt:0.#} урона.");
         }
     }
 
-    /// <summary>
-    /// Нанести урон через единый боевой интерфейс.
-    /// </summary>
     bool DealDamage(Collider col, float amount, Vector3 center, Vector3 targetPoint)
     {
         Vector3 direction = (targetPoint - center).normalized;
-
         var aiTarget = col.GetComponentInParent<FlameOfHistory.AI.IDamageable>();
         if (aiTarget != null)
         {
@@ -433,31 +316,22 @@ public class ThrownGrenade : MonoBehaviour
             aiTarget.TakeDamage(new DamageInfo(amount, targetPoint, direction, Thrower));
             return true;
         }
-
         return false;
     }
-
-    /// <summary>Урон по расстоянию: линейное падение к краю радиуса.</summary>
     float DamageAtDistance(float distance)
     {
         if (damageRadius <= 0.01f) return damage;
-
         float t = Mathf.Clamp01(distance / damageRadius);
         return damage * Mathf.Lerp(1f, edgeDamageFactor, t);
     }
-
-    /// <summary>Закрыта ли цель стеной от точки взрыва.</summary>
     bool IsBehindCover(Vector3 center, Vector3 targetPoint, Collider target)
     {
         Vector3 dir = targetPoint - center;
         float distance = dir.magnitude;
         if (distance < 0.05f) return false;
-
         RaycastHit[] hits = Physics.RaycastAll(center, dir.normalized, distance, coverMask,
                                                QueryTriggerInteraction.Ignore);
-
-        // Сортировка обязательна: RaycastAll возвращает попадания в произвольном
-        // порядке, и без неё далёкая стена «закрывала» бы цель, стоящую ближе
+        // RaycastAll вразброс — сортируем, иначе дальняя стена закроет ближнюю цель
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
         var targetHealth = target.GetComponentInParent<FlameOfHistory.AI.IDamageable>();
@@ -466,18 +340,12 @@ public class ThrownGrenade : MonoBehaviour
         {
             if (hit.collider == null) continue;
             if (hit.collider == target) return false;
-
-            // Любая часть той же цели (голова, руки) — это уже сама цель
             if (targetHealth != null &&
                 hit.collider.GetComponentInParent<FlameOfHistory.AI.IDamageable>() == targetHealth) return false;
-
-            // Сама граната и рука бросавшего преградой не считаются
             if (hit.collider.transform.IsChildOf(transform)) continue;
             if (Thrower != null && hit.collider.transform.IsChildOf(Thrower.transform)) continue;
-
             return true;
         }
-
         return false;
     }
 
@@ -511,10 +379,7 @@ public class ThrownGrenade : MonoBehaviour
         fps.TriggerCameraShake(shakeIntensity * falloff, shakeDuration, direction);
     }
 
-    /// <summary>
-    /// Отключить столкновения с бросающим: без этого граната застревает
-    /// в капсуле игрока и падает под ноги вместо полёта.
-    /// </summary>
+    // Без этого граната застревает в капсуле игрока и падает под ноги
     void IgnoreThrowerCollisions()
     {
         if (Thrower == null) return;

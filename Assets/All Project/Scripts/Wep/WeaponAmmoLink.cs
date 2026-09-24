@@ -1,20 +1,6 @@
 using UnityEngine;
 
-/// <summary>
-/// Связывает запас магазинов оружия с инвентарём.
-///
-/// Инвентарь — единственный источник правды: сколько предметов-магазинов
-/// лежит в сумке, столько и покажет Wep.spareMagazines. Благодаря этому
-/// счётчики не расходятся, даже если игрок подобрал, выбросил или
-/// израсходовал патроны.
-///
-/// Как работает:
-///   - Подобрал магазин  -> инвентарь изменился -> spareMagazines пересчитан.
-///   - Нажал R           -> Wep потратил магазин -> из инвентаря убран 1 предмет.
-///   - Выбросил магазин  -> spareMagazines уменьшился.
-///
-/// Вешается на игрока рядом с InventorySystem.
-/// </summary>
+/// <summary>Инвентарь — источник правды по магазинам: сколько предметов в сумке, столько и Wep.spareMagazines.</summary>
 [DisallowMultipleComponent]
 public class WeaponAmmoLink : MonoBehaviour
 {
@@ -38,11 +24,8 @@ public class WeaponAmmoLink : MonoBehaviour
     [Tooltip("Сколько магазинов даёт один предмет. Обычно 1.")]
     [Min(1)] public int magazinesPerItem = 1;
 
-    // Защита от рекурсии: RemoveItem вызовет OnInventoryChanged,
-    // который иначе снова полез бы пересчитывать запас
+    // Флаг от рекурсии: RemoveItem дёрнет OnInventoryChanged обратно
     private bool isSyncing;
-
-    // =====================================================================
     void Awake()
     {
         if (inventory == null) inventory = InventorySystem.Instance;
@@ -87,34 +70,23 @@ public class WeaponAmmoLink : MonoBehaviour
 
     void Start()
     {
-        // Оружие может быть выключено до подбора, поэтому ищем и подписываемся
-        // не только в Awake, но и здесь — и далее по мере необходимости
         SubscribeWeapon();
         SyncToWeapon();
     }
-
     void Update()
     {
-        // Оружие могло появиться позже (экипировка включает объект).
-        // Проверка дешёвая: сравнение ссылки.
         if (weapon == null) SubscribeWeapon();
     }
-
-    // =====================================================================
     void SubscribeWeapon()
     {
         if (weapon == null)
         {
-            // true — включая выключенные объекты: оружие спрятано до экипировки
             Wep[] found = FindObjectsOfType<Wep>(true);
             if (found.Length > 0) weapon = found[0];
             if (weapon == null) return;
         }
-
-        // Повторная подписка безвредна только если сначала отписаться
         weapon.OnMagazinesChanged -= HandleWeaponMagazinesChanged;
         weapon.OnMagazinesChanged += HandleWeaponMagazinesChanged;
-
         SyncToWeapon();
     }
 
@@ -123,34 +95,25 @@ public class WeaponAmmoLink : MonoBehaviour
         if (weapon != null) weapon.OnMagazinesChanged -= HandleWeaponMagazinesChanged;
     }
 
-    /// <summary>Инвентарь изменился — пересчитываем запас у оружия.</summary>
     void HandleInventoryChanged()
     {
         if (isSyncing) return;
         SyncToWeapon();
     }
-
-    /// <summary>
-    /// Оружие потратило магазин при перезарядке — убираем один предмет из инвентаря.
-    /// </summary>
+    // Wep потратил магазин на R — убираем 1 предмет из сумки
     void HandleWeaponMagazinesChanged(int newCount)
     {
         if (isSyncing || inventory == null || magazineItem == null) return;
 
         int inInventory = inventory.CountItem(magazineItem) * magazinesPerItem;
-        if (newCount >= inInventory) return;   // не расход, а пополнение — инвентарь уже прав
-
+        if (newCount >= inInventory) return;
         int spent = inInventory - newCount;
         int itemsToRemove = Mathf.Max(1, spent / Mathf.Max(1, magazinesPerItem));
-
         isSyncing = true;
         inventory.RemoveItem(magazineItem, itemsToRemove);
         isSyncing = false;
-
         Debug.Log($"[AmmoLink] Израсходован магазин. Осталось: {inventory.CountItem(magazineItem)}");
     }
-
-    /// <summary>Привести spareMagazines к числу магазинов в инвентаре.</summary>
     public void SyncToWeapon()
     {
         if (weapon == null || inventory == null || magazineItem == null) return;
@@ -163,7 +126,6 @@ public class WeaponAmmoLink : MonoBehaviour
         isSyncing = false;
     }
 
-    /// <summary>Сколько магазинов доступно по данным инвентаря.</summary>
     public int AvailableMagazines =>
         inventory != null && magazineItem != null
             ? inventory.CountItem(magazineItem) * magazinesPerItem

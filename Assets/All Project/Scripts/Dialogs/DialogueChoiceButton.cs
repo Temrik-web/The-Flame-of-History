@@ -3,16 +3,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-/// <summary>
-/// Визуальное поведение одной кнопки ответа в диалоге: подсветка при наведении,
-/// выезжающий акцентный маркер, сдвиг текста, номер для выбора с клавиатуры.
-///
-/// Добавляется автоматически из DialogueUI — вручную вешать не нужно.
-///
-/// Позицию самой кнопки не трогаем: её задаёт VerticalLayoutGroup, и любые
-/// правки anchoredPosition были бы перетёрты при следующем пересчёте раскладки.
-/// Двигаем внутренние элементы и localScale, которые раскладка не контролирует.
-/// </summary>
+/// <summary>Кнопка ответа: подсветка, маркер, сдвиг текста. Позицию задаёт Layout.</summary>
 public class DialogueChoiceButton : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
     [Header("Ссылки (заполняет DialogueUI)")]
@@ -65,7 +56,7 @@ public class DialogueChoiceButton : MonoBehaviour, IPointerEnterHandler, IPointe
         if (rect != null) rect.localScale = Vector3.one;
     }
 
-    /// <summary>Настроить номер и цвета. Вызывается из DialogueUI.</summary>
+    /// <summary>Настроить номер и цвета.</summary>
     public void Setup(Button button, int number, Color accent, Color textColor)
     {
         this.button = button;
@@ -79,7 +70,7 @@ public class DialogueChoiceButton : MonoBehaviour, IPointerEnterHandler, IPointe
             textLabel.color = textColor;
     }
 
-    /// <summary>Программно нажать кнопку (используется для клавиш 1..9).</summary>
+    /// <summary>Нажать программно (клавиши 1..9).</summary>
     public void Invoke()
     {
         if (button != null && button.interactable)
@@ -97,8 +88,6 @@ public class DialogueChoiceButton : MonoBehaviour, IPointerEnterHandler, IPointe
 
         float k = 1f - Mathf.Exp(-animationSpeed * Time.unscaledDeltaTime);
         blend = Mathf.Lerp(blend, targetBlend, k);
-
-        // Текст и номер уезжают вправо — глаз сразу видит выбранный вариант
         if (textRect != null)
         {
             Vector2 min = textRect.offsetMin;
@@ -113,7 +102,6 @@ public class DialogueChoiceButton : MonoBehaviour, IPointerEnterHandler, IPointe
             numberRect.offsetMin = min;
         }
 
-        // Маркер слева «наливается» акцентом и растёт в толщину
         if (marker != null)
         {
             marker.color = new Color(accent.r, accent.g, accent.b, blend);
@@ -146,7 +134,6 @@ public class DialogueChoiceButton : MonoBehaviour, IPointerEnterHandler, IPointe
         if (textLabel != null)
             textLabel.color = Color.Lerp(baseTextColor, Color.white, blend * 0.6f);
 
-        // localScale раскладка не трогает, поэтому его анимировать безопасно
         if (rect != null)
         {
             float s = Mathf.Lerp(1f, hoverScale, blend);

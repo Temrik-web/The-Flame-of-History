@@ -36,18 +36,11 @@ namespace EasyPeasyFirstPersonController
 
                 if (ctx.useClimbTilt)
                 {
-                    // Initial impact dip when grabbing the ledge (fades out quickly)
                     float impact = Mathf.Exp(-hangTimer * 10f);
-                    
-                    // Subtle breathing/dangling wobble while hanging
                     float wobble = Mathf.Sin(hangTimer * 2f) * 0.04f;
                     
                     ctx.targetCameraY = (ctx.standingCameraHeight - 0.25f) - (impact * 0.2f) + wobble;
-                    
-                    // Slight tilt to emphasize the weight of hanging
                     ctx.targetTilt = Mathf.Sin(hangTimer * 1.5f) * 1.2f;
-                    
-                    // Optional slight FOV kick upon impact
                     ctx.targetFov = ctx.normalFov + (impact * 3f);
                 }
                 
@@ -59,7 +52,6 @@ namespace EasyPeasyFirstPersonController
 
                     if (Vector3.Angle(grabForward, currentForward) > 60f)
                     {
-                        // If they press jump or W while looking away, they jump off
                         ctx.currentLedgeCooldown = 0.5f;
                         SwitchState(factory.Jumping());
                         return;
@@ -85,7 +77,6 @@ namespace EasyPeasyFirstPersonController
 
         public override void ExitState()
         {
-            // Always ensure CharacterController is active when we leave this state
             if (!ctx.characterController.enabled)
                 ctx.characterController.enabled = true;
         }
@@ -97,7 +88,6 @@ namespace EasyPeasyFirstPersonController
             climbTimer += Time.deltaTime;
             float linearT = Mathf.Clamp01(climbTimer / ctx.climbDuration);
 
-            // SmootherStep for a much more organic and less stiff feeling
             float easedT = linearT * linearT * linearT * (linearT * (6f * linearT - 15f) + 10f);
 
             float heightArc = Mathf.Sin(linearT * Mathf.PI) * ctx.climbHeightArc;

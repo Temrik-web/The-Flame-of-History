@@ -2,16 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// HUD оружия на обычном Canvas: патроны, запас магазинов, режим огня.
-///
-/// Зачем: старый вывод в Wep.OnGUI использует IMGUI, а тот всегда рисуется
-/// поверх любого Canvas и игнорирует сортировку. Из-за этого он налезал на
-/// инвентарь и диалоги. Этот компонент выключает Wep.drawDebugGUI и рисует
-/// то же самое на Canvas, который корректно скрывается вместе с остальным UI.
-///
-/// Вешается на игрока. UI собирается кодом, настраивать ничего не нужно.
-/// </summary>
+/// <summary>HUD на Canvas: патроны, магазины, режим. Заменяет Wep.OnGUI, который лез поверх инвентаря и диалогов.</summary>
 [DisallowMultipleComponent]
 public class WeaponHudUI : MonoBehaviour
 {
@@ -43,35 +34,24 @@ public class WeaponHudUI : MonoBehaviour
     private TextMeshProUGUI modeLabel;
 
     private float visibleAlpha;
-
-    // =====================================================================
     void Awake()
     {
         if (fontAsset == null)
             fontAsset = Resources.Load<TMP_FontAsset>("InventoryFont SDF");
-
         BuildUI();
     }
-
     void Start()
     {
         FindWeapon();
         if (disableLegacyHud) DisableLegacyHud();
     }
-
     void FindWeapon()
     {
         if (weapon != null) return;
-
-        // true — включая выключенные объекты: оружие спрятано до экипировки
         Wep[] found = FindObjectsOfType<Wep>(true);
         if (found.Length > 0) weapon = found[0];
     }
-
-    /// <summary>
-    /// Погасить дубли счётчиков: IMGUI-вывод внутри Wep и старый WeaponUI на Canvas.
-    /// IMGUI рисуется поверх всего и игнорирует сортировку — именно он налезал на инвентарь.
-    /// </summary>
+    // Гасит IMGUI-вывод Wep и старый WeaponUI, чтобы счётчики не дублировались
     void DisableLegacyHud()
     {
         foreach (Wep w in FindObjectsOfType<Wep>(true))
@@ -81,16 +61,12 @@ public class WeaponHudUI : MonoBehaviour
         {
             if (legacy == null) continue;
             legacy.enabled = false;
-
-            // Гасим и сами тексты: без Update они застынут с последним значением
             if (legacy.ammoText != null) legacy.ammoText.gameObject.SetActive(false);
             if (legacy.modeText != null) legacy.modeText.gameObject.SetActive(false);
             if (legacy.hintText != null) legacy.hintText.gameObject.SetActive(false);
-
             Debug.Log($"[WeaponHud] Старый WeaponUI на «{legacy.name}» выключен — его заменил новый HUD.");
         }
     }
-
     void Update()
     {
         if (weapon == null)
@@ -98,27 +74,19 @@ public class WeaponHudUI : MonoBehaviour
             FindWeapon();
             if (weapon == null) { SetVisible(false); return; }
         }
-
-        // Оружие в руках = объект активен и скрипт включён
         bool armed = weapon.gameObject.activeInHierarchy && weapon.enabled;
-
         bool uiBusy = false;
         if (hideWhenUIOpen)
         {
             if (InventorySystem.Instance != null && InventorySystem.Instance.IsOpen) uiBusy = true;
             if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive) uiBusy = true;
         }
-
         bool show = !uiBusy && (armed || !hideWhenUnarmed);
         SetVisible(show);
-
         if (!show) return;
-
         int ammo = weapon.currentAmmo;
         int max = Mathf.Max(1, weapon.maxAmmo);
         int mags = weapon.spareMagazines;
-
-        // Цвет по остатку: пусто — красный, меньше четверти — акцент
         string ammoHex = ColorUtility.ToHtmlStringRGB(
             ammo <= 0 ? warningColor
                       : ammo <= max * 0.25f ? accentColor
@@ -140,21 +108,16 @@ public class WeaponHudUI : MonoBehaviour
     void SetVisible(bool show)
     {
         if (group == null) return;
-
         float target = show ? 1f : 0f;
         visibleAlpha = Mathf.MoveTowards(visibleAlpha, target, Time.unscaledDeltaTime * 8f);
         group.alpha = visibleAlpha;
     }
-
-    // =====================================================================
     void BuildUI()
     {
         Sprite round = UIShapes.RoundedRect(48, 12);
-
         Canvas canvas = new GameObject("WeaponHudCanvas").AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 50;   // ниже диалогов (90) и инвентаря (100)
-
+        canvas.sortingOrder = 50;
         CanvasScaler scaler = canvas.gameObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
@@ -170,15 +133,12 @@ public class WeaponHudUI : MonoBehaviour
         group = root.AddComponent<CanvasGroup>();
         group.alpha = 0f;
         group.interactable = false;
-        group.blocksRaycasts = false;   // HUD не должен перехватывать клики
-
+        group.blocksRaycasts = false;
         Image bg = root.AddComponent<Image>();
         bg.sprite = round;
         bg.type = Image.Type.Sliced;
         bg.color = new Color(0.03f, 0.035f, 0.045f, 0.55f);
         bg.raycastTarget = false;
-
-        // Акцентная полоска справа — привязывает блок к краю экрана
         GameObject edge = NewUI("AccentEdge", root.transform);
         RectTransform edgeRect = (RectTransform)edge.transform;
         edgeRect.anchorMin = new Vector2(1f, 0f);

@@ -7,10 +7,8 @@ public sealed class PatrolRoute : MonoBehaviour
     [SerializeField] private Transform[] points;
     [SerializeField] private bool loop = true;
     [SerializeField] private bool randomOrder;
-
     public int Count => points != null ? points.Length : 0;
     public bool Loop => loop;
-
     public int NextIndex(int current)
     {
         if (Count <= 1) return 0;

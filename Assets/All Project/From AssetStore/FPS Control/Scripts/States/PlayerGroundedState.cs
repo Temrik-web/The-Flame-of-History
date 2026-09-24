@@ -50,20 +50,16 @@ namespace EasyPeasyFirstPersonController
 
             Vector2 input = ctx.input.moveInput;
             Vector3 targetMove = ctx.transform.right * input.x + ctx.transform.forward * input.y;
-            
-            // Normalize diagonal movement so they don't walk 40% faster diagonally
             targetMove = Vector3.ClampMagnitude(targetMove, 1f); 
 
             Vector3 targetVelocity = targetMove * speed;
 
-            // Apply acceleration or deceleration based on if the player is pressing keys
             float accelRate = (input.sqrMagnitude > 0.01f) ? ctx.groundAcceleration : ctx.groundDeceleration;
 
-            // Smoothly move current velocity towards target (gives weight and fixes the instant robotic movement)
             ctx.currentVelocity = Vector3.MoveTowards(ctx.currentVelocity, targetVelocity, accelRate * Time.deltaTime);
 
             Vector3 finalVelocity = ctx.currentVelocity;
-            finalVelocity.y = -5f; // Keep sticking to the ground
+            finalVelocity.y = -5f;
             
             ctx.characterController.Move(finalVelocity * Time.deltaTime);
         }

@@ -1,30 +1,9 @@
 using UnityEngine;
 using EasyPeasyFirstPersonController;
 
-/// <summary>
-/// База для всего, что игрок держит в руках, кроме огнестрела: нож, граната,
-/// фонарь, лопата и т.д. Делает ровно то, чем Wep занимается для ППШ, но
-/// без стрельбы, магазинов и кинематографичной перезарядки:
-///
-///   - цепляет модель к держателю в руках (тому же, где висит ППШ);
-///   - держит позу «в руках» / «поднято» (ПКМ);
-///   - качает предмет при ходьбе, беге, прыжке, приседе и от движения мышью;
-///   - даёт наследникам простой способ проиграть замах/удар/бросок
-///     через SetPoseOverride, не переписывая всю математику заново.
-///
-/// Почему это отдельный класс, а не Wep: Wep жёстко завязан на патроны,
-/// затвор, магазины и режимы огня. Ножу и гранате это не нужно, а нужное
-/// (поза в руках) в Wep нельзя переиспользовать — оно там перемешано
-/// с логикой стрельбы.
-///
-/// Вешается на модель предмета рядом с EquippableWeapon.
-/// EquippableWeapon сам включит и выключит этот скрипт вместе с моделью.
-/// </summary>
+/// <summary>База для всего в руках кроме огнестрела: поза, покачивание, замах через SetPoseOverride. Wep для этого не подходит — там всё перемешано со стрельбой.</summary>
 public abstract class HeldItem : MonoBehaviour
 {
-    // =====================================================================
-    // Ссылки и держатель
-    // =====================================================================
     [Header("Держатель")]
     [Tooltip("Родитель, к которому цепляется предмет. Пусто — найдётся сам: " +
              "сначала держатель ППШ (чтобы позы были в одной системе координат), " +
@@ -46,10 +25,6 @@ public abstract class HeldItem : MonoBehaviour
     public Transform itemModel;
 
     public AudioSource audioSource;
-
-    // =====================================================================
-    // Поза
-    // =====================================================================
     [Header("Поза в руках (локально относительно держателя)")]
     [Tooltip("Взять позу из Custom Pos / Custom Rot вместо Hip Position / Hip Rotation.")]
     public bool useCustomPose = false;
@@ -80,10 +55,6 @@ public abstract class HeldItem : MonoBehaviour
     public float animationFollowSpeed = 26f;
     [Tooltip("Насколько анимация подавляет покачивание (0 — не подавляет).")]
     [Range(0f, 1f)] public float animationMotionDamping = 0.85f;
-
-    // =====================================================================
-    // Покачивание
-    // =====================================================================
     [Header("Покачивание от мыши")]
     public float swayAmount = 0.035f;
     public float swaySmoothness = 8f;
@@ -119,16 +90,8 @@ public abstract class HeldItem : MonoBehaviour
     public bool manageCrosshair = true;
     public GameObject crosshairObject;
 
-    /// <summary>
-    /// Прячет ли предмет перекрестие насовсем (нож, лопата — им прицел не нужен).
-    /// Наследник переопределяет, WeaponSlotManager это читает, чтобы не спорить
-    /// с предметом за один и тот же объект прицела.
-    /// </summary>
+    /// <summary>Прячет ли прицел насовсем (нож, лопата). Читает WeaponSlotManager, чтобы не спорить за один объект.</summary>
     public virtual bool HidesCrosshair => false;
-
-    // =====================================================================
-    // Состояние
-    // =====================================================================
     protected bool isCrouching;
     protected bool isRunning;
     protected bool isGrounded = true;
@@ -176,21 +139,11 @@ public abstract class HeldItem : MonoBehaviour
     private Renderer[] cachedRenderers;
     private bool initFailed;
 
-    /// <summary>
-    /// Пока true, новые HeldItem не цепляются к держателю в Awake.
-    /// Нужно тому, кто копирует модель из рук как снаряд: копия иначе
-    /// успела бы прыгнуть в руки игрока до того, как с неё снимут скрипты.
-    /// Ставится на время одного Instantiate и сразу снимается.
-    /// </summary>
+    /// <summary>Пока true, новые HeldItem не цепляются к держателю в Awake. Нужно на время Instantiate копии-снаряда.</summary>
     public static bool SuppressAttachOnAwake { get; set; }
-
-    // =====================================================================
-    // Жизненный цикл
-    // =====================================================================
     protected virtual void Awake()
     {
         if (itemModel == null) itemModel = transform;
-
         ResolveCamera();
         if (playerCamera == null)
         {
@@ -199,20 +152,16 @@ public abstract class HeldItem : MonoBehaviour
             enabled = false;
             return;
         }
-
         if (autoAttachToHolder && !SuppressAttachOnAwake) AttachToHolder();
-
         if (audioSource == null) audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
         {
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
-            audioSource.spatialBlend = 0f;   // предмет в руках — звук не пространственный
+            audioSource.spatialBlend = 0f;
         }
-
         fpsController = FindObjectOfType<FirstPersonController>();
         cachedRenderers = GetComponentsInChildren<Renderer>(true);
-
         itemModel.localPosition = hipPosition;
         itemModel.localRotation = Quaternion.Euler(hipRotation);
     }
@@ -222,32 +171,17 @@ public abstract class HeldItem : MonoBehaviour
         StartCoroutine(ApplyCustomPose());
     }
 
-    /// <summary>
-    /// Поставить кастомную позу через кадр после старта.
-    ///
-    /// Кадр ожидания нужен, потому что в первом кадре держатель ещё двигает
-    /// камеру (FirstPersonController выставляет высоту), а UpdatePose уже
-    /// сглаживает предмет к старой позе — отсюда рывок при появлении в руках.
-    /// Сначала сбрасываем трансформ в ноль: остатки позиции из сцены иначе
-    /// складывались бы с кастомной позой.
-    /// </summary>
+    // Кадр паузы нужен: в первом кадре контроллер ещё двигает камеру и UpdatePose дёрнет предмет
     System.Collections.IEnumerator ApplyCustomPose()
     {
         if (!useCustomPose) yield break;
-
-        // Кастомная поза становится основной, иначе UpdatePose в том же кадре
-        // вернул бы предмет к hipPosition
         hipPosition = customPos;
         hipRotation = customRot;
-
         transform.localPosition = Vector3.zero;
         transform.localRotation = Quaternion.identity;
-
         yield return null;
-
         transform.localPosition = customPos;
         transform.localRotation = Quaternion.Euler(customRot);
-
         if (itemModel != null && itemModel != transform)
         {
             itemModel.localPosition = customPos;
@@ -257,7 +191,6 @@ public abstract class HeldItem : MonoBehaviour
 
     protected virtual void OnEnable()
     {
-        // Предмет мог быть спрятан во время анимации — начинаем с чистой позы
         ClearPoseOverride();
         kickPosition = Vector3.zero;
         kickRotation = Vector3.zero;
@@ -265,35 +198,22 @@ public abstract class HeldItem : MonoBehaviour
         AimBlend = 0f;
         IsAiming = false;
         SetModelVisible(true);
-
         if (manageCrosshair) ApplyCrosshair(true);
     }
-
     protected virtual void OnDisable()
     {
         if (manageCrosshair) ApplyCrosshair(false);
-
-        // Сбрасываем позу и толчки: иначе при следующей экипировке предмет
-        // на кадр появится в позе недоигранной анимации
         ClearPoseOverride();
         kickPosition = Vector3.zero;
         kickRotation = Vector3.zero;
     }
-
     protected virtual void Update()
     {
         if (initFailed || playerCamera == null || itemModel == null) return;
-
-        // Игра на паузе (инвентарь с pauseGameWhenOpen): deltaTime = 0,
-        // экспоненты в сглаживании обнуляются, а Input продолжает читаться.
-        // Просто выходим, чтобы предмет не «залипал» и не реагировал на клики.
         if (Time.deltaTime <= 0f) return;
-
         InputBlocked = PlayerInputLock.WeaponsLocked
                        || (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive);
-
         SyncFromController();
-
         if (!InputBlocked)
         {
             if (useRightMouseAsAim) IsAiming = Input.GetMouseButton(1);
@@ -303,29 +223,15 @@ public abstract class HeldItem : MonoBehaviour
         {
             IsAiming = false;
         }
-
         UpdateAimBlend();
         UpdateSway();
         UpdateBob();
         UpdateBreathing();
         UpdatePose();
-
         if (manageCrosshair) ApplyCrosshair(true);
     }
-
-    // =====================================================================
-    // Наследникам
-    // =====================================================================
-    /// <summary>
-    /// Обработка ввода предмета. Вызывается только когда ввод не заблокирован.
-    /// Здесь наследник читает ЛКМ/ПКМ и запускает свои действия.
-    /// </summary>
     protected abstract void HandleInput();
-
-    /// <summary>
-    /// Задать позу от анимации (замах, удар, бросок). Держится до ClearPoseOverride.
-    /// weight — насколько анимация перебивает обычную позу.
-    /// </summary>
+    /// <summary>Поза от анимации до ClearPoseOverride. weight — насколько перебивает обычную позу.</summary>
     protected void SetPoseOverride(Vector3 position, Vector3 eulerRotation, float weight = 1f)
     {
         poseOverridePosition = position;
@@ -340,15 +246,12 @@ public abstract class HeldItem : MonoBehaviour
         poseOverrideActive = false;
         poseOverrideWeight = 0f;
     }
-
-    /// <summary>Толчок предмета: отдача удара, вылет гранаты из руки.</summary>
+    /// <summary>Толчок: отдача удара, вылет гранаты.</summary>
     protected void AddKick(Vector3 positionKick, Vector3 rotationKick)
     {
         kickPosition += positionKick;
         kickRotation += rotationKick;
     }
-
-    /// <summary>Спрятать/показать меши, не выключая сам объект и корутины.</summary>
     protected void SetModelVisible(bool visible)
     {
         if (cachedRenderers == null) return;
@@ -356,14 +259,11 @@ public abstract class HeldItem : MonoBehaviour
             if (r != null) r.enabled = visible;
     }
 
-    /// <summary>Проиграть звук, если он задан.</summary>
     protected void PlaySound(AudioClip clip, float volume = 1f)
     {
         if (clip == null || audioSource == null) return;
         audioSource.PlayOneShot(clip, volume);
     }
-
-    /// <summary>Двигается ли игрок прямо сейчас.</summary>
     protected bool IsMoving()
     {
         if (fpsController != null && fpsController.characterController != null)
@@ -373,60 +273,41 @@ public abstract class HeldItem : MonoBehaviour
                || Mathf.Abs(Input.GetAxis("Vertical")) > 0.1f;
     }
 
-    /// <summary>Скорость игрока в мировых единицах (0, если контроллера нет).</summary>
     protected Vector3 PlayerVelocity =>
         fpsController != null && fpsController.characterController != null
             ? fpsController.characterController.velocity
             : Vector3.zero;
-
-    // =====================================================================
-    // Держатель
-    // =====================================================================
     void ResolveCamera()
     {
         if (playerCamera != null) return;
-
         playerCamera = GetComponentInParent<Camera>();
         if (playerCamera == null) playerCamera = Camera.main;
         if (playerCamera == null) playerCamera = FindObjectOfType<Camera>();
     }
-
-    /// <summary>
-    /// Перецепить предмет в руки. Без этого модель остаётся там, где её
-    /// положили в сцене, — именно поэтому граната «появлялась в мире».
-    /// </summary>
+    // Без перецепления модель останется лежать в мире вместо рук
     public void AttachToHolder()
     {
-        // Держатель ищется до Awake, если EquippableWeapon успел первым:
-        // порядок Awake у компонентов одного объекта не определён
         if (itemModel == null) itemModel = transform;
         ResolveCamera();
-
         Transform target = holder != null ? holder : FindHolder();
         if (target == null)
         {
             Debug.LogWarning($"[HeldItem] {name}: держатель не найден — предмет останется на месте.");
             return;
         }
-
         holder = target;
-
         if (transform.parent != target)
         {
-            // worldPositionStays: false — сохраняем локальный масштаб модели
             transform.SetParent(target, false);
             Debug.Log($"[HeldItem] {name} перецеплен в руки к «{target.name}».");
         }
-
         transform.localPosition = hipPosition;
         transform.localRotation = Quaternion.Euler(hipRotation);
     }
 
     Transform FindHolder()
     {
-        // 1) Тот же родитель, что у ППШ: позы описаны в одной системе координат.
-        //    Берём только оружие игрока: у врагов тоже есть модели в руках,
-        //    и без проверки нож мог прицепиться к руке трупа.
+        // Тот же родитель что у ППШ, но только оружие игрока — иначе нож уедет к трупу
         foreach (Wep w in FindObjectsOfType<Wep>(true))
         {
             if (w == null || w.transform.parent == null) continue;
@@ -438,21 +319,13 @@ public abstract class HeldItem : MonoBehaviour
 
             return w.transform.parent;
         }
-
-        // 2) Явный держатель по имени
         if (!string.IsNullOrEmpty(holderObjectName))
         {
             GameObject named = GameObject.Find(holderObjectName);
             if (named != null) return named.transform;
         }
-
-        // 3) Камера
         return playerCamera != null ? playerCamera.transform : null;
     }
-
-    // =====================================================================
-    // Поза и покачивание
-    // =====================================================================
     void SyncFromController()
     {
         if (fpsController == null || fpsController.characterController == null) return;
@@ -602,15 +475,11 @@ public abstract class HeldItem : MonoBehaviour
         kickRotation = Vector3.Lerp(kickRotation, Vector3.zero, decay);
     }
 
-    // =====================================================================
-    // Прицел
-    // =====================================================================
     void ApplyCrosshair(bool itemInHands)
     {
         if (crosshairObject == null)
         {
-            // Перекрестие принадлежит ППШ. Берём его, иначе после смены оружия
-            // прицел остался бы спрятанным: Wep выключен и никто его не включит.
+            // Прицел принадлежит ППШ: Wep выключен и сам его уже не включит
             foreach (Wep w in FindObjectsOfType<Wep>(true))
             {
                 if (w != null && w.crosshairObject != null) { crosshairObject = w.crosshairObject; break; }

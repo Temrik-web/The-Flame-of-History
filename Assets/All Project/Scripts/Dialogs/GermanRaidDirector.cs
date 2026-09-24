@@ -1,25 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-/// <summary>
-/// Режиссёр налётов: слушает DialogueEventBus и поднимает немцев.
-///
-/// Сценарий «иногда могут приходить немцы»:
-///  1. Игрок второй раз говорит с дозорным (DialogueRaidHook считает беседы
-///     и кидает "raid_germans") — или узел диалога сам кидает CustomEvent
-///     с тем же id через DialogueCommand;
-///  2. GermanRaidDirector ждёт warningDelay, показывает предупреждение
-///     («Немцы у околицы!») и спавнит префабы из germanPrefabs в точках
-///     spawnPoints (по кругу, если точек меньше, чем немцев);
-///  3. После спавна стартует квест questOnRaid (по умолчанию q_raid)
-///     и взводит флаг GameState raid_active — диалоги могут ветвиться
-///     по нему («Тихо... Слышишь?»).
-///
-/// Если префабы/точки не заданы — налёт всё равно «происходит» логически
-/// (флаг + квест + предупреждение в консоль), так что диалоги и квесты
-/// можно отлаживать до того, как настроен спавн. Позже просто перетащи
-/// префаб немца (с EnemyAI) и точки — код трогать не нужно.
-/// </summary>
+/// <summary>Режиссёр налётов: слушает шину диалогов, ждёт паузу, спавнит немцев.</summary>
 [DisallowMultipleComponent]
 public class GermanRaidDirector : MonoBehaviour
 {
@@ -96,7 +78,6 @@ public class GermanRaidDirector : MonoBehaviour
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
         {
-            // FloatingText есть в проекте (мирные подписи «+ предмет») — переиспользуем.
             try { FloatingText.Show(text, player.transform.position + Vector3.up * 2f, Color.red); }
             catch { Debug.Log($"[Raid] {text}", this); }
         }

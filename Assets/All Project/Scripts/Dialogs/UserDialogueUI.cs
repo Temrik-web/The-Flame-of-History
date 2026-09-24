@@ -7,26 +7,7 @@ using UnityEngine.UI;
 using UnityEditor;
 #endif
 
-/// <summary>
-/// Адаптер системы диалогов под СВОЙ канвас пользователя.
-///
-/// Как пользоваться:
-///  1. Выдели свой канвас в Hierarchy.
-///  2. Меню Tools -> Диалоги -> Подключить мой канвас (или добавь компонент вручную).
-///  3. Проверь в инспекторе, что всё нашлось само: Speeker, SpeekerName, Top, TopImage,
-///     Button1..6, тексты 1..6, окно. Пустые поля можно перетащить руками.
-///
-/// Связь нод с интерфейсом (канвас Dialogs):
-///  - Top <- тема диалога БЕЗ префикса («Диалог 1 — Знакомство» -> «Знакомство»);
-///  - Speeker <- реплика говорящего (печатается по буквам, цвет — цвет персонажа; клик = дальше);
-///  - SpeekerName <- имя говорящего (Степан/Алесь/Вы; нет объекта — имя в начале реплики);
-///  - TopImage <- статичное фото дизайна (не перезаписывается);
-///  - Окно <- Backg (прячется/показывается целиком);
-///  - Button1..6 <- варианты ответа ноды (подписи 1..6 внутри, лишние прячутся сами).
-///
-/// Стили кнопок: обычная — UI_2, наведение — UI_3, нажатие — UI_4, недоступна — UI_5.
-/// Спрайты забираются из объектов-сэмплов сцены (SpriteRenderer), сами сэмплы прячутся.
-/// </summary>
+/// <summary>Адаптер диалогов под свой канвас: Top/ Speeker/ Button1..6, стили UI_2..UI_5.</summary>
 [DisallowMultipleComponent]
 public class UserDialogueUI : MonoBehaviour
 {
@@ -113,11 +94,7 @@ public class UserDialogueUI : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Клик по реплике: если отдельной кнопки продолжения нет,
-    /// вешаем клик на родителя Speeker (Image-контейнер).
-    /// Текст клик не перехватывает — отдаём его родителю.
-    /// </summary>
+    /// <summary>Клик по реплике: вешаем клик на родителя Speeker, текст клик не перехватывает.</summary>
     void EnsureReplicaClick()
     {
         if (!clickReplicaToAdvance || continueButton != null || replicaText == null) return;
@@ -129,9 +106,6 @@ public class UserDialogueUI : MonoBehaviour
             btn = holder.gameObject.AddComponent<Button>();
             LogVerbose($"[UserDialogueUI] На «{holder.name}» не было Button — добавил для клика-продолжения.", this);
         }
-        // Прозрачная кнопка: свой Image оставляем как есть, переход убираем.
-        // Фокус с клавиатуры запрещаем: продолжение — пробелом через менеджер
-        // или кликом, но не Enter/Space по сфокусированной кнопке (двойной шаг).
         btn.transition = Selectable.Transition.None;
         Navigation nav = btn.navigation;
         nav.mode = Navigation.Mode.None;
@@ -153,16 +127,13 @@ public class UserDialogueUI : MonoBehaviour
         else Debug.Log(message);
     }
 
-    /// <summary>Повторить поиск и привязку (менеджер зовёт сам, если с первого раза не вышло).</summary>
+    /// <summary>Повторить поиск и привязку.</summary>
     public void RetryWire()
     {
         AutoDiscover();
         StyleButtons();
         EnsureReplicaClick();
         WireToManager();
-
-        // Корень канваса Dialogs мог остаться с масштабом 0 / выключенным —
-        // чиним и корень, и окно, иначе ничего не будет видно.
         Canvas canvas = GetComponentInParent<Canvas>();
         if (canvas == null && searchRoot != null)
             canvas = searchRoot.GetComponentInChildren<Canvas>(true);
@@ -187,7 +158,7 @@ public class UserDialogueUI : MonoBehaviour
             LogVerbose("[UserDialogueUI] Масштаб окна был ~0 — вернул 1, иначе ничего не было бы видно.", this);
         }
 
-        // Окно — это НЕ одна из кнопок: иначе прятанье убьёт саму кнопку
+        // Окно — не одна из кнопок, иначе прятанье убьёт кнопку.
         if (dialogueWindow != null && choiceButtons != null)
         {
             foreach (Button b in choiceButtons)
@@ -250,10 +221,7 @@ public class UserDialogueUI : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Убрать технический префикс «Диалог N —» из заголовка, оставить только тему.
-    /// Остальное (без префикса) не трогаем.
-    /// </summary>
+    /// <summary>Убрать префикс «Диалог N —», оставить тему.</summary>
     static string CleanTopicTitle(string title)
     {
         if (string.IsNullOrEmpty(title)) return title;
@@ -314,8 +282,7 @@ public class UserDialogueUI : MonoBehaviour
         manager.choiceButtonPrefab = null;
         manager.choicesContainer = null;
 
-        // Панель выборов отдельно не трогаем (кнопки лежат вместе со всем окном):
-        // кнопки прячутся менеджером поштучно, иначе можно спрятать всё окно
+        // Панель выборов отдельно не трогаем: кнопки прячутся поштучно.
         manager.choicesPanel = null;
 
         manager.interactHint = interactHint;
@@ -371,8 +338,7 @@ public class UserDialogueUI : MonoBehaviour
             if (found.Count > 0) choiceButtons = found.ToArray();
         }
 
-        // Подписи 1..6 должны быть TextMeshPro (иначе текст вариантов не встанет).
-        // Для канваса Dialogs подписи лежат в детях Button1..6 с именами "1".."6".
+        // Подписи 1..6 должны быть TMP. Для Dialogs лежат в детях Button с именами "1".."6".
         if (choiceButtons != null)
         {
             var labels = new System.Collections.Generic.List<TextMeshProUGUI>();
@@ -415,14 +381,11 @@ public class UserDialogueUI : MonoBehaviour
 
         if (dialogueWindow == null)
         {
-            // Для канваса Dialogs окном является Backg (панель с кнопками),
-            // а не весь Canvas — иначе прятанье/масштаб ломают весь канвас.
             GameObject backg = FindPieceGO(scope, new[] { "Backg" }, "Backg", "Background", "Window", "DialogueWindow");
             dialogueWindow = backg != null ? backg : (canvas != null ? canvas.gameObject : gameObject);
         }
 
-        // Подсказка «Нажмите E, чтобы говорить» (InteractHint/HintText).
-        // Без неё игрок не знает, что рядом можно говорить.
+        // Подсказка E: без неё не видно, что можно говорить.
         if (interactHint == null)
         {
             GameObject hintGO = FindPieceGO(scope, new[] { "InteractHint", "Hint", "HintText" },
@@ -431,14 +394,12 @@ public class UserDialogueUI : MonoBehaviour
         }
         if (interactHintText == null && interactHint != null)
             interactHintText = interactHint.GetComponentInChildren<TextMeshProUGUI>(true);
-        // До первого диалога подсказка прячется (иначе висит с запуска сцены).
+        // До первого диалога подсказку прячем.
         if (interactHint != null && manager != null && !manager.isDialogueActive &&
             interactHint.activeSelf)
             interactHint.SetActive(false);
 
-        // Стили кнопок: UI_2 обычная, UI_3 наведение, UI_4 нажатие.
-        // Объекты-сэмплы в сцене — это SpriteRenderer (не UI Image),
-        // имена могут быть UI_2 / UI2 / UI 2 — ищем по нормализованному имени.
+        // Стили: имена нормализуем (UI_2 = UI2 = UI 2), берём из SpriteRenderer или Image.
         if (normalSprite == null) normalSprite = FindButtonSprite("UI_2", "UI2", "UI 2");
         if (hoverSprite == null) hoverSprite = FindButtonSprite("UI_3", "UI3", "UI 3");
         if (pressedSprite == null) pressedSprite = FindButtonSprite("UI_4", "UI4", "UI 4");
@@ -693,7 +654,6 @@ public class UserDialogueUI : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    [MenuItem("Tools/Диалоги/Подключить мой канвас", false, 2)]
     static void AttachToSelection()
     {
         GameObject selected = Selection.activeGameObject;

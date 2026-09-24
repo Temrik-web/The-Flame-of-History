@@ -215,11 +215,9 @@ public class MeleeItem : HeldItem
 
         Vector3 currentPos = hipPosition;
         Vector3 currentRot = hipRotation;
-
-        // Проходим по всем фазам, каждая длится ровно столько, сколько указано в duration
         foreach (AttackPhase phase in phases)
         {
-            float effectiveDuration = Mathf.Max(0.001f, phase.duration); // минимум 1 мс
+            float effectiveDuration = Mathf.Max(0.001f, phase.duration);
 
             float t = 0f;
             while (t < effectiveDuration)
@@ -238,8 +236,6 @@ public class MeleeItem : HeldItem
                 SetPoseOverride(newPos, newRot, curveValue);
                 yield return null;
             }
-
-            // Точно выставляем позу фазы
             SetPoseOverride(phase.position, phase.rotation, 1f);
             currentPos = phase.position;
             currentRot = phase.rotation;
@@ -251,8 +247,6 @@ public class MeleeItem : HeldItem
                 else AddKick(missKickPosition, missKickRotation);
             }
         }
-
-        // Возврат к базовой позе
         float returnT = 0f;
         Vector3 startPos = currentPos;
         Vector3 startRot = currentRot;
@@ -277,7 +271,6 @@ public class MeleeItem : HeldItem
         strikeRoutine = null;
     }
 
-    // ==================== Боевая логика (без изменений) ====================
     int ResolveHits(bool heavy, bool forceBackstabAttempt)
     {
         Transform cam = playerCamera != null ? playerCamera.transform : transform;

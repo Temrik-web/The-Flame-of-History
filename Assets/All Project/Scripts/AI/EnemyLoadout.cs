@@ -104,10 +104,6 @@ namespace FlameOfHistory.AI
             EquipInitialWeapon();
         }
 
-        // =====================================================================
-        // Сокет
-        // =====================================================================
-
         private void ResolveSocket()
         {
             if (handSocket != null) return;
@@ -122,8 +118,7 @@ namespace FlameOfHistory.AI
 
                     if (bone != null)
                     {
-                        // Отдельный дочерний сокет: подгонять оружие смещением
-                        // на самой кости нельзя — её крутит анимация.
+                        // Сокет отдельно от кости: кость крутит анимация.
                         handSocket = CreateSocket(bone, "WeaponSocket", Vector3.zero);
                         return;
                     }
@@ -148,10 +143,6 @@ namespace FlameOfHistory.AI
             return socket;
         }
 
-        // =====================================================================
-        // Экипировка
-        // =====================================================================
-
         private void EquipInitialWeapon()
         {
             if (existingWeapon != null)
@@ -160,7 +151,6 @@ namespace FlameOfHistory.AI
                 return;
             }
 
-            // Оружие могло быть уже вручную положено в иерархию врага.
             var alreadyPresent = GetComponentInChildren<HitscanWeapon>(true);
             if (alreadyPresent != null)
             {
@@ -172,10 +162,6 @@ namespace FlameOfHistory.AI
                 EquipWeapon(weaponPrefab, playSound: false);
         }
 
-        /// <summary>
-        /// Выдать врагу оружие из префаба. Старое, если было, уничтожается.
-        /// Работает и в рантайме — например, при смене вооружения отряда.
-        /// </summary>
         public HitscanWeapon EquipWeapon(GameObject prefab, bool playSound = true)
         {
             if (prefab == null) return null;
@@ -192,7 +178,6 @@ namespace FlameOfHistory.AI
 
             if (weapon == null)
             {
-                // Модель без логики — навешиваем стрельбу сами.
                 weapon = instance.AddComponent<HitscanWeapon>();
                 Debug.Log($"[EnemyLoadout] {name}: на префабе «{prefab.name}» не было HitscanWeapon — " +
                           "компонент добавлен автоматически. Настрой урон и темп стрельбы в инспекторе " +
@@ -203,7 +188,6 @@ namespace FlameOfHistory.AI
             return weapon;
         }
 
-        /// <summary>Взять под управление уже существующий HitscanWeapon.</summary>
         public void AdoptWeapon(HitscanWeapon weapon, bool reparent, bool playSound)
         {
             if (weapon == null) return;
@@ -218,7 +202,6 @@ namespace FlameOfHistory.AI
                 _spawnedWeaponRoot = weaponRoot.gameObject;
             }
 
-            // Подгонка в руке применяется только если оружие реально сидит в сокете.
             if (weaponRoot.parent == handSocket)
             {
                 weaponRoot.localPosition = weaponLocalPosition;
@@ -235,8 +218,6 @@ namespace FlameOfHistory.AI
 
             weapon.ResetAmmo();
             Weapon = weapon;
-
-            // Сообщаем ИИ, чем он теперь вооружён.
             var ai = GetComponent<EnemyAI>();
             if (ai != null) ai.SetWeapon(weapon);
 
@@ -258,10 +239,6 @@ namespace FlameOfHistory.AI
             Weapon = null;
         }
 
-        // =====================================================================
-        // Подготовка оружия
-        // =====================================================================
-
         private void PrepareMuzzle(HitscanWeapon weapon)
         {
             if (weapon.HasMuzzle) return;
@@ -270,8 +247,7 @@ namespace FlameOfHistory.AI
 
             if (muzzle == null && createMuzzleIfMissing)
             {
-                // Ставим дуло в передний край меша оружия — так трассы и вспышки
-                // выходят из ствола, а не из центра модели.
+                // Дуло в передний край меша, иначе трассы пойдут из центра модели.
                 float forwardExtent = 0.5f;
                 var renderers = weapon.GetComponentsInChildren<Renderer>();
 
@@ -341,17 +317,7 @@ namespace FlameOfHistory.AI
                 collider.enabled = false;
         }
 
-        // =====================================================================
-        // Смерть
-        // =====================================================================
-
-        /// <summary>
-        /// Вызывается EnemyAI при смерти: оружие выпадает из рук и падает на землю.
-        ///
-        /// Гравитация включается не сразу, а через dropGravityDelay: в кадре смерти
-        /// оружие ещё сидит внутри коллайдера тела, и включённая физика выталкивает
-        /// его сквозь пол. Задержку оружие проводит kinematic, зависнув в воздухе.
-        /// </summary>
+        /// <summary>Выпадение при смерти: гравитация с задержкой, иначе оружие вытолкнет сквозь пол.</summary>
         public void HandleOwnerDeath()
         {
             HitscanWeapon weapon = Weapon;
@@ -374,14 +340,12 @@ namespace FlameOfHistory.AI
             }
 
             weaponRoot.SetParent(null, true);
-
-            // Коллайдеры в руках были выключены (disableWeaponColliders) —
-            // без них оружие пролетело бы сквозь пол независимо от гравитации
+            // В руках коллайдеры выключены — без включения провалится сквозь пол.
             bool hasCollider = false;
             foreach (Collider collider in weaponRoot.GetComponentsInChildren<Collider>(true))
             {
                 collider.enabled = true;
-                collider.isTrigger = false;   // триггер физику не останавливает
+                collider.isTrigger = false; // Триггер не держит физику.
                 hasCollider = true;
             }
 
@@ -394,8 +358,7 @@ namespace FlameOfHistory.AI
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.interpolation = RigidbodyInterpolation.Interpolate;
 
-            // Слой врага исключён из рейкастов зрения, но оружие на нём
-            // может не сталкиваться с полом. Возвращаем на Default.
+            // Оружие возвращаем на Default, иначе не столкнётся с полом.
             if (matchOwnerLayer)
                 foreach (Transform child in weaponRoot.GetComponentsInChildren<Transform>(true))
                     child.gameObject.layer = 0;
@@ -420,22 +383,11 @@ namespace FlameOfHistory.AI
             _weaponDropped = true;
         }
 
-        /// <summary>
-        /// Страховка: если врага уничтожили без вызова HandleOwnerDeath
-        /// (Destroy по таймеру трупа, выгрузка сцены), оружие всё равно выпадет
-        /// вместо того, чтобы исчезнуть вместе с телом.
-        ///
-        /// Важно: перевешивать оружие из иерархии здесь нельзя — Unity уже
-        /// помечает детей на уничтожение вместе с родителем, и SetParent(null)
-        /// не спасёт объект. Поэтому создаётся новый экземпляр, а не переносится
-        /// существующий.
-        /// </summary>
+        /// <summary>Страховка без HandleOwnerDeath: SetParent в OnDestroy не спасёт — Unity уже помечает детей на удаление.</summary>
         private void OnDestroy()
         {
             if (_weaponDropped || !dropWeaponOnDeath) return;
             if (Weapon == null) return;
-
-            // Смена сцены и выход из игры: ронять нечего, всё и так удаляется
             if (!Application.isPlaying) return;
 
             _weaponDropped = true;
@@ -453,11 +405,7 @@ namespace FlameOfHistory.AI
             _spawnedWeaponRoot = null;
         }
 
-        /// <summary>
-        /// Выбросить оружие без задержки. Используется при уничтожении врага:
-        /// корутин и Update у уже мёртвого объекта не будет, поэтому физика
-        /// включается сразу, здесь и сейчас.
-        /// </summary>
+        /// <summary>Аварийный выброс: Update у мёртвого не работает, физика включается сразу.</summary>
         public void DropWeaponImmediate()
         {
             HitscanWeapon weapon = Weapon;
@@ -497,8 +445,6 @@ namespace FlameOfHistory.AI
 
             body.AddForce((transform.forward * 0.4f + Vector3.up) * dropImpulse, ForceMode.Impulse);
             body.AddTorque(Random.insideUnitSphere * dropImpulse, ForceMode.Impulse);
-
-            // Даже в аварийном пути кладём оружие на бок и страхуем от провала
             var dropper = weaponRoot.gameObject.AddComponent<DroppedWeapon>();
             dropper.Initialize(
                 gravityDelay: 0f,
@@ -511,27 +457,16 @@ namespace FlameOfHistory.AI
             Weapon = null;
         }
 
-        /// <summary>
-        /// Выбросить заданный dropObject (например, DropMp40) вместо оружия из рук.
-        /// У объекта уже есть свой коллайдер и настройки DroppedWeapon, поэтому здесь
-        /// его только позиционируем, поднимаем в воздух и даём лёгкий подброс.
-        /// </summary>
         private void SpawnDropObject(Transform weaponRoot)
         {
-            // Позицию берём до выключения: у неактивного объекта transform
-            // читается нормально, но так надёжнее и понятнее.
             Vector3 spawnPosition = weaponRoot.position;
             Quaternion spawnRotation = weaponRoot.rotation;
-
-            // Оружие в руках больше не нужно — прячем его, чтобы не осталось дубликатов.
             weaponRoot.gameObject.SetActive(false);
 
             GameObject instance = Instantiate(dropObject, spawnPosition, spawnRotation);
             instance.name = dropObject.name;
             instance.transform.SetParent(null);
             instance.SetActive(true);
-
-            // Переводим объект на слой землю/Default, чтобы физика срабатывала корректно.
             foreach (Transform child in instance.GetComponentsInChildren<Transform>(true))
                 child.gameObject.layer = 0;
 
@@ -539,16 +474,14 @@ namespace FlameOfHistory.AI
             if (body == null) body = instance.AddComponent<Rigidbody>();
 
             body.mass = dropMass;
-            body.isKinematic = true;          // DroppedWeapon сам включит гравитацию
+            body.isKinematic = true;
             body.useGravity = false;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             body.interpolation = RigidbodyInterpolation.Interpolate;
 
-            // Убеждаемся, что все коллайдеры включены — DroppedWeapon их временно глушит сам.
+            // DroppedWeapon временно глушит коллайдеры сам.
             foreach (Collider c in instance.GetComponentsInChildren<Collider>(true))
                 c.enabled = true;
-
-            // Гарантируем правильный коллайдер у выпавшего оружия (после включения всех).
             ApplyDropCollider(instance);
 
             var dropper = instance.GetComponent<DroppedWeapon>();
@@ -562,21 +495,13 @@ namespace FlameOfHistory.AI
                 lifetime: dropLifetime);
         }
 
-        /// <summary>
-        /// Настраивает BoxCollider выпавшего оружия на заданные центр и размер.
-        /// Все остальные коллайдеры (на корне и детях) отключаем, чтобы физическая
-        /// форма была ровно одна — заданный бокс.
-        /// </summary>
         private void ApplyDropCollider(GameObject instance)
         {
             BoxCollider box = instance.GetComponent<BoxCollider>();
             if (box == null) box = instance.AddComponent<BoxCollider>();
-
             box.center = droppedColliderCenter;
             box.size = droppedColliderSize;
             box.isTrigger = false;
-
-            // Отключаем все прочие коллайдеры — оставляем только наш бокс.
             foreach (Collider c in instance.GetComponentsInChildren<Collider>(true))
             {
                 if (c == box) continue;
@@ -584,10 +509,7 @@ namespace FlameOfHistory.AI
             }
         }
 
-        /// <summary>
-        /// Коллайдер по габаритам модели, если на префабе его не было.
-        /// Без коллайдера гравитация просто уронит оружие в бездну.
-        /// </summary>
+        /// <summary>Коллайдер по габаритам модели, иначе оружие провалится под пол.</summary>
         private static bool AddFallbackCollider(GameObject target)
         {
             Bounds bounds = default;
@@ -606,7 +528,7 @@ namespace FlameOfHistory.AI
             box.center = target.transform.InverseTransformPoint(bounds.center);
             box.size = target.transform.InverseTransformVector(bounds.size);
 
-            // Отрицательный размер после инверсии масштаба ломает коллайдер
+            // Отрицательный размер от инверсии масштаба ломает коллайдер.
             box.size = new Vector3(
                 Mathf.Max(0.02f, Mathf.Abs(box.size.x)),
                 Mathf.Max(0.02f, Mathf.Abs(box.size.y)),

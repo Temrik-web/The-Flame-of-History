@@ -3,26 +3,10 @@ using UnityEngine;
 using UnityEngine.AI;
 using FlameOfHistory.AI;
 
-// Единственная боевая система проекта.
 using CombatEnemyAI = FlameOfHistory.AI.EnemyAI;
 using CombatTeam = FlameOfHistory.AI.Team;
 
-/// <summary>
-/// Мастер быстрого создания и настройки врага для боевой системы (папка AI).
-/// Меню: Tools -> Враги.
-///
-/// Что делает:
-/// 1) Создаёт префаб врага Assets/GameData/Prefabs/Enemy.prefab с полным набором
-///    компонентов (NavMeshAgent, EnemyMotor, CharacterHealth, EnemyAI,
-///    EnemyVoice, EnemyLoadout, HitscanWeapon, SuppressionReceiver).
-/// 2) Размещает «эталонного» врага перед игроком — его удобно брать для клонирования
-///    (Ctrl+D) и расстановки по уровню.
-/// 3) Настраивает игрока: вешает CameraShake и SuppressionReceiver на камеру,
-///    чтобы работал свист пуль и тряска.
-/// 4) Доукомплектовывает уже расставленных на сцене врагов новыми компонентами.
-///
-/// Сторонние скрипты не трогает — только читает сцену, чтобы найти игрока.
-/// </summary>
+/// <summary>Создание префаба врага, шаблона и настройка игрока. Меню Tools -> Враги.</summary>
 public static class EnemySetupWizard
 {
     private const string GameDataFolder = "Assets/GameData";
@@ -30,9 +14,6 @@ public static class EnemySetupWizard
     private const string EnemyPrefabPath = "Assets/GameData/Prefabs/Enemy.prefab";
     private const string EnemyTemplateName = "== Enemy Template (клонируй меня) ==";
 
-    // =====================================================================
-    // 1. Создать префаб врага
-    // =====================================================================
     [MenuItem("Tools/Враги/Создать префаб врага", false, 0)]
     public static GameObject CreateEnemyPrefab()
     {
@@ -58,9 +39,6 @@ public static class EnemySetupWizard
         return prefab;
     }
 
-    // =====================================================================
-    // 2. Разместить эталонного врага перед игроком
-    // =====================================================================
     [MenuItem("Tools/Враги/Разместить врага перед игроком", false, 1)]
     public static void SpawnEnemyInFrontOfPlayer()
     {
@@ -84,7 +62,6 @@ public static class EnemySetupWizard
             forward.Normalize();
 
             spawnPos = player.transform.position + forward * 5f;
-            // Враг смотрит на игрока
             spawnRot = Quaternion.LookRotation(-forward, Vector3.up);
         }
         else
@@ -94,7 +71,6 @@ public static class EnemySetupWizard
             Debug.LogWarning("[EnemySetup] Игрок не найден — враг размещён в начале координат.");
         }
 
-        // Прижать к NavMesh, если он запечён
         if (NavMesh.SamplePosition(spawnPos, out NavMeshHit navHit, 8f, NavMesh.AllAreas))
             spawnPos = navHit.position;
         else
@@ -110,7 +86,6 @@ public static class EnemySetupWizard
         Selection.activeGameObject = instance;
         EditorGUIUtility.PingObject(instance);
 
-        // Навести камеру сцены на врага
         if (SceneView.lastActiveSceneView != null)
             SceneView.lastActiveSceneView.FrameSelected();
 
@@ -118,9 +93,6 @@ public static class EnemySetupWizard
                   "Выдели его и жми Ctrl+D, чтобы клонировать и расставить по уровню.");
     }
 
-    // =====================================================================
-    // 3. Настроить игрока (подавление + тряска)
-    // =====================================================================
     [MenuItem("Tools/Враги/Настроить игрока (свист пуль + тряска)", false, 20)]
     public static void SetupPlayerFeedback()
     {
@@ -135,14 +107,12 @@ public static class EnemySetupWizard
             return;
         }
 
-        // Игрок и новые враги используют одну систему команд и здоровья.
         CharacterHealth playerHealth = player.GetComponent<CharacterHealth>();
         if (playerHealth == null) playerHealth = Undo.AddComponent<CharacterHealth>(player);
         var healthSettings = new SerializedObject(playerHealth);
         healthSettings.FindProperty("team").enumValueIndex = (int)CombatTeam.Allies;
         healthSettings.ApplyModifiedProperties();
 
-        // Ищем камеру игрока
         Camera cam = player.GetComponentInChildren<Camera>();
         if (cam == null) cam = Camera.main;
         if (cam == null)
@@ -153,18 +123,14 @@ public static class EnemySetupWizard
 
         GameObject camGo = cam.gameObject;
 
-        // CameraShake — тряска камеры. SuppressionReceiver её намеренно не вызывает
-        // (там только звук), но компонент нужен другим системам и настраивается тут же.
+        // SuppressionReceiver тряску не вызывает (только звук), но CameraShake нужен другим системам.
         CameraShake shake = camGo.GetComponent<CameraShake>();
         if (shake == null) Undo.AddComponent<CameraShake>(camGo);
 
-        // AudioSource под свист
         AudioSource whizz = camGo.GetComponent<AudioSource>();
         if (whizz == null) whizz = Undo.AddComponent<AudioSource>(camGo);
         whizz.playOnAwake = false;
-        whizz.spatialBlend = 0f; // 2D, свист «у виска»
-
-        // SuppressionReceiver (игрок)
+        whizz.spatialBlend = 0f;
         SuppressionReceiver receiver = camGo.GetComponent<SuppressionReceiver>();
         if (receiver == null) receiver = Undo.AddComponent<SuppressionReceiver>(camGo);
 
@@ -191,9 +157,6 @@ public static class EnemySetupWizard
             "Ок");
     }
 
-    // =====================================================================
-    // 4. Доукомплектовать врагов на сцене
-    // =====================================================================
     [MenuItem("Tools/Враги/Обновить врагов на сцене (ходьба + звуки + оружие)", false, 21)]
     public static void UpgradeSceneEnemies()
     {
@@ -252,38 +215,24 @@ public static class EnemySetupWizard
             "Ок");
     }
 
-    // =====================================================================
-    // Построение объекта врага со всеми компонентами
-    // =====================================================================
     private static GameObject BuildEnemyObject()
     {
-        // Тело — капсула (даёт MeshRenderer + CapsuleCollider для обнаружения)
         GameObject root = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         root.name = "Enemy";
 
-        // Слой Characters, если он есть в проекте
         int charLayer = LayerMask.NameToLayer("Characters");
         if (charLayer >= 0) root.layer = charLayer;
-
-        // --- NavMeshAgent ---
         ConfigureAgent(root.AddComponent<NavMeshAgent>());
-
-        // --- EnemyMotor (ходьба: NavMesh + режим без навмеша) ---
         ConfigureMotor(root.AddComponent<EnemyMotor>(), root.layer);
-
-        // --- CharacterHealth (Team.Axis) ---
         CharacterHealth health = root.AddComponent<CharacterHealth>();
         var healthSo = new SerializedObject(health);
         healthSo.FindProperty("team").enumValueIndex = (int)CombatTeam.Axis;
         healthSo.FindProperty("maximumHealth").floatValue = 100f;
         healthSo.ApplyModifiedProperties();
 
-        // --- Точка глаз ---
         GameObject eye = new GameObject("EyePoint");
         eye.transform.SetParent(root.transform, false);
         eye.transform.localPosition = new Vector3(0f, 0.7f, 0f);
-
-        // --- Оружие + дуло ---
         GameObject weaponGo = new GameObject("Weapon");
         weaponGo.transform.SetParent(root.transform, false);
         weaponGo.transform.localPosition = new Vector3(0.25f, 0.5f, 0.3f);
@@ -294,18 +243,14 @@ public static class EnemySetupWizard
 
         AudioSource weaponAudio = weaponGo.AddComponent<AudioSource>();
         weaponAudio.playOnAwake = false;
-        weaponAudio.spatialBlend = 1f; // 3D-звук выстрела
-
+        weaponAudio.spatialBlend = 1f;
         HitscanWeapon weapon = weaponGo.AddComponent<HitscanWeapon>();
         var weaponSo = new SerializedObject(weapon);
         weaponSo.FindProperty("muzzle").objectReferenceValue = muzzle.transform;
         weaponSo.FindProperty("audioSource").objectReferenceValue = weaponAudio;
         weaponSo.ApplyModifiedProperties();
 
-        // --- Голос: крики, боль, смерть, шаги ---
         EnemyVoice voice = root.AddComponent<EnemyVoice>();
-
-        // --- EnemyAI ---
         CombatEnemyAI ai = root.AddComponent<CombatEnemyAI>();
         var aiSo = new SerializedObject(ai);
         aiSo.FindProperty("eyePoint").objectReferenceValue = eye.transform;
@@ -313,8 +258,7 @@ public static class EnemySetupWizard
         aiSo.FindProperty("voice").objectReferenceValue = voice;
         aiSo.FindProperty("enemyTeam").enumValueIndex = (int)CombatTeam.Axis;
 
-        // Враг ищет цели и «видит» на всех слоях, кроме собственного: свой же коллайдер
-        // (глаза внутри тела) не должен закрывать обзор, а стены и игрок — должны.
+        // Свой коллайдер не должен закрывать обзор (глаза внутри тела).
         int selfLayerMask = charLayer >= 0 ? (1 << charLayer) : 0;
 
         SerializedProperty targetMask = aiSo.FindProperty("targetMask");
@@ -323,13 +267,8 @@ public static class EnemySetupWizard
         visibilityMask.intValue = selfLayerMask != 0 ? ~selfLayerMask : ~0;
         aiSo.ApplyModifiedProperties();
 
-        // --- Выдача оружия в руки ---
-        // existingWeapon/handSocket намеренно не проставляем: EnemyLoadout сам найдёт
-        // уже стоящее в иерархии оружие и не собьёт его локальную позицию.
-        // Чтобы выдать врагу модельное оружие — укажи префаб в поле Weapon Prefab.
+        // existingWeapon не проставляем: Loadout сам найдёт оружие, не сбивая позицию.
         root.AddComponent<EnemyLoadout>();
-
-        // --- SuppressionReceiver (враг) ---
         SuppressionReceiver receiver = root.AddComponent<SuppressionReceiver>();
         var recSo = new SerializedObject(receiver);
         recSo.FindProperty("isPlayer").boolValue = false;
@@ -357,10 +296,8 @@ public static class EnemySetupWizard
         so.FindProperty("allowFallbackMovement").boolValue = true;
         so.FindProperty("arriveRadius").floatValue = 1.2f;
         so.FindProperty("bodyRadius").floatValue = 0.4f;
-        so.FindProperty("groundOffset").floatValue = 1f; // половина высоты капсулы
-
-        // Землёй и препятствиями считаем всё, кроме слоя самих персонажей —
-        // иначе враги «спотыкаются» друг о друга и о собственные коллайдеры.
+        so.FindProperty("groundOffset").floatValue = 1f;
+        // Исключаем слой персонажей, иначе враги спотыкаются друг о друга.
         int exclude = ownerLayer >= 0 ? ~(1 << ownerLayer) : ~0;
         so.FindProperty("groundMask").intValue = exclude;
         so.FindProperty("obstacleMask").intValue = exclude;
@@ -368,7 +305,6 @@ public static class EnemySetupWizard
         so.ApplyModifiedProperties();
     }
 
-    // =====================================================================
     private static void EnsureFolders()
     {
         if (!AssetDatabase.IsValidFolder(GameDataFolder))
@@ -380,17 +316,12 @@ public static class EnemySetupWizard
     /// <summary>Ищем игрока в сцене, не завязываясь на сторонние типы.</summary>
     private static GameObject FindPlayer()
     {
-        // 1) Явный компонент боевой системы из этой папки
         var pc = Object.FindObjectOfType<PlayerHealth>();
         if (pc != null) return pc.gameObject;
-
-        // 2) Тег Player
         GameObject tagged = null;
         try { tagged = GameObject.FindGameObjectWithTag("Player"); }
         catch { /* тег может быть не определён */ }
         if (tagged != null) return tagged;
-
-        // 3) Любой CharacterController
         var cc = Object.FindObjectOfType<CharacterController>();
         if (cc != null) return cc.gameObject;
 

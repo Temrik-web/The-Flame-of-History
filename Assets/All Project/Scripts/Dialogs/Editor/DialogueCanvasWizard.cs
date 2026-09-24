@@ -6,24 +6,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-/// <summary>
-/// Мастер создания кнопочного диалогового канваса.
-/// Меню: Tools -> Диалоги -> Создать канвас.
-///
-/// Создаёт в сцене Canvas «DialogueCanvas» с окном диалога (DialogueBox):
-///  - плавающее окно ПОВЕРХ игры, не на весь экран;
-///  - внутри окна прежняя раскладка: слева снизу — имя говорящего,
-///    слева — текст реплики, справа — варианты ответа и «Отмена».
-///
-/// Всё собирается объектами сцены. DialogueBox двигается в Scene view,
-/// и весь интерфейс диалога переезжает вместе с ним.
-///
-/// Каждая кнопка — стандартный Button + компонент DialogueCanvasButton,
-/// поэтому её цвета наведения/нажатия и масштаб правятся в инспекторе.
-///
-/// Канвас сохраняется в сцену (это объекты сцены, а не код на рантайме),
-/// поэтому всё можно покрутить в редакторе до запуска.
-/// </summary>
+/// <summary>Мастер канваса: Tools -> Диалоги -> Создать канвас (окно поверх игры).</summary>
 public static class DialogueCanvasWizard
 {
     private const string SpriteFolder = "Assets/GameData/UI/DialogueSprites";
@@ -38,7 +21,6 @@ public static class DialogueCanvasWizard
         "DialoguePanel,ChoicesPanel,SpeakerNameText,DialogueText,InteractHint,InteractHintText";
 
     // =====================================================================
-    [MenuItem("Tools/Диалоги/Создать канвас", false, 0)]
     public static void CreateCanvas()
     {
         // Старый канвас, собранный прошлым запуском (или старым DialogueUI),
@@ -94,7 +76,6 @@ public static class DialogueCanvasWizard
     // =====================================================================
     // Починка шрифта StalinistOne (нет "_" — сыплет "Underline is not available")
     // =====================================================================
-    [MenuItem("Tools/Диалоги/Починить шрифт: скопировать символы", false, 1)]
     public static void CopyFontRepairChars()
     {
         // В буфер: весь ASCII (пробел, цифры, "_" и т.д.) + вся кириллица.
@@ -117,7 +98,6 @@ public static class DialogueCanvasWizard
             "Варнинги Underline пропадут.", "Ок");
     }
 
-    /// <summary>Если в сцене нет DialogueManager — создаём его.</summary>
     static void EnsureDialogueManager()
     {
         if (Object.FindObjectOfType<DialogueManager>() != null) return;
@@ -524,7 +504,7 @@ public static class DialogueCanvasWizard
     // =====================================================================
     // Спрайты как ассеты проекта — иначе сцена потеряет ссылки после перезапуска
     // =====================================================================
-    /// <summary>Варианты отрисованного скруглённого фона.</summary>
+    /// <summary>Варианты скруглённого фона.</summary>
     enum RoundedVariant
     {
         Normal,  // ровная заливка

@@ -163,7 +163,6 @@ namespace EasyPeasyFirstPersonController
             }
             cam.fieldOfView = Mathf.SmoothDamp(cam.fieldOfView, targetFov, ref fovVelocity, 1f / fovChangeSpeed);
 
-            // Smoothly track the base camera height independent of headbob
             originalCamY = Mathf.Lerp(originalCamY, targetCameraY, Time.deltaTime * 8f);
 
             float targetBobOffset = 0f;
@@ -176,14 +175,11 @@ namespace EasyPeasyFirstPersonController
             }
             else
             {
-                // Smoothly reset timer to prevent snapping when starting to walk again
                 bobTimer = Mathf.Lerp(bobTimer, 0, Time.deltaTime * 10f);
             }
 
-            // Smoothly transition the actual camera Y to include the bob offset
             float desiredY = originalCamY + targetBobOffset;
 
-            // Apply Camera Shake (Realistic Directional Impact)
             if (cameraShakeTimer > 0)
             {
                 cameraShakeTimer -= Time.deltaTime;
@@ -191,19 +187,16 @@ namespace EasyPeasyFirstPersonController
                 float normalizedTime = cameraShakeTimer / 0.4f;
                 float shakeFactor = normalizedTime * normalizedTime * normalizedTime;
 
-                // 1. Sharp dip downwards based on frontal impact
                 float frontalImpact = Mathf.Abs(cameraShakeDirection.z) + 0.5f;
                 float dipY = -cameraShakeIntensity * shakeFactor * frontalImpact;
 
-                // 2. Sharp rotational roll towards the impact side
                 float sideImpact = cameraShakeDirection.x;
                 float dipTilt = (cameraShakeIntensity * 15f) * sideImpact * shakeFactor;
 
-                // If it's purely a frontal crash with no side impact, add a slight random tilt
+                // Если удар строго спереди, добавляем небольшой наклон в случайную сторону
                 if (Mathf.Abs(sideImpact) < 0.1f)
                     dipTilt = (cameraShakeIntensity * 5f) * shakeFactor * (Mathf.PerlinNoise(Time.time, 0) > 0.5f ? 1 : -1);
 
-                // 3. Organic rattle (much lighter now)
                 float rattle = (Mathf.PerlinNoise(Time.time * 30f, 0f) - 0.5f) * (cameraShakeIntensity * 0.2f) * shakeFactor;
 
                 desiredY += dipY + rattle;

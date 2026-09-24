@@ -1,20 +1,6 @@
 using UnityEngine;
 
-/// <summary>
-/// Счётчик бесед → событие мира. Тот самый «отросток» механики:
-/// «поговорил 2 диалогом — идёт событие», позже — спавн немцев.
-///
-/// Как вешать:
-///  1. Положи компонент на тот же объект, где NpcDialogueSequence или DialogueTrigger
-///     (например, на Степана), укажи тот же DialogueData в поле dialogue
-///     (пусто — считаем любой СВОЙ диалог этого объекта, чужие НПС игнорируем);
-///  2. talksBeforeEvent = 2 — на второй завершённый разговор кидаем eventId;
-///  3. eventId = "raid_germans" — GermanRaidDirector его уже слушает.
-///
-/// Состояние переживает перезапуск (PlayerPrefs): повторные прохождения
-/// после сейва не накручивают счётчик заново, а «одноразовость» честно
-/// соблюдается через fireOnce.
-/// </summary>
+/// <summary>Счётчик бесед -> событие мира (например "raid_germans" после N-й беседы).</summary>
 [DisallowMultipleComponent]
 public class DialogueRaidHook : MonoBehaviour
 {
@@ -77,8 +63,7 @@ public class DialogueRaidHook : MonoBehaviour
     void OnAnyDialogueEnded()
     {
         DialogueManager m = DialogueManager.Instance;
-        // Считаем только ЗАВЕРШЁННЫЕ беседы: выход по Esc (completed=false)
-        // — не беседа, счётчик не крутим, событие не кидаем.
+        // Esc — не беседа, счётчик не крутим.
         if (m != null && !m.LastFinishedCompleted)
             return;
         DialogueData finished = m != null ? m.LastFinishedDialogue : null;
@@ -87,8 +72,7 @@ public class DialogueRaidHook : MonoBehaviour
         if (dialogue != null && finished != null && finished != dialogue)
             return;
 
-        // Без фильтра: считаем только «свои» — диалог триггера или цепочки
-        // на этом же объекте. Иначе хук на Степане накрутится от Василия.
+        // Без фильтра считаем только «свои» диалоги этого объекта.
         if (dialogue == null && finished != null)
         {
             DialogueTrigger trigger = GetComponent<DialogueTrigger>();
@@ -98,15 +82,13 @@ public class DialogueRaidHook : MonoBehaviour
                 ours = true;
             if (seq != null && seq.dialogues != null && seq.dialogues.Contains(finished))
                 ours = true;
-            // Если на объекте нет ни триггера, ни цепочки — старый режим:
-            // считаем любой (поле dialogue пусто, висит отдельно).
+        // Если на объекте нет ни триггера, ни цепочки — считаем любой.
             if ((trigger == null || trigger.dialogue == null) && seq == null)
                 ours = true;
             if (!ours)
                 return;
         }
-        // Фолбэк для старого режима (менеджер ещё не пишет LastFinished,
-        // например сторонний вызов): сверяемся с триггером рядом.
+        // Фолбэк для сторонних вызовов без LastFinished.
         if (finished == null)
         {
             DialogueTrigger trigger = GetComponent<DialogueTrigger>();

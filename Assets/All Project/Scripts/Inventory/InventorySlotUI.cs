@@ -52,8 +52,6 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     private Vector2 basePosition;
     private bool baseCaptured;
     private UnityEngine.UI.LayoutGroup parentLayout;
-
-    // Текущее и целевое состояние анимации
     private float scale = 1f;
     private float targetScale = 1f;
     private float lift;
@@ -92,8 +90,6 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         this.index = index;
         if (selectionFrame != null) selectionFrame.SetActive(false);
     }
-
-    /// <summary>Отрисовать содержимое слота. null — пустая ячейка.</summary>
     public void SetSlot(InventorySystem.Slot slot)
     {
         bool wasEmpty = isEmpty;
@@ -109,8 +105,6 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             bool hasIcon = !isEmpty && slot.item.icon != null;
             iconImage.enabled = hasIcon;
             if (hasIcon) iconImage.sprite = slot.item.icon;
-
-            // Без иконки показываем цветной силуэт редкости, чтобы ячейка не выглядела пустой
             if (!isEmpty && !hasIcon)
             {
                 iconImage.enabled = true;
@@ -138,7 +132,6 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             if (!isEmpty)
             {
                 Color c = slot.item.RarityColor;
-                // Обычные предметы почти без рамки, редкие — заметно
                 float a = slot.item.rarity == ItemRarity.Common ? 0.25f : 0.85f;
                 rarityFrame.color = new Color(c.r, c.g, c.b, a);
             }
@@ -156,7 +149,6 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             }
         }
 
-        // --- Цифра быстрого слота ---
         if (hotbarLabel != null)
         {
             bool showDigit = !isEmpty && slot.item.HasHotbarSlot;
@@ -164,31 +156,24 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             if (showDigit) hotbarLabel.text = slot.item.hotbarSlot.ToString();
         }
 
-        // --- Метка «Экипировано» ---
         isEquipped = !isEmpty && slot.item.IsCurrentlyEquipped;
 
         if (equippedBadge != null) equippedBadge.SetActive(isEquipped);
         if (equippedLabel != null && isEquipped) equippedLabel.text = "ЭКИПИРОВАНО";
         if (equippedGlow != null) equippedGlow.enabled = isEquipped;
 
-        // Экипированное оружие получает акцентную рамку вместо рамки редкости
         if (rarityFrame != null && isEquipped)
             rarityFrame.color = new Color(equippedColor.r, equippedColor.g, equippedColor.b, 1f);
-
         ApplyBackgroundColor();
-
-        // Пружинка, если предмет появился или количество выросло
         bool appeared = !isEmpty && (wasEmpty || previousItem != lastItem);
         bool grew = !isEmpty && previousItem == lastItem && lastAmount > previousAmount;
         if (appeared || grew) Pop();
     }
 
-    /// <summary>Запустить анимацию «выпрыгивания».</summary>
     public void Pop()
     {
         popTimer = 1f;
     }
-
     public void SetSelected(bool selected)
     {
         if (selectionFrame != null) selectionFrame.SetActive(selected);
@@ -197,22 +182,15 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     void Update()
     {
         if (rect == null) return;
-
-        // Позицию задаёт GridLayoutGroup: базу берём после того, как раскладка
-        // отработала и отключилась (GridLayoutFreezer), иначе запомним промежуточное
-        // значение и ячейки «уползут».
+        // Базу берём только после GridLayoutFreezer, иначе ячейки «уползут»
         if (!baseCaptured)
         {
             if (parentLayout == null && transform.parent != null)
                 parentLayout = transform.parent.GetComponent<UnityEngine.UI.LayoutGroup>();
-
             if (parentLayout != null && parentLayout.enabled) return;
-
             basePosition = rect.anchoredPosition;
             baseCaptured = true;
         }
-
-        // Пружинка затухает по синусоиде — читается как упругий отскок
         float popExtra = 0f;
         if (popTimer > 0f)
         {
@@ -237,7 +215,6 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
         if (isEquipped)
         {
-            // Экипированное заметно даже без наведения
             Color tint = new Color(equippedColor.r, equippedColor.g, equippedColor.b,
                                    isHovered ? 0.26f : 0.16f);
             background.color = tint;

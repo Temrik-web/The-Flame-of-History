@@ -151,24 +151,18 @@ public class Wep : MonoBehaviour
              "поэтому при включённом WeaponHudUI его надо выключить — иначе тексты наложатся.")]
     public bool drawDebugGUI = true;
 
-    // === Синхронизация запаса магазинов с инвентарём ===
-    /// <summary>Число запасных магазинов изменилось. Параметр — новое значение.</summary>
+    // Запас магазинов зеркалит инвентарь
+    /// <summary>Запас магазинов изменился.</summary>
     public event System.Action<int> OnMagazinesChanged;
-
-    /// <summary>Патроны в магазине изменились: (в магазине, всего в магазине).</summary>
+    /// <summary>Патроны изменились: (в магазине, всего).</summary>
     public event System.Action<int, int> OnAmmoChanged;
-
-    /// <summary>
-    /// Израсходовать один запасной магазин. Вызывается при перезарядке.
-    /// Через событие инвентарь убирает соответствующий предмет.
-    /// </summary>
+    /// <summary>Потратить один магазин при перезарядке — инвентарь уберёт предмет.</summary>
     public void ConsumeMagazine()
     {
         spareMagazines = Mathf.Max(0, spareMagazines - 1);
         OnMagazinesChanged?.Invoke(spareMagazines);
     }
-
-    /// <summary>Выставить запас магазинов напрямую (используется при синхронизации с инвентарём).</summary>
+    /// <summary>Выставить запас напрямую (синхронизация с инвентарём).</summary>
     public void SetSpareMagazines(int count)
     {
         int clamped = Mathf.Max(0, count);
@@ -178,7 +172,7 @@ public class Wep : MonoBehaviour
         OnMagazinesChanged?.Invoke(spareMagazines);
     }
 
-    /// <summary>Добавить магазины (подбор патронов).</summary>
+    /// <summary>Добавить магазины (подбор).</summary>
     public void AddMagazines(int count)
     {
         if (count <= 0) return;
@@ -223,8 +217,6 @@ public class Wep : MonoBehaviour
     private FirstPersonController fpsController;
     private Coroutine reloadRoutine;
     private bool initFailed = false;
-
-    // === КИНЕМАТОГРАФИЧНАЯ ПЕРЕЗАРЯДКА ===
     [Header("Кинематографичная перезарядка")]
     public bool useCinematicReload = true;
     public Vector3 reloadStartPosition = new Vector3(0.562f, -0.826f, 1.049f);
@@ -479,21 +471,15 @@ public class Wep : MonoBehaviour
 
     void OnEnable()
     {
-        // Перекрестие могло остаться спрятанным ножом или гранатой:
-        // они гасят его на время, а включить обратно должен тот, кто в руках
+        // Нож/граната гасят прицел — при возврате ППШ включаем обратно
         if (crosshairObject != null) crosshairObject.SetActive(true);
     }
-
     void Update()
     {
         if (initFailed || playerCamera == null || weaponModel == null) return;
-
-        // БЛОКИРОВКА ОРУЖИЯ ВО ВРЕМЯ ДИАЛОГА
         if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
             return;
-
-        // Открытый инвентарь и другие UI-режимы: стрелять и перезаряжаться нельзя.
-        // Замок вместо enabled = false, чтобы не конфликтовать со сменой оружия.
+        // Замок вместо enabled=false, чтобы не конфликтовать со сменой оружия
         if (PlayerInputLock.WeaponsLocked)
         {
             if (crosshairObject != null) crosshairObject.SetActive(false);
@@ -758,7 +744,7 @@ public class Wep : MonoBehaviour
             currentSpread = baseSpread;
     }
 
-    // === МЕТОДЫ ОСМОТРА (ИСПРАВЛЕННЫЕ) ===
+    // === МЕТОДЫ ОСМОТРА ===
     public void StartInspect()
     {
         if (isInspecting || isReloading || isCinematicReload) return;
@@ -1302,7 +1288,7 @@ public class Wep : MonoBehaviour
         isInspecting = false;
     }
 
-    // === КИНЕМАТОГРАФИЧНАЯ ПЕРЕЗАРЯДКА (без изменений) ===
+    // === КИНЕМАТОГРАФИЧНАЯ ПЕРЕЗАРЯДКА ===
     IEnumerator ReloadSequence()
     {
         isReloading = true;

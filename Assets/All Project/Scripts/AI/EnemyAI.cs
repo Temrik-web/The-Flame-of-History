@@ -3,14 +3,6 @@ using UnityEngine;
 
 namespace FlameOfHistory.AI
 {
-    /// <summary>
-    /// Боевой ИИ врага: восприятие, состояния, стрельба.
-    ///
-    /// Передвижением сам не занимается — всё через <see cref="EnemyMotor"/>,
-    /// поэтому враг ходит по земле и с запечённым NavMesh, и без него.
-    /// Звуки и крики — через <see cref="EnemyVoice"/>.
-    /// Оружие в руках — через <see cref="EnemyLoadout"/> (или ссылкой вручную).
-    /// </summary>
     [RequireComponent(typeof(EnemyMotor))]
     [RequireComponent(typeof(CharacterHealth))]
     [DisallowMultipleComponent]
@@ -141,7 +133,6 @@ namespace FlameOfHistory.AI
         public float Awareness => _awareness;
         public float Suppression => _suppression;
 
-        /// <summary>Текущее оружие врага (может быть null — тогда он просто преследует).</summary>
         public HitscanWeapon Weapon => weapon;
 
         private EnemyMotor _motor;
@@ -174,33 +165,24 @@ namespace FlameOfHistory.AI
         private int _shotsRemaining;
         private float _nextBurstTime;
 
-        // Точка отхода в бою в упор: держим её, пока не дошли, а не выбираем
-        // заново каждый кадр (иначе цель всё время за спиной — враг пятится
-        // в стену и дёргается на месте).
+        // Держим точку отхода до конца, иначе враг пятится в стену и дёргается.
         private Vector3 _repositionPoint;
         private bool _hasRepositionPoint;
         private float _nextRepositionPickTime;
-
-        // Бой и диагностика.
         private float _lastVisibleTime;
         private float _nextDiagTime;
         private string _lastLosBlocker;
         private string _lastRejectNote;
         private string _lastNoiseInfo;
 
-        // Точка проверки: куда смотрим в первую очередь в Search (последний
-        // шум или мелькнувшая цель). Сначала всматриваемся в неё, потом обзор.
         private Vector3 _searchCenter;
         private float _searchFaceUntil;
         private float _searchBaseYaw;
         private bool _searchBaseCaptured;
 
-        // Человечность огня и походки.
         private int _burstShotIndex;
         private float _wanderSpeedFactor = 1f;
         private float _chaseStuckTime = -1f;
-
-        // Темп схватки с текущей целью.
         private Transform _engageTarget;
         private float _engageStartTime;
         private float _engageEndTime = float.NegativeInfinity;
@@ -219,19 +201,13 @@ namespace FlameOfHistory.AI
         private readonly RaycastHit[] _losBuffer = new RaycastHit[16];
         private readonly Collider[] _eyeBuffer = new Collider[4];
 
-        // Реестр всех персонажей сцены (ведут его сами CharacterHealth).
-        // Страховка поверх OverlapSphere: тот не видит цели вообще без Collider
-        // или с одними триггерами (QueryTriggerInteraction.Ignore) — такой
-        // персонаж иначе был бы невидим для врагов в принципе.
+        // OverlapSphere не видит цели без Collider и с одними триггерами — добираем через реестр.
         private static readonly HashSet<CharacterHealth> s_characters = new();
-
-        /// <summary>Зарегистрировать персонажа как видимую цель (зовёт CharacterHealth).</summary>
         public static void RegisterCharacter(CharacterHealth character)
         {
             if (character != null) s_characters.Add(character);
         }
 
-        /// <summary>Убрать персонажа из видимых целей (зовёт CharacterHealth).</summary>
         public static void UnregisterCharacter(CharacterHealth character)
         {
             if (character != null) s_characters.Remove(character);
@@ -247,9 +223,7 @@ namespace FlameOfHistory.AI
 
         private void Awake()
         {
-            // Уже расставленные по сценам враги были сериализованы без EnemyMotor,
-            // а RequireComponent задним числом его не добавляет. Поэтому чиним здесь,
-            // иначе старые сцены падали бы с NullReferenceException.
+            // RequireComponent задним числом не добавляет EnemyMotor старым сценам — чиним здесь.
             _motor = GetComponent<EnemyMotor>();
             if (_motor == null)
             {
@@ -266,8 +240,7 @@ namespace FlameOfHistory.AI
             if (loadout == null) loadout = GetComponent<EnemyLoadout>();
             if (animator == null) animator = GetComponentInChildren<Animator>();
 
-            // Если targetMask пуст (0) — враг слепой. Включаем все слои,
-            // чтобы он хотя бы что-то видел. В идеале настрой в инспекторе.
+            // targetMask пуст (0) = слепой, включаем все слои.
             if (targetMask == 0)
             {
                 targetMask = ~0;
@@ -276,8 +249,7 @@ namespace FlameOfHistory.AI
                     "для корректной работы.", this);
             }
 
-            // Старая сериализованная сцена могла сохранить enemyTeam = Allies
-            // (было до исправления бага). Игрок = Allies, враг должен быть = Axis.
+            // enemyTeam Allies из старой сцены — чиним на Axis.
             if (enemyTeam == Team.Allies)
             {
                 enemyTeam = Team.Axis;
@@ -285,8 +257,6 @@ namespace FlameOfHistory.AI
                     "из сцены) — автоматически исправлен на Axis.", this);
             }
 
-            // Если оружие не проставлено вручную — берём то, что уже висит в иерархии.
-            // EnemyLoadout при спавне оружия всё равно перезапишет ссылку через SetWeapon.
             if (weapon == null) weapon = GetComponentInChildren<HitscanWeapon>(true);
         }
 
@@ -304,17 +274,11 @@ namespace FlameOfHistory.AI
             _homePosition = transform.position;
             _searchCenter = _homePosition;
 
-            // ChangeState(Patrol) здесь ничего бы не сделал: State уже Patrol после
-            // OnEnable, и метод вышел бы по проверке «состояние не менялось».
-            // Поэтому стартовые настройки мотора выставляем напрямую.
+            // ChangeState(Patrol) ничего не сделает — State уже Patrol, настраиваем мотор напрямую.
             _motor.SetSpeed(patrolSpeed);
             _motor.SetAutoRotation(true);
         }
 
-        /// <summary>
-        /// Настройка из редакторского мастера. Без SerializedObject —
-        /// прямые присваивания надёжнее и не падают на опечатках в именах полей.
-        /// </summary>
         public void ConfigureForWizard(
             Transform eye,
             HitscanWeapon weaponRef,
@@ -335,11 +299,6 @@ namespace FlameOfHistory.AI
 
         /// <summary>Задать маршрут патрулирования (используется мастером на экземплярах сцены).</summary>
         public void SetPatrolRoute(PatrolRoute route) => patrolRoute = route;
-
-        /// <summary>
-        /// Сменить оружие в рантайме. Вызывается EnemyLoadout после выдачи оружия
-        /// в руку, но можно дёргать и вручную — например, при подборе трофея.
-        /// </summary>
         public void SetWeapon(HitscanWeapon newWeapon)
         {
             if (weapon == newWeapon) return;
@@ -352,7 +311,6 @@ namespace FlameOfHistory.AI
             _nextBurstTime = 0f;
         }
 
-        /// <summary>Публичный вход подавления — вызывается SuppressionReceiver при близком пролёте.</summary>
         public void ApplySuppression(float amount)
         {
             if (_health == null || !_health.IsAlive) return;
@@ -369,9 +327,7 @@ namespace FlameOfHistory.AI
         {
             if (target == null) return;
 
-            // Порядок Awake между EnemyLoadout и EnemyAI не гарантирован, поэтому
-            // сначала снимаем подписку — иначе можно подписаться дважды и получить
-            // двойные триггеры анимации выстрела.
+            // Порядок Awake не гарантирован — сначала отписываемся, иначе двойные триггеры.
             target.Fired -= OnWeaponFired;
             target.ReloadStarted -= OnWeaponReloadStarted;
 
@@ -430,8 +386,6 @@ namespace FlameOfHistory.AI
             UpdateAnimator();
             UpdateVoiceFootsteps();
 
-            // Тикающий статус для диагностики: раз в 1.5 сек одной строкой видно
-            // состояние, цель, причину слепоты и почему не стреляет.
             if (debugLogging && Time.time >= _nextDiagTime)
             {
                 _nextDiagTime = Time.time + 1.5f;
@@ -461,7 +415,6 @@ namespace FlameOfHistory.AI
                     if (!_firstSightAcquired)
                     {
                         _firstSightAcquired = true;
-                        // Живой разброс реакции: каждый захват — чуть иначе.
                         _canFireAfter = Time.time + reactionTime *
                             (jitterReaction ? Random.Range(0.8f, 1.5f) : 1f);
                         if (debugLogging)
@@ -499,10 +452,6 @@ namespace FlameOfHistory.AI
             }
         }
 
-        /// <summary>
-        /// Тикающий статус (раз в 1.5 сек при debugLogging): одной строкой видно
-        /// состояние, цель, причину слепоты и почему не стреляет.
-        /// </summary>
         private void LogDiag()
         {
             string targetInfo = "—";
@@ -546,7 +495,6 @@ namespace FlameOfHistory.AI
                 (_lastNoiseInfo != null ? $" | последний {_lastNoiseInfo}" : ""), this);
         }
 
-        /// <summary>Чистая проверка видимости текущей цели (без побочек, для статуса).</summary>
         private bool IsTargetVisibleNow(out string blocker)
         {
             blocker = "";
@@ -606,10 +554,7 @@ namespace FlameOfHistory.AI
                 EvaluateCandidate(cand, ref best, ref bestScore, ref bestDistance);
             }
 
-            // Добираем тех, кого OverlapSphere пропустил: цели вообще без
-            // Collider или с одними триггерами, коллайдер на границе сферы.
-            // Проверки дистанции, FOV и прямой видимости внутри
-            // EvaluateCandidate — те же самые.
+            // Добираем цели без Collider и с одними триггерами — OverlapSphere их не видит.
             foreach (CharacterHealth cand in s_characters)
             {
                 if (cand == null) continue;
@@ -619,27 +564,21 @@ namespace FlameOfHistory.AI
             return best;
         }
 
-        /// <summary>
-        /// Общая проверка одного кандидата: команда, слой, дистанция, FOV,
-        /// прямая видимость. Повторы отсекает _candidateSet, поэтому одного
-        /// персонажа с несколькими коллайдерами считаем один раз.
-        /// </summary>
+        // _candidateSet отсекает повторы от нескольких коллайдеров одного тела.
         private void EvaluateCandidate(CharacterHealth cand, ref Transform best,
             ref float bestScore, ref float bestDistance)
         {
             if (!_candidateSet.Add(cand)) return;
             _diagConsidered++;
-            // Труп — не цель: мёртвого не видим в принципе (и не берём в прицел).
+            // Труп — не цель.
             if (!cand.IsAlive) { _diagRejectedDead++; return; }
             if (cand.Team == enemyTeam) { _diagRejectedTeam++; return; }
             if (cand.gameObject == gameObject) return;
 
-            // Для пути через OverlapSphere маска уже применена самим запросом,
-            // для пути через реестр проверяем слой цели явно.
+            // Маска OverlapSphere уже применена запросом, для реестра проверяем слой явно.
             if ((targetMask.value & (1 << cand.gameObject.layer)) == 0)
             {
                 _diagRejectedLayer++;
-                // Частый случай слепоты — не пишем каждый тик, видно в статусе.
                 _lastRejectNote = $"слой {LayerMask.LayerToName(cand.gameObject.layer)} не в TargetMask";
                 return;
             }
@@ -681,17 +620,11 @@ namespace FlameOfHistory.AI
             if (dist <= 0.001f) return true;
             dir /= dist;
 
-            // NonAlloc + пропуск попаданий в собственное тело: глаз стоит
-            // внутри капсулы врага, и одиночный Raycast со старой маской ~0
-            // бил в себя же — враг был слепым всегда и везде.
+            // Глаз внутри капсулы бил в себя — пропускаем своё тело.
             int count = Physics.RaycastNonAlloc(origin, dir, _losBuffer,
                 dist + 0.2f, visibilityMask, QueryTriggerInteraction.Ignore);
 
-            // Враг прижался спиной к стене — глаз оказался внутри её коллайдера.
-            // Именно эта стена обзор не закрывает (иначе прижатый враг слепнет
-            // навсегда, теряет цель и уходит). Остальные стены — закрывают:
-            // пропускаем только коллайдер, в котором сидит глаз, и только
-            // вплотную (дальше 0.5 м стена уже считается честно).
+            // Стена, в которой сидит глаз, обзор не закрывает.
             int eyeCount = Physics.OverlapSphereNonAlloc(origin, 0.25f, _eyeBuffer,
                 visibilityMask, QueryTriggerInteraction.Ignore);
 
@@ -714,14 +647,10 @@ namespace FlameOfHistory.AI
                 Transform hitTransform = hit.transform;
                 if (hitTransform == null) continue;
 
-                // Своё тело, оружие и глаз обзор не закрывают.
+                // Своё тело и оружие обзор не закрывают.
                 if (hitTransform.root == transform.root) continue;
-
-                // Стена, в которой сидит глаз, — тоже не закрывает (см. выше).
                 if (hit.distance < 0.5f && IsEnclosingEyeCollider(hit.collider, eyeCount))
                     continue;
-
-                // Первое НЕ своё попадание решает: цель — видно, стена — нет.
                 if (hitTransform == target || hitTransform.IsChildOf(target))
                 {
                     _lastLosBlocker = null;
@@ -743,10 +672,6 @@ namespace FlameOfHistory.AI
                 if (_eyeBuffer[i] == collider) return true;
             return false;
         }
-
-        // =====================================================================
-        // Патрулирование и прогулка
-        // =====================================================================
 
         private void UpdatePatrol()
         {
@@ -797,8 +722,6 @@ namespace FlameOfHistory.AI
         private void UpdateWander()
         {
             _motor.SetSpeed(patrolSpeed * _wanderSpeedFactor);
-
-            // Дошли — стоим и осматриваемся, а не разворачиваемся на месте.
             if (_waitingAtPoint)
             {
                 if (Time.time < _patrolWaitUntil) return;
@@ -808,8 +731,6 @@ namespace FlameOfHistory.AI
             if (_motor.HasDestination)
             {
                 if (!_motor.HasArrived()) return;
-
-                // Пришли: пауза-осмотр случайной длины.
                 _motor.Stop();
                 _waitingAtPoint = true;
                 _patrolWaitUntil = Time.time + Random.Range(wanderWaitMin, wanderWaitMax);
@@ -820,7 +741,7 @@ namespace FlameOfHistory.AI
 
             _nextWanderAttemptTime = Time.time + wanderRetryDelay;
 
-            // Несколько попыток: одиночная выборка часто попадает в стену или в себя.
+            // Одна выборка часто попадает в стену — пробуем несколько раз.
             for (int attempt = 0; attempt < 6; attempt++)
             {
                 Vector2 circle = Random.insideUnitCircle * wanderRadius;
@@ -832,21 +753,14 @@ namespace FlameOfHistory.AI
                 if (FlatDistance(transform.position, point) <= pointReachRadius * 2f)
                     continue;
 
-                // Каждый маршрут — своим темпом: не маршируют строем.
                 _wanderSpeedFactor = 1f + Random.Range(-wanderSpeedVariation, wanderSpeedVariation);
                 _motor.SetSpeed(patrolSpeed * _wanderSpeedFactor);
                 MoveTo(point);
                 return;
             }
-
-            // Никуда не вышло — постоять и осмотреться, а не дёргаться.
             _waitingAtPoint = true;
             _patrolWaitUntil = Time.time + Random.Range(wanderWaitMin, wanderWaitMax);
         }
-
-        // =====================================================================
-        // Настороженность и поиск
-        // =====================================================================
 
         private void UpdateAlert()
         {
@@ -874,17 +788,13 @@ namespace FlameOfHistory.AI
             _motor.SetSpeed(patrolSpeed);
             _motor.Stop();
 
-            // Сначала всматриваемся в точку проверки (где шумели/мелькали),
-            // потом осматриваемся вокруг. Иначе враг крутится, не глядя туда,
-            // откуда был звук, и «не замечает» стоящего там игрока.
+            // Сначала смотрим в точку шума, иначе не замечаем стоящего там игрока.
             if (Time.time < _searchFaceUntil)
             {
                 _motor.FaceTowardsAtSpeed(_searchCenter, combatTurnSpeed * 1.5f);
             }
             else
             {
-                // Живое сканирование: качания взглядом вокруг исходного
-                // направления с паузами по краям, а не вентилятор 90°/с.
                 if (!_searchBaseCaptured)
                 {
                     _searchBaseCaptured = true;
@@ -903,10 +813,6 @@ namespace FlameOfHistory.AI
                 ChangeState(EnemyState.Patrol);
         }
 
-        // =====================================================================
-        // Преследование и бой
-        // =====================================================================
-
         private void UpdateChase()
         {
             if (_target == null) { GoSearchLastKnown(); return; }
@@ -923,8 +829,7 @@ namespace FlameOfHistory.AI
             _motor.SetSpeed(chaseSpeed);
             RefreshDestination(_lastKnownTargetPosition);
 
-            // Уткнулся (стена, забор) и топчется дольше 2.5 сек — хватит давить,
-            // идём проверять последнюю точку ногами и дальше по поиску.
+            // Уткнулся дольше 2.5 сек — идём проверять последнюю точку.
             if (_motor.HasArrived())
             {
                 if (_chaseStuckTime < 0f) _chaseStuckTime = Time.time;
@@ -944,8 +849,6 @@ namespace FlameOfHistory.AI
             if (_target == null) { GoSearchLastKnown(); return; }
             if (_targetHealth != null && !_targetHealth.IsAlive) { LoseTarget("мертва"); return; }
 
-            // Оружие могли выдать позже (EnemyLoadout в другом порядке Awake)
-            // или снять сценовым оверрайдом — подбираем сами, иначе нечем стрелять.
             if (weapon == null)
             {
                 weapon = GetComponentInChildren<HitscanWeapon>(true);
@@ -961,8 +864,7 @@ namespace FlameOfHistory.AI
             bool visible = CanSeeCurrentTarget();
             if (visible) _lastVisibleTime = Time.time;
 
-            // Кратковременная помеха (угол, косяк) — держим бой и целемся
-            // в последнюю точку, а не срываемся в погоню на каждый рывок луча.
+            // Рывки луча из-за углов держим grace, а не срываемся в погоню.
             bool holdingThroughFlicker = !visible &&
                 Time.time - _lastVisibleTime <= combatLoseSightGrace;
 
@@ -972,18 +874,14 @@ namespace FlameOfHistory.AI
                 return;
             }
 
-            // Доводка медленная, человеческая: по стрейфящейся цели мажет.
             _motor.FaceTowardsAtSpeed(holdingThroughFlicker ? _lastKnownTargetPosition : _target.position,
                 combatTurnSpeed);
-
-            // Вслепую не стреляем и не перебегаем — стоим и ждём полсекунды.
             if (holdingThroughFlicker)
             {
                 _motor.Stop();
                 return;
             }
 
-            // Считаем свои попадания по просадке HP цели: по ним идёт темп схватки.
             if (_targetHealth != null)
             {
                 if (_targetHealth.CurrentHealth < _lastTargetHp - 0.01f)
@@ -1000,7 +898,6 @@ namespace FlameOfHistory.AI
             float selfSpeed = _motor.CurrentSpeed;
             if (distance > preferredCombatDistance + combatRepositionDistance)
             {
-                // Сближение под огнём — шагом, с оружием наизготовку.
                 _motor.SetSpeed(combatAdvanceSpeed);
                 RefreshDestination(_target.position);
                 moving = true;
@@ -1019,11 +916,6 @@ namespace FlameOfHistory.AI
             UpdateFiring(distance, moving ? selfSpeed : 0f);
         }
 
-        /// <summary>
-        /// Отход в бою в упор или под подавлением. Точку выбираем редко и идём
-        /// к ней до конца; если места нет (комната, угол) — стоим и стреляем,
-        /// а не давим спиной в стену.
-        /// </summary>
         private bool UpdateCombatReposition()
         {
             if (!_hasRepositionPoint || _motor.HasArrived() ||
@@ -1034,7 +926,6 @@ namespace FlameOfHistory.AI
                     _repositionPoint = point;
                     _hasRepositionPoint = true;
                     _nextRepositionPickTime = Time.time + 2f;
-                    // Отход с оружием — медленный, по-человечески.
                     _motor.SetSpeed(repositionSpeed);
                     MoveTo(point);
                     return true;
@@ -1051,10 +942,7 @@ namespace FlameOfHistory.AI
             return true;
         }
 
-        /// <summary>
-        /// Куда отойти: сначала вбок (не пятиться в стену за спиной), потом назад.
-        /// Точки внутри стен отсекает сам мотор (SampleReachablePoint).
-        /// </summary>
+        // Отходим вбок, а не пятимся в стену за спиной.
         private bool TryPickRepositionPoint(out Vector3 result)
         {
             Vector3 away = transform.position - _target.position;
@@ -1095,7 +983,6 @@ namespace FlameOfHistory.AI
             if (Time.time < _canFireAfter)
                 return;
 
-            // Дальше дистанции ствола стрелять бессмысленно — пуля не доедет.
             if (distance > weapon.Range) return;
 
             if (weapon.AmmunitionInMagazine <= 0) { weapon.BeginReload(); return; }
@@ -1107,8 +994,6 @@ namespace FlameOfHistory.AI
             }
 
             Vector3 aimPoint = ComputeAimPoint(distance, selfSpeed);
-
-            // Урон стадии схватки с живым разбросом: 5 попаданий ≈ смерть.
             weapon.DamageScale = EngageDamageScale() *
                 Random.Range(1f - pacingDamageJitter, 1f + pacingDamageJitter);
 
@@ -1122,7 +1007,6 @@ namespace FlameOfHistory.AI
             }
         }
 
-        /// <summary>Множитель урона по номеру попадания (стадии pacingDamageStages).</summary>
         private float EngageDamageScale()
         {
             if (pacingDamageStages == null || pacingDamageStages.Length == 0) return 1f;
@@ -1130,10 +1014,6 @@ namespace FlameOfHistory.AI
             return Mathf.Max(0.05f, pacingDamageStages[index]);
         }
 
-        /// <summary>
-        /// Множитель разброса по фазе схватки: открытие кучное, середина с передышкой,
-        /// концовка давит. Выглядит как пристрелка, а не скрипт.
-        /// </summary>
         private float EngageSpreadScale()
         {
             if (_engageHits <= 0 && Time.time - _engageStartTime < openingDuration)
@@ -1149,13 +1029,8 @@ namespace FlameOfHistory.AI
 
             float lead = leadAccuracy * 0.15f;
             basePoint += _targetVelocity * lead;
-
-            // Отдача: ствол уводит вверх к концу очереди — первые пули точнее.
             basePoint += Vector3.up * (burstClimb * Mathf.Min(1f, _burstShotIndex / 4f));
-
             float spread = baseSpread + spreadPerTenMeters * (distance / 10f);
-            // На ходу мажет сильнее, чем стоя: штраф пропорционален скорости,
-            // а не вкл/выкл — на медленном шаге почти не мажет, на бегу сильно.
             spread *= Mathf.Lerp(1f, movingSpreadMultiplier,
                 Mathf.Clamp01(selfSpeed / Mathf.Max(0.1f, chaseSpeed)));
             spread *= Mathf.Lerp(1f, suppressedSpreadMultiplier, _suppression);
@@ -1167,10 +1042,6 @@ namespace FlameOfHistory.AI
 
             return basePoint + right * circle.x + up * circle.y;
         }
-
-        // =====================================================================
-        // Отход
-        // =====================================================================
 
         private void BeginRetreat()
         {
@@ -1188,9 +1059,7 @@ namespace FlameOfHistory.AI
                 return;
             }
 
-            // Драп на полной скорости — только пока не стреляем.
-            // Как только ведёт ответный огонь — переходит на медленный отход
-            // с оружием: бежать спринт и попадать одновременно человек не может.
+            // Бежать спринт и попадать одновременно нельзя — огонь только медленным шагом.
             bool firingOnRetreat = _target != null && CanSeeCurrentTarget() &&
                 Time.time >= _canFireAfter && weapon != null &&
                 Vector3.Distance(transform.position, _target.position) <= weapon.Range;
@@ -1266,7 +1135,7 @@ namespace FlameOfHistory.AI
         private void LoseTarget(string reason = "потеряна")
         {
             if (debugLogging && _target != null)
-                Debug.Log($"[EnemyAI] {name}: цель «{_target.name}» {reason} — стою down, возврат в патруль.", this);
+                Debug.Log($"[EnemyAI] {name}: цель «{_target.name}» {reason} — возврат в патруль.", this);
             ClearTarget();
             _firstSightAcquired = false;
             ChangeState(EnemyState.Patrol);
@@ -1299,8 +1168,7 @@ namespace FlameOfHistory.AI
             Vector3 toTarget = chest - eyePoint.position;
             if (toTarget.sqrMagnitude > viewDistance * viewDistance) return false;
 
-            // Грудь за низким укрытием, а голова торчит — цель всё равно видна.
-            // Вторая точка убирает дёрганье «вижу/не вижу» на каждом кадре.
+            // Грудь за укрытием, а голова торчит — цель всё равно видна.
             bool visible = HasLineOfSight(_target, chest);
             if (!visible)
                 visible = HasLineOfSight(_target, chest + Vector3.up * 0.55f);
@@ -1325,15 +1193,9 @@ namespace FlameOfHistory.AI
             return col != null ? col.bounds.center : target.position + Vector3.up * 1.4f;
         }
 
-        // =====================================================================
-        // Обёртки над мотором
-        // =====================================================================
-
         private void RefreshDestination(Vector3 destination)
         {
-            // Если цели ещё нет — ставим её немедленно, не дожидаясь интервала.
-            // Иначе состояние сразу видит HasArrived() == true (цели-то нет)
-            // и проскакивает дальше, так и не начав движение.
+            // Без цели ставим немедленно, иначе HasArrived сразу true и движение не начнётся.
             if (!_motor.HasDestination)
             {
                 _nextPathRefreshTime = Time.time + pathRefreshInterval;
@@ -1367,23 +1229,14 @@ namespace FlameOfHistory.AI
         private bool ShouldRetreat() =>
             _health.NormalizedHealth <= retreatHealthThreshold && _target != null;
 
-        // =====================================================================
-        // Состояния
-        // =====================================================================
-
         private void ChangeState(EnemyState newState)
         {
             if (State == EnemyState.Dead || State == newState) return;
-
             EnemyState previous = State;
             State = newState;
-
-            // Вышли из боя — старая точка отхода недействительна.
             if (newState != EnemyState.Combat)
                 _hasRepositionPoint = false;
-
-            // Заход в бой: новая схватка, если цель другая или пауза была долгой.
-            // Иначе продолжаем считать попадания (вернулся через секунду — та же драка).
+            // Новая схватка только при смене цели или паузе дольше 10с.
             if (newState == EnemyState.Combat && previous != EnemyState.Combat)
             {
                 if (_target == null || _target != _engageTarget ||
@@ -1404,9 +1257,7 @@ namespace FlameOfHistory.AI
 
             bool aiming = newState is EnemyState.Combat or EnemyState.Retreat;
             if (animator != null) animator.SetBool(IsAimingHash, aiming);
-
-            // Разворотом в бою управляем сами, вне боя — пусть его ведёт мотор
-            // по направлению движения.
+            // В бою разворотом управляем сами, вне боя — мотор.
             _motor.SetAutoRotation(!aiming);
 
             switch (newState)
@@ -1426,7 +1277,6 @@ namespace FlameOfHistory.AI
 
                 case EnemyState.Search:
                     _motor.SetSpeed(patrolSpeed);
-                    // При входе в поиск всматриваемся в точку проверки подольше.
                     _searchFaceUntil = Time.time + 1.2f;
                     _searchBaseCaptured = false;
                     break;
@@ -1451,10 +1301,6 @@ namespace FlameOfHistory.AI
             }
         }
 
-        // =====================================================================
-        // Реакции
-        // =====================================================================
-
         private void OnNoiseCreated(NoiseSystem.Noise noise)
         {
             if (!_health.IsAlive || State == EnemyState.Dead) return;
@@ -1464,7 +1310,6 @@ namespace FlameOfHistory.AI
 
             if (noise.Source != null)
             {
-                // Свои крики и шаги игнорируем полностью.
                 if (noise.Source.GetComponentInParent<CharacterHealth>() == _health) return;
 
                 var srcHealth = noise.Source.GetComponentInParent<CharacterHealth>();
@@ -1480,9 +1325,6 @@ namespace FlameOfHistory.AI
             _searchCenter = noise.Position;
             _hasSuspicion = true;
             _lastNoiseInfo = $"шум {distance:F0}м (громк. {heard:P0})";
-
-            // Громкий близкий звук — мягко глянем в его сторону, остальное
-            // доделает Alert движением. Без резкого щелчка корпусом.
             if (falloff > 0.5f)
                 _motor.FaceTowardsAtSpeed(noise.Position, 90f);
 
@@ -1509,8 +1351,7 @@ namespace FlameOfHistory.AI
             if (damage.Attacker != null)
             {
                 var attackerHealth = damage.Attacker.GetComponentInParent<CharacterHealth>();
-                // Труп в цель не берём: иначе попадания от уже мёртвого игрока
-                // дёргали бы ИИ между прицелом и патрулём каждый выстрел.
+                // Попадания от мёртвого дёргают ИИ — труп в цель не берём.
                 if (attackerHealth != null && attackerHealth.IsAlive && attackerHealth.Team != enemyTeam)
                 {
                     SetTarget(attackerHealth.transform);
@@ -1537,8 +1378,6 @@ namespace FlameOfHistory.AI
             State = EnemyState.Dead;
 
             if (voice != null) voice.PlayDeath();
-
-            // Оружие выпадает из рук (если есть EnemyLoadout), иначе просто глохнет.
             if (loadout != null) loadout.HandleOwnerDeath();
             else if (weapon != null)
             {
@@ -1565,10 +1404,6 @@ namespace FlameOfHistory.AI
 
             enabled = false;
         }
-
-        // =====================================================================
-        // Анимация и звук движения
-        // =====================================================================
 
         private void UpdateAnimator()
         {
@@ -1632,13 +1467,11 @@ namespace FlameOfHistory.AI
                 }
                 else
                 {
-                    // Нет цели — показываем направление обзора
                     Gizmos.color = _awareness > 0.15f ? new Color(1f, 0.5f, 0f) : Color.gray;
                     Gizmos.DrawRay(origin.position, origin.forward * 3f);
                 }
             }
 
-            // Показываем targetMask в инспекторе
             if (targetMask == 0)
             {
                 Gizmos.color = Color.red;

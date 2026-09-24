@@ -22,7 +22,6 @@ public static class NoiseSystem
     }
 
     public static event Action<Noise> NoiseCreated;
-
     public static void Emit(
         Vector3 position,
         float radius,
@@ -31,7 +30,6 @@ public static class NoiseSystem
     {
         if (radius <= 0f)
             return;
-
         NoiseCreated?.Invoke(new Noise(position, radius, Mathf.Clamp01(intensity), source));
     }
 }
