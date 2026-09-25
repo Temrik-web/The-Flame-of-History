@@ -50793,7 +50793,7 @@ MonoBehaviour:
   drawDebugGUI: 1
   showFloatingText: 1
   autoSaveOnQuit: 1
-  autoLoadOnStart: 0
+  autoLoadOnStart: 1
   saveKey: inventory_v1
   slots: []
 --- !u!114 &1743753196

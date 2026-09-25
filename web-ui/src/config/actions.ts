@@ -3,60 +3,39 @@ export type IconName = 'document' | 'chart' | 'settings' | 'bell' | 'folder';
 export interface SidebarAction {
   id: string;
   label: string;
-  description?: string;
+  description: string;
+  detail: string;
   icon: IconName;
   disabled?: boolean;
-  /** Демо-обработчик. Замени на свою функцию — выбор/активация обрабатывается в App. */
-  onClick?: (id: string) => void;
 }
 
-const demoClick = (id: string) => {
-  // TODO: подключи своё действие для кнопки
-  console.info(`[demo] нажата кнопка: ${id}`);
-};
-
-/**
- * Конфиг правой колонки. Чтобы изменить панель:
- * - поменяй label / description / icon;
- * - добавь или удали элемент массива;
- * - задай disabled: true, чтобы выключить кнопку;
- * - поменяй порядок элементов — порядок в массиве = порядок на экране.
- */
 export const sidebarActions: SidebarAction[] = [
   {
-    id: 'action-1',
-    label: 'Кнопка 1',
-    description: 'Описание действия',
+    id: 'overview',
+    label: 'Обзор',
+    description: 'Сцены и технология',
+    detail: 'Историческая игра на Unity 2022.3.62f3 и URP. В сборку входят сцены Intro, Main menu и Game. Игровая логика, ассеты и настройки находятся в Unity-проекте рядом с этой страницей.',
     icon: 'document',
-    onClick: demoClick,
   },
   {
-    id: 'action-2',
-    label: 'Кнопка 2',
-    description: 'Описание действия',
+    id: 'gameplay',
+    label: 'Игровые системы',
+    description: 'Бой, диалоги, инвентарь',
+    detail: 'В проекте есть единая система здоровья и урона, ИИ противников, оружие, инвентарь, диалоги и квесты. Описание боевой системы находится в Docs/COMBAT.md.',
     icon: 'chart',
-    onClick: demoClick,
   },
   {
-    id: 'action-3',
-    label: 'Кнопка 3',
-    description: 'Описание действия',
-    icon: 'settings',
-    onClick: demoClick,
-  },
-  {
-    id: 'action-4',
-    label: 'Кнопка 4',
-    description: 'Описание действия',
-    icon: 'bell',
-    onClick: demoClick,
-  },
-  {
-    id: 'action-5',
-    label: 'Кнопка 5',
-    description: 'Описание действия',
+    id: 'saves',
+    label: 'Сохранения',
+    description: 'Новая игра и продолжение',
+    detail: 'Новая игра очищает игровой прогресс, сохраняя громкость музыки. Продолжение загружает сохранённый инвентарь и состояние диалогов и квестов. Положение игрока и изменения мира пока не сохраняются.',
     icon: 'folder',
-    disabled: true,
-    onClick: demoClick,
+  },
+  {
+    id: 'optimization',
+    label: 'Оптимизация',
+    description: 'План измерений',
+    detail: 'План профилирования рендеринга, боя, ИИ и памяти находится в Docs/OPTIMIZATION_PLAN.md. Он задаёт сценарий и критерии замеров; подтверждённых показателей ускорения пока нет.',
+    icon: 'settings',
   },
 ];

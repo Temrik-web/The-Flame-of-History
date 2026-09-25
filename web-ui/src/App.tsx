@@ -4,31 +4,27 @@ import { MainPanel } from './components/MainPanel';
 import { SidebarActions } from './components/SidebarActions';
 import { sidebarActions, type SidebarAction } from './config/actions';
 
-export default function App() {
-  const [activeId, setActiveId] = useState<string | null>('action-1');
-  const [userName, setUserName] = useState('');
-  const [statusMessage, setStatusMessage] = useState('Выбери действие справа или нажми главную кнопку.');
-  const [isPublished, setIsPublished] = useState(false);
+const checkCommands = './Tools/Check-Project.ps1\n./Tools/Check-Compilation.ps1';
+const buildCommand =
+  "& 'C:/Program Files/Unity/Hub/Editor/2022.3.62f3/Editor/Unity.exe' -batchmode -quit -projectPath \"$PWD\" -executeMethod ProjectBuild.Windows -logFile \"$PWD/Logs/build-windows.log\"";
 
-  const activeAction = sidebarActions.find((action) => action.id === activeId) ?? null;
+export default function App() {
+  const [activeId, setActiveId] = useState(sidebarActions[0].id);
+  const [statusMessage, setStatusMessage] = useState('Выберите раздел проекта или скопируйте команду.');
+  const activeAction = sidebarActions.find((action) => action.id === activeId) ?? sidebarActions[0];
+
+  const copyCommand = async (value: string, successMessage: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setStatusMessage(successMessage);
+    } catch {
+      setStatusMessage('Не удалось скопировать. Команды доступны в README.md проекта.');
+    }
+  };
 
   const handleSelect = (action: SidebarAction) => {
     setActiveId(action.id);
-    action.onClick?.(action.id);
-    setStatusMessage(`Выбрано: ${action.label}.`);
-  };
-
-  const handleMainAction = () => {
-    // TODO: подключи сюда своё главное действие (сохранение, отправка формы и т.п.)
-    setIsPublished(true);
-    setStatusMessage(
-      `Главное действие выполнено${userName ? ` для «${userName}»` : ''}.`,
-    );
-  };
-
-  const handleCheckStatus = () => {
-    // TODO: подключи сюда проверку статуса
-    setStatusMessage(`Статус проверен в ${new Date().toLocaleTimeString('ru-RU')}.`);
+    setStatusMessage(`Открыт раздел «${action.label}».`);
   };
 
   return (
@@ -36,48 +32,35 @@ export default function App() {
       <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
         <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_240px] lg:grid-cols-[minmax(0,1fr)_300px]">
           <MainPanel
-            title="Название проекта"
-            subtitle="Краткое описание панели и того, что здесь происходит."
-            mainActionLabel="Главное действие"
-            onMainAction={handleMainAction}
+            title="The Flame of History"
+            subtitle="Справочная страница Unity-проекта. Команды ниже запускаются в терминале из корня проекта."
+            mainActionLabel="Скопировать команды проверки"
+            onMainAction={() => void copyCommand(checkCommands, 'Команды проверки скопированы в буфер обмена.')}
           >
+            <ContentBlock title={activeAction.label} description={activeAction.detail} />
+
             <ContentBlock
-              title="Блок с полем ввода"
-              description="Введи значение — оно подставится в результат главного действия."
-              input={{
-                id: 'user-name',
-                label: 'Название',
-                placeholder: 'Например: мой проект',
-                value: userName,
-                onChange: setUserName,
+              title="Проверка проекта"
+              description="Проверка структуры игровой сцены и компиляция кода Player/Editor. Для второй команды нужны импортированные зависимости Unity."
+              status={{ label: 'Локальные команды', tone: 'info' }}
+            />
+
+            <ContentBlock
+              title="Сборка Windows x64"
+              description="Команда запускает Unity в batchmode. Перед запуском закройте редактор с этим проектом."
+              action={{
+                label: 'Скопировать команду сборки',
+                onClick: () => void copyCommand(buildCommand, 'Команда сборки скопирована в буфер обмена.'),
               }}
             />
 
-            <ContentBlock
-              title="Блок со статусом"
-              description="Статус меняется после нажатия главной кнопки."
-              status={
-                isPublished
-                  ? { label: 'Готово', tone: 'success' }
-                  : { label: 'Ожидает', tone: 'neutral' }
-              }
-              action={{ label: 'Проверить статус', onClick: handleCheckStatus }}
-            />
-
-            <ContentBlock
-              title="Информационный блок"
-              description="Обычный текстовый блок без ввода. Кнопка ниже выключена для примера состояния disabled."
-              action={{ label: 'Недоступно', onClick: () => {}, disabled: true }}
-            />
-
-            <p aria-live="polite" className="text-sm text-slate-500">
-              {activeAction ? `Активно: ${activeAction.label}. ` : ''}
+            <p aria-live="polite" className="text-sm text-slate-600">
               {statusMessage}
             </p>
           </MainPanel>
 
           <SidebarActions
-            title="Действия"
+            title="Разделы"
             actions={sidebarActions}
             activeId={activeId}
             onSelect={handleSelect}

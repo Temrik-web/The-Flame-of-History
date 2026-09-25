@@ -65,10 +65,24 @@ public class Pickup : MonoBehaviour
         if (GetComponentInChildren<Collider>() == null)
             Debug.LogWarning($"[Pickup] У {name} нет коллайдера — подобрать не получится.");
 
-        if (useRarityColor && item != null) highlightColor = item.RarityColor;
-
-        if (tintMaterialByRarity && item != null) TintMaterial(item.RarityColor);
         if (createGlowLight) CreateGlow();
+        ApplyItemAppearance();
+    }
+
+    /// <summary>Настроить предмет после Instantiate, когда Awake уже выполнился.</summary>
+    public void Configure(ItemData newItem, int newAmount)
+    {
+        item = newItem;
+        amount = Mathf.Max(1, newAmount);
+        ApplyItemAppearance();
+    }
+
+    void ApplyItemAppearance()
+    {
+        if (item == null) return;
+        if (useRarityColor) highlightColor = item.RarityColor;
+        if (tintMaterialByRarity) TintMaterial(item.RarityColor);
+        if (glowLight != null) glowLight.color = highlightColor;
     }
 
     void TintMaterial(Color color)

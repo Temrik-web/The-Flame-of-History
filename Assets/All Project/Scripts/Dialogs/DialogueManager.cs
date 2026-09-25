@@ -100,6 +100,7 @@ public class DialogueManager : MonoBehaviour
     private DialogueTrigger currentTrigger;
     private bool previousCursorVisible;
     private CursorLockMode previousLockMode;
+    private float previousTimeScale = 1f;
     private Coroutine fadeRoutine;
     private Coroutine cursorBlinkCoroutine;
     private bool isShowingChoices = false;
@@ -171,8 +172,26 @@ public class DialogueManager : MonoBehaviour
 
     void OnDisable()
     {
-        // Менеджер умер (смена сцены) — не оставляем игрока без ввода.
+        // Выключение посреди диалога не должно оставлять следующую сцену на паузе.
+        if (isDialogueActive)
+        {
+            if (pauseGameDuringDialogue) Time.timeScale = previousTimeScale;
+            if (showCursorDuringDialogue)
+            {
+                Cursor.visible = previousCursorVisible;
+                Cursor.lockState = previousLockMode;
+            }
+            isDialogueActive = false;
+            if (dialoguePanel != null) dialoguePanel.SetActive(false);
+            if (choicesPanel != null) choicesPanel.SetActive(false);
+        }
         PlayerInputLock.ReleaseAll(this);
+        if (!PlayerInputLock.MovementLocked)
+        {
+            foreach (var fps in disabledControllersByUs)
+                if (fps != null) fps.enabled = true;
+        }
+        disabledControllersByUs.Clear();
     }
     const string ProgressPrefix = "flame_dlg_";
 
@@ -602,7 +621,11 @@ public class DialogueManager : MonoBehaviour
         }
 
         if (interactHint != null) interactHint.SetActive(false);
-        if (pauseGameDuringDialogue) Time.timeScale = 0f;
+        if (pauseGameDuringDialogue)
+        {
+            previousTimeScale = Time.timeScale;
+            Time.timeScale = 0f;
+        }
 
         OnDialogueStarted?.Invoke();
 
@@ -638,7 +661,7 @@ public class DialogueManager : MonoBehaviour
         if (cursorBlinkCoroutine != null) { StopCoroutine(cursorBlinkCoroutine); cursorBlinkCoroutine = null; }
         if (fadeRoutine != null) { StopCoroutine(fadeRoutine); fadeRoutine = null; }
 
-        if (pauseGameDuringDialogue) Time.timeScale = 1f;
+        if (pauseGameDuringDialogue) Time.timeScale = previousTimeScale;
         if (showCursorDuringDialogue)
         {
             Cursor.visible = previousCursorVisible;

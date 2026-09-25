@@ -92,7 +92,8 @@ public class InventorySystem : MonoBehaviour
     [Header("Сохранение")]
     public bool autoSaveOnQuit = true;
     public bool autoLoadOnStart = false;
-    public string saveKey = "inventory_v1";
+    public const string DefaultSaveKey = "inventory_v1";
+    public string saveKey = DefaultSaveKey;
     public List<Slot> slots = new List<Slot>();
     private bool isOpen;
     private Pickup currentTarget;
@@ -405,10 +406,12 @@ public class InventorySystem : MonoBehaviour
         return added;
     }
 
-    public bool AddItemFull(ItemData item, int amount) => AddItem(item, amount) == amount;
+    public bool AddItemFull(ItemData item, int amount) =>
+        HasSpaceFor(item, amount) && AddItem(item, amount) == amount;
     public bool RemoveItem(ItemData item, int amount)
     {
         if (item == null || amount <= 0) return false;
+        if (CountItem(item) < amount) return false;
 
         int remaining = amount;
         for (int i = slots.Count - 1; i >= 0 && remaining > 0; i--)
@@ -463,7 +466,7 @@ public class InventorySystem : MonoBehaviour
         ItemData item = slot.item;
         count = Mathf.Clamp(count, 1, slot.amount);
 
-        SpawnInWorld(item, count);
+        if (!SpawnInWorld(item, count)) return;
 
         slot.amount -= count;
         if (slot.amount <= 0) slots.RemoveAt(index);
@@ -472,14 +475,14 @@ public class InventorySystem : MonoBehaviour
         Debug.Log($"[Inventory] Выброшено: {item.itemName} x{count}");
     }
 
-    void SpawnInWorld(ItemData item, int count)
+    bool SpawnInWorld(ItemData item, int count)
     {
         GameObject prefab = item.worldPrefab != null ? item.worldPrefab : genericPickupPrefab;
         if (prefab == null)
         {
             Debug.LogWarning($"[Inventory] Нет префаба для дропа {item.itemName}. " +
                              "Задай Generic Pickup Prefab или World Prefab в ItemData.");
-            return;
+            return false;
         }
 
         Transform origin = playerCamera != null ? playerCamera.transform : transform;
@@ -489,16 +492,20 @@ public class InventorySystem : MonoBehaviour
 
         Pickup p = obj.GetComponent<Pickup>();
         if (p == null) p = obj.GetComponentInChildren<Pickup>();
-        if (p != null)
+        Collider pickupCollider = p != null ? p.GetComponentInChildren<Collider>() : null;
+        if (p == null || !p.gameObject.activeInHierarchy || pickupCollider == null || !pickupCollider.enabled)
         {
-            p.item = item;
-            p.amount = count;
-            p.promptText = "";
+            Debug.LogWarning($"[Inventory] Префаб {prefab.name} не содержит доступный Pickup с коллайдером. Предмет {item.itemName} остался в инвентаре.");
+            Destroy(obj);
+            return false;
         }
+        p.Configure(item, count);
+        p.promptText = "";
 
         Rigidbody rb = obj.GetComponent<Rigidbody>();
         if (rb != null && dropThrowForce > 0f)
             rb.AddForce(origin.forward * dropThrowForce, ForceMode.Impulse);
+        return true;
     }
 
     public bool HasSpaceFor(ItemData item, int amount)

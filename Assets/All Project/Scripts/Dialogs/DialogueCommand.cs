@@ -139,8 +139,11 @@ public class DialogueCommand
         var inv = InventorySystem.Instance;
         if (inv == null) inv = Object.FindObjectOfType<InventorySystem>();
         if (inv == null) return;
-        inv.RemoveItem(item, Mathf.Max(1, amount));
-        Debug.Log($"[DialogueCommand] Забрано: {item.itemName} x{amount}.");
+        int requested = Mathf.Max(1, amount);
+        if (inv.RemoveItem(item, requested))
+            Debug.Log($"[DialogueCommand] Забрано: {item.itemName} x{requested}.");
+        else
+            Debug.LogWarning($"[DialogueCommand] RemoveItem: не хватает {item.itemName} x{requested}.");
     }
 
     /// <summary>Есть ли у игрока N штук предмета (для условий в выборах).</summary>

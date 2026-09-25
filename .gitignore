@@ -17,6 +17,9 @@
 /[Bb]uild/
 /[Bb]uilds/
 /[Ll]ogs/
+/web-ui/node_modules/
+/web-ui/dist/
+/.pnpm-store/
 /[Uu]ser[Ss]ettings/
 *.log
 
