@@ -73,31 +73,6 @@ public static class DialogueCanvasWizard
     // Кубы и цепочки собираются через Tools/Диалоги/«Создать NPC-куб (все диалоги)»
     // (один NPC = вся цепочка на NpcDialogueSequence).
 
-    // =====================================================================
-    // Починка шрифта StalinistOne (нет "_" — сыплет "Underline is not available")
-    // =====================================================================
-    public static void CopyFontRepairChars()
-    {
-        // В буфер: весь ASCII (пробел, цифры, "_" и т.д.) + вся кириллица.
-        // StalinistOne SDF собран только из 94 кириллических букв — отсюда спам
-        // варнингов на каждом TMP-тексте с этим шрифтом.
-        var sb = new System.Text.StringBuilder();
-        for (int c = 0x20; c <= 0x7E; c++) sb.Append((char)c);
-        for (int c = 0x400; c <= 0x4FF; c++) sb.Append((char)c);
-        EditorGUIUtility.systemCopyBuffer = sb.ToString();
-
-        EditorUtility.DisplayDialog("Шрифт",
-            "Символы скопированы в буфер обмена.\n\n" +
-            "Дальше руками (1 минута):\n" +
-            "1. Window -> TextMeshPro -> Font Asset Creator.\n" +
-            "2. Source Font File: StalinistOne-Regular.ttf.\n" +
-            "3. Character Set: Custom Characters, вставь из буфера (Ctrl+V).\n" +
-            "4. Atlas 2048x2048, Render Mode SDFAA, Generate Font Atlas.\n" +
-            "5. Save — перезапиши ТОТ ЖЕ файл StalinistOne-Regular SDF " +
-            "(то же имя и папка, чтобы не слетели ссылки).\n\n" +
-            "Варнинги Underline пропадут.", "Ок");
-    }
-
     static void EnsureDialogueManager()
     {
         if (Object.FindObjectOfType<DialogueManager>() != null) return;
