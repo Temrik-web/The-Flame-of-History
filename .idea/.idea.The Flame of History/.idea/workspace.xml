@@ -5,36 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8ca32e3b-c2c8-42b6-a053-5a2e868378da" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.The Flame of History/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.The Flame of History/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/All Project/From Unity(Base)/Settings 1/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/From Unity(Base)/Settings 1/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scenes/Game.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scenes/Game.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scenes/Main menu.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scenes/Main menu.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scripts/Change scenes.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scripts/Change scenes.cs.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scripts/Dialogs/DialogueCommand.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scripts/Dialogs/DialogueCommand.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scripts/Dialogs/DialogueManager.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scripts/Dialogs/DialogueManager.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scripts/Inventory/InventorySystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scripts/Inventory/InventorySystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scripts/Inventory/Pickup.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scripts/Inventory/Pickup.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/Backg.controller" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/Backg.controller.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/New Animation.anim" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/New Animation.anim.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/Slider.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/Slider/CircleSlider.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/Slider/CircleSlider.png.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/Slider/Slider.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/Slider/Slider.png.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/Srosshair.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/Srosshair.png.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/UI.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/All Project/images/UI.png.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ProjectSettings/EditorBuildSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/EditorBuildSettings.asset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web-ui/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/web-ui/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web-ui/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web-ui/src/App.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web-ui/src/config/actions.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web-ui/src/config/actions.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/All Project/Scenes/AsyncLoaderScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/All Project/Scenes/AsyncLoaderScene.unity" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -143,7 +115,7 @@
       <workItem from="1789683269769" duration="4975000" />
       <workItem from="1790033948441" duration="38000" />
       <workItem from="1790198123600" duration="46000" />
-      <workItem from="1790297955548" duration="4029000" />
+      <workItem from="1790297955548" duration="4908000" />
     </task>
     <servers />
   </component>
