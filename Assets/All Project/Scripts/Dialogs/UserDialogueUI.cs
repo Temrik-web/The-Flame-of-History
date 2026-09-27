@@ -654,7 +654,8 @@ public class UserDialogueUI : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    static void AttachToSelection()
+    [MenuItem("Tools/Диалоги/Подключить мой канвас", false, 12)]
+    public static void AttachToSelection()
     {
         GameObject selected = Selection.activeGameObject;
         if (selected == null)

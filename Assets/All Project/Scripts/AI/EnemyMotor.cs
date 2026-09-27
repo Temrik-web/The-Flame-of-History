@@ -75,7 +75,15 @@ namespace FlameOfHistory.AI
         public Vector3 Destination => _destination;
 
         /// <summary>Фактическая скорость перемещения в м/с (без вертикали).</summary>
-        public float CurrentSpeed => _measuredVelocity.magnitude;
+        public float CurrentSpeed
+        {
+            get
+            {
+                Vector3 flat = _measuredVelocity;
+                flat.y = 0f;
+                return flat.magnitude;
+            }
+        }
 
         /// <summary>Фактическая скорость с вертикалью — для анимаций.</summary>
         public Vector3 Velocity => _measuredVelocity;
@@ -176,7 +184,7 @@ namespace FlameOfHistory.AI
                 if (!AgentUsable && !TryReturnToNavMesh())
                 {
                     EvaluateMode(false);
-                    return Mode == MotorMode.Fallback;
+                    return Mode == MotorMode.Fallback && allowFallbackMovement;
                 }
 
                 _agent.isStopped = false;

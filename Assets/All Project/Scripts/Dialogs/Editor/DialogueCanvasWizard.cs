@@ -21,6 +21,7 @@ public static class DialogueCanvasWizard
         "DialoguePanel,ChoicesPanel,SpeakerNameText,DialogueText,InteractHint,InteractHintText";
 
     // =====================================================================
+    [MenuItem("Tools/Диалоги/Создать канвас", false, 10)]
     public static void CreateCanvas()
     {
         // Старый канвас, собранный прошлым запуском (или старым DialogueUI),

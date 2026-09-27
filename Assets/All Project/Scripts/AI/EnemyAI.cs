@@ -234,6 +234,11 @@ namespace FlameOfHistory.AI
             }
 
             _health = GetComponent<CharacterHealth>();
+            if (_health == null)
+            {
+                _health = gameObject.AddComponent<CharacterHealth>();
+                Debug.LogWarning($"[EnemyAI] {name}: CharacterHealth отсутствовал — добавлен автоматически.", this);
+            }
 
             if (eyePoint == null) eyePoint = transform;
             if (voice == null) voice = GetComponent<EnemyVoice>();
@@ -262,6 +267,8 @@ namespace FlameOfHistory.AI
 
         private void OnEnable()
         {
+            if (_health == null) _health = GetComponent<CharacterHealth>();
+            if (_health == null) return;
             _health.Damaged += OnDamaged;
             _health.Died += OnDied;
             NoiseSystem.NoiseCreated += OnNoiseCreated;
@@ -277,6 +284,13 @@ namespace FlameOfHistory.AI
             // ChangeState(Patrol) ничего не сделает — State уже Patrol, настраиваем мотор напрямую.
             _motor.SetSpeed(patrolSpeed);
             _motor.SetAutoRotation(true);
+        }
+
+        private void OnValidate()
+        {
+            if (maximumBurstSize < minimumBurstSize) maximumBurstSize = minimumBurstSize;
+            if (maximumBurstPause < minimumBurstPause) maximumBurstPause = minimumBurstPause;
+            if (wanderWaitMax < wanderWaitMin) wanderWaitMax = wanderWaitMin;
         }
 
         public void ConfigureForWizard(
@@ -356,7 +370,7 @@ namespace FlameOfHistory.AI
 
         private void Update()
         {
-            if (!_health.IsAlive) return;
+            if (_health == null || !_health.IsAlive) return;
 
             float dt = Time.deltaTime;
             _suppression = Mathf.Max(0f, _suppression - suppressionDecay * dt);

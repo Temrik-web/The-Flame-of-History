@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace FlameOfHistory.AI
 {
-    /// <summary>Выпавшее оружие: само укладывается на бок и замирает.</summary>
+    /// <summary>Выпавшее оружие: падает с физикой и замирает, когда успокоилось. Без принудительной укладки.</summary>
     [DisallowMultipleComponent]
     public sealed class DroppedWeapon : MonoBehaviour
     {
@@ -24,21 +24,6 @@ namespace FlameOfHistory.AI
         [SerializeField, Range(0f, 1f)] private float velocityRandomness = 0.3f;
         [SerializeField, Range(0f, 1f)] private float spinRandomness = 0.3f;
 
-        [Header("Укладка на бок")]
-        [SerializeField] private bool layFlatOnGround = true;
-        [SerializeField, Min(10f)] private float layFlatSpeed = 180f;
-        [SerializeField, Min(0f)] private float layFlatSpeedThreshold = 0.8f;
-        [SerializeField, Min(0f)] private float layFlatForceDelay = 2f;
-        [SerializeField, Min(0.1f)] private float layFlatLiftHeight = 0.3f;
-        [SerializeField, Min(0.1f)] private float layFlatLowerSpeed = 0.5f;
-        [SerializeField] private bool alignToSurface = true;
-        [SerializeField, Range(0f, 30f)] private float maxSurfaceAlignAngle = 15f;
-
-        [Tooltip("Аварийный предел на всю укладку. Если фазы почему-то не сходятся " +
-                 "(нет пола под оружием, застряло в геометрии) — процесс обрывается, " +
-                 "и оружие не остаётся висеть kinematic в воздухе.")]
-        [SerializeField, Min(0.5f)] private float layFlatTimeout = 4f;
-
         [Header("Заморозка")]
         [SerializeField] private bool freezeWhenSettled = true;
         [SerializeField, Min(0f)] private float freezeAfterCalm = 0.5f;
@@ -57,6 +42,7 @@ namespace FlameOfHistory.AI
         private Rigidbody body;
         private Vector3 initialVelocity;
         private Vector3 initialSpin;
+        private bool applySpin = true;
         private float actualDelay;
         private float delayTimer;
         private float watchTimer;
@@ -70,23 +56,13 @@ namespace FlameOfHistory.AI
         private int rescueAttempts;
         private bool initialized;
 
-        // Принудительная укладка
-        private bool isLayingFlat;
-        private int layFlatPhase; // 1 - подъём, 2 - поворот, 3 - опускание
-        private Vector3 startLayPosition;
-        private Quaternion startLayRotation;
-        private Quaternion targetLayRotation;
-        private float layFlatTimer;
-        private float layFlatElapsed;
-        private bool targetSideChosen;
-        private bool layRightSide;
-
         public void Initialize(float gravityDelay, Vector3 launchVelocity, Vector3 spin,
-                               LayerMask groundMask, float lifetime)
+                               LayerMask groundMask, float lifetime, bool applySpin = true)
         {
             this.gravityDelay = Mathf.Max(0f, gravityDelay);
             this.groundMask = groundMask;
             this.lifetime = Mathf.Max(0f, lifetime);
+            this.applySpin = applySpin;
 
             initialVelocity = launchVelocity;
             initialSpin = spin;
@@ -161,6 +137,8 @@ namespace FlameOfHistory.AI
 
         private void CacheGroundPoints()
         {
+            if (ownColliders == null) ownColliders = GetComponentsInChildren<Collider>();
+            if (ownColliders == null || ownColliders.Length == 0) return;
             Bounds bounds = new Bounds(transform.position, Vector3.zero);
             foreach (var col in ownColliders)
             {
@@ -198,23 +176,16 @@ namespace FlameOfHistory.AI
             }
 
             aliveSinceGravity += Time.deltaTime;
-            // Проверка провала идёт по низу коллайдера, укладке не мешает.
-            if (guardAgainstFallThrough && watchTimer < watchDuration && !isLayingFlat)
+            // Проверка провала идёт по низу коллайдера.
+            if (guardAgainstFallThrough && watchTimer < watchDuration)
             {
                 watchTimer += Time.deltaTime;
                 GuardAgainstFallThrough();
             }
 
-            if (layFlatOnGround && !isLayingFlat)
-            {
-                UpdateLayFlatStart();
-            }
-
-            if (isLayingFlat)
-            {
-                UpdateLayFlatProcess();
-            }
-
+            // Никакой принудительной укладки/доводки трансформа: только чистая
+            // физика + заморозка, когда успокоилось. Иначе kinematic-движки
+            // везут всё, что стоит на оружии.
             UpdateFreeze();
         }
 
@@ -229,9 +200,14 @@ namespace FlameOfHistory.AI
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
             Vector3 vel = initialVelocity + Random.insideUnitSphere * velocityRandomness;
-            Vector3 spin = initialSpin + Random.insideUnitSphere * spinRandomness;
             body.AddForce(vel * body.mass, ForceMode.Impulse);
-            body.AddTorque(spin * body.mass * 0.5f, ForceMode.Impulse);
+            // Вращение выброшенного игроком отключено полностью (applySpin: false) —
+            // иначе даже малая случайная добавка крутила модель «вертолётом».
+            if (applySpin)
+            {
+                Vector3 spin = initialSpin + Random.insideUnitSphere * spinRandomness;
+                body.AddTorque(spin * body.mass * 0.5f, ForceMode.Impulse);
+            }
         }
 
         private void ResolveInitialOverlap()
@@ -332,265 +308,9 @@ namespace FlameOfHistory.AI
             return found;
         }
 
-        private void UpdateLayFlatStart()
-        {
-            if (body == null || body.isKinematic) return;
-            if (!hasTouchedGround && !IsGrounded()) return;
-
-            float angleFromUp = Vector3.Angle(transform.up, Vector3.up);
-            bool isLaying = angleFromUp > 45f;
-
-            bool slowEnough = body.velocity.magnitude <= layFlatSpeedThreshold &&
-                              body.angularVelocity.magnitude <= calmAngularThreshold;
-
-            if (!slowEnough)
-            {
-                layFlatTimer = 0f;
-                return;
-            }
-
-            // Если уже лежит на боку естественно, ждём заморозки
-            if (isLaying && IsGrounded())
-            {
-                return;
-            }
-
-            layFlatTimer += Time.deltaTime;
-
-            if (!isLaying || layFlatTimer > layFlatForceDelay)
-            {
-                StartLayFlat();
-            }
-        }
-
-        private void StartLayFlat()
-        {
-            if (isLayingFlat) return;
-            isLayingFlat = true;
-            layFlatPhase = 1;
-            layFlatElapsed = 0f;
-            startLayPosition = transform.position;
-            startLayRotation = transform.rotation;
-
-            ComputeLayOrientation();
-
-            body.isKinematic = true;
-            body.useGravity = false;
-            body.velocity = Vector3.zero;
-            body.angularVelocity = Vector3.zero;
-        }
-
-        /// <summary>Аварийный выход из укладки: иначе kinematic зависнет в воздухе.</summary>
-        private void AbortLayFlat()
-        {
-            isLayingFlat = false;
-            layFlatPhase = 0;
-            layFlatTimer = 0f;
-
-            if (body == null) return;
-
-            body.isKinematic = false;
-            body.useGravity = true;
-            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            body.WakeUp();
-        }
-
-        /// <summary>Кладём на самую большую грань (тонкая ось — вверх), а не на дуло.</summary>
-        private void ComputeLayOrientation()
-        {
-            if (!GetLocalBounds(out Vector3 size, out Vector3 center))
-                return;
-
-            // Локальные единичные оси оружия — ортонормированная тройка transform.
-            Vector3[] localAxes = { transform.right, transform.up, transform.forward };
-
-            // Толщина = ось с наименьшим размером -> станет вертикалью, т.е. оружие
-            // ляжет на свою самую большую грань, а не на дуло.
-            int thicknessIdx = 0;
-            for (int i = 1; i < 3; i++)
-                if (size[i] < size[thicknessIdx]) thicknessIdx = i;
-
-            // Ствол = ось с наибольшим размером -> останется горизонтальной.
-            int barrelIdx = 0;
-            for (int i = 1; i < 3; i++)
-                if (size[i] > size[barrelIdx]) barrelIdx = i;
-
-            // Куб или слишком «круглая» форма — точную сторону не определить,
-            // оставляем текущую ориентацию.
-            if (thicknessIdx == barrelIdx) return;
-
-            Vector3 localBarrel = localAxes[barrelIdx];
-
-            // Случайный бок: на какую из двух больших граней уложить.
-            if (!targetSideChosen)
-            {
-                layRightSide = Random.value < 0.5f;
-                targetSideChosen = true;
-            }
-            Vector3 worldUp = layRightSide ? Vector3.up : Vector3.down;
-
-            // Направление ствола в мире, спроецированное на горизонталь.
-            Vector3 worldForward = transform.TransformDirection(localBarrel);
-            worldForward.y = 0f;
-            if (worldForward.sqrMagnitude < 0.01f)
-                worldForward = Vector3.forward;
-            worldForward.Normalize();
-
-            targetLayRotation = Quaternion.LookRotation(worldForward, worldUp);
-        }
-
-        /// <summary>Габариты в локальных координатах — мировой AABB врёт при повороте.</summary>
-        private bool GetLocalBounds(out Vector3 size, out Vector3 center)
-        {
-            if (ownColliders == null) ownColliders = GetComponentsInChildren<Collider>();
-            if (ownColliders == null || ownColliders.Length == 0)
-            {
-                size = Vector3.one;
-                center = Vector3.zero;
-                return false;
-            }
-
-            bool first = true;
-            Vector3 min = Vector3.zero;
-            Vector3 max = Vector3.zero;
-
-            foreach (var col in ownColliders)
-            {
-                if (col == null || !col.enabled) continue;
-                Vector3 bmin = col.bounds.min;
-                Vector3 bmax = col.bounds.max;
-                Vector3[] corners =
-                {
-                    new Vector3(bmin.x, bmin.y, bmin.z),
-                    new Vector3(bmin.x, bmin.y, bmax.z),
-                    new Vector3(bmin.x, bmax.y, bmin.z),
-                    new Vector3(bmin.x, bmax.y, bmax.z),
-                    new Vector3(bmax.x, bmin.y, bmin.z),
-                    new Vector3(bmax.x, bmin.y, bmax.z),
-                    new Vector3(bmax.x, bmax.y, bmin.z),
-                    new Vector3(bmax.x, bmax.y, bmax.z)
-                };
-
-                foreach (var corner in corners)
-                {
-                    Vector3 local = transform.InverseTransformPoint(corner);
-                    if (first)
-                    {
-                        min = local;
-                        max = local;
-                        first = false;
-                    }
-                    else
-                    {
-                        min = Vector3.Min(min, local);
-                        max = Vector3.Max(max, local);
-                    }
-                }
-            }
-
-            if (first)
-            {
-                size = Vector3.one;
-                center = Vector3.zero;
-                return false;
-            }
-
-            size = max - min;
-            center = (min + max) * 0.5f;
-            for (int i = 0; i < 3; i++)
-                size[i] = Mathf.Max(0.02f, size[i]);
-
-            return true;
-        }
-
-        private void UpdateLayFlatProcess()
-        {
-            // Аварийный предел: если фазы зациклились, отдаём оружие физике
-            layFlatElapsed += Time.deltaTime;
-            if (layFlatElapsed > layFlatTimeout)
-            {
-                Debug.LogWarning($"[DroppedWeapon] {name}: укладка на бок не завершилась за " +
-                                 $"{layFlatTimeout:0.#} с — возвращаю обычную физику.", this);
-                AbortLayFlat();
-                return;
-            }
-
-            switch (layFlatPhase)
-            {
-                case 1: // Подъём
-                    {
-                        Vector3 targetPos = startLayPosition + Vector3.up * layFlatLiftHeight;
-                        transform.position = Vector3.MoveTowards(transform.position, targetPos, layFlatLowerSpeed * 2f * Time.deltaTime);
-                        if (Vector3.Distance(transform.position, targetPos) < 0.01f)
-                        {
-                            layFlatPhase = 2;
-                        }
-                        break;
-                    }
-                case 2: // Поворот
-                    {
-                        transform.rotation = Quaternion.RotateTowards(startLayRotation, targetLayRotation, layFlatSpeed * Time.deltaTime);
-                        if (Quaternion.Angle(transform.rotation, targetLayRotation) < 1f)
-                        {
-                            transform.rotation = targetLayRotation;
-                            layFlatPhase = 3;
-                        }
-                        break;
-                    }
-                case 3: // Опускание до земли
-                    {
-                        Vector3 groundPoint;
-                        Vector3 normal;
-                        if (IsNearGround(out groundPoint, out normal))
-                        {
-                            if (alignToSurface)
-                            {
-                                Quaternion surfaceAlignRot = Quaternion.FromToRotation(Vector3.up, normal);
-                                Quaternion currentRot = transform.rotation;
-                                Quaternion targetAlign = surfaceAlignRot * currentRot;
-                                Quaternion limited = Quaternion.RotateTowards(currentRot, targetAlign, maxSurfaceAlignAngle);
-                                transform.rotation = Quaternion.Slerp(transform.rotation, limited, 0.5f);
-                            }
-
-                            // Ставим низом коллайдера, иначе половина модели уйдёт в пол.
-                            float bottomOffset = transform.position.y - GetBottomY();
-                            float targetY = groundPoint.y + bottomOffset + 0.01f;
-
-                            Vector3 targetPos = new Vector3(transform.position.x, targetY, transform.position.z);
-                            transform.position = Vector3.MoveTowards(transform.position, targetPos, layFlatLowerSpeed * Time.deltaTime);
-
-                            if (Mathf.Abs(transform.position.y - targetY) < 0.01f)
-                            {
-                                transform.position = targetPos;
-                                FinishLayFlat();
-                            }
-                        }
-                        else
-                        {
-                            FinishLayFlat();
-                        }
-                        break;
-                    }
-            }
-        }
-
-        private void FinishLayFlat()
-        {
-            layFlatPhase = 4;
-            isLayingFlat = false;
-            body.isKinematic = false;
-            body.useGravity = true;
-            body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
-            body.velocity = Vector3.zero;
-            body.angularVelocity = Vector3.zero;
-            isFrozen = true;
-            body.Sleep();
-        }
-
         private void UpdateFreeze()
         {
             if (!freezeWhenSettled || body == null || body.isKinematic) return;
-            if (isLayingFlat) return;
 
             bool calmLinear = body.velocity.magnitude <= calmSpeedThreshold;
             bool calmAngular = body.angularVelocity.magnitude <= calmAngularThreshold;
@@ -602,12 +322,14 @@ namespace FlameOfHistory.AI
                 Vector3 normal;
                 if (IsNearGround(out groundPoint, out normal))
                 {
-                    // Низом коллайдера, а не центром.
+                    // Низом коллайдера, а не центром. Только вниз: вверх
+                    // не тянем никогда, иначе стоящий на оружии игрок взлетит.
                     float bottomOffset = transform.position.y - GetBottomY();
                     Vector3 targetPos = new Vector3(transform.position.x,
                                                     groundPoint.y + bottomOffset + 0.02f,
                                                     transform.position.z);
-                    transform.position = Vector3.MoveTowards(transform.position, targetPos, 0.05f);
+                    if (targetPos.y < transform.position.y)
+                        transform.position = Vector3.MoveTowards(transform.position, targetPos, 0.05f);
                     grounded = IsGrounded();
                 }
             }
@@ -626,7 +348,9 @@ namespace FlameOfHistory.AI
                 calmLongEnough = false;
             }
 
-            bool timedOut = aliveSinceGravity >= forceFreezeAfter;
+            // Аварийный таймаут — только на земле. Иначе подброшенное
+            // или недолетевшее замирает прямо в воздухе.
+            bool timedOut = aliveSinceGravity >= forceFreezeAfter && grounded;
 
             if (!calmLongEnough && !timedOut) return;
 

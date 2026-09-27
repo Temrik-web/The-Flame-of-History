@@ -80,9 +80,9 @@ namespace FlameOfHistory.AI
 
         [Header("Коллайдер выпавшего оружия")]
         [Tooltip("Центр BoxCollider у выпавшего оружия (в локальных координатах объекта).")]
-        [SerializeField] private Vector3 droppedColliderCenter = new(-2.402877f, 1.935332f, 0.03047342f);
+        [SerializeField] private Vector3 droppedColliderCenter = new(0f, 0f, 0.3f);
         [Tooltip("Размер BoxCollider у выпавшего оружия (в локальных координатах объекта).")]
-        [SerializeField] private Vector3 droppedColliderSize = new(12.5f, 4.2f, 0.7f);
+        [SerializeField] private Vector3 droppedColliderSize = new(0.12f, 0.18f, 1f);
 
         [Header("Звук экипировки")]
         [SerializeField] private AudioClip equipSound;

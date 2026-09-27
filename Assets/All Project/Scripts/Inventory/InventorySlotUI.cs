@@ -103,19 +103,17 @@ public class InventorySlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         if (iconImage != null)
         {
             bool hasIcon = !isEmpty && slot.item.icon != null;
-            iconImage.enabled = hasIcon;
-            if (hasIcon) iconImage.sprite = slot.item.icon;
-            if (!isEmpty && !hasIcon)
+            if (hasIcon)
             {
                 iconImage.enabled = true;
-                iconImage.sprite = null;
-                iconImage.color = new Color(slot.item.RarityColor.r,
-                                            slot.item.RarityColor.g,
-                                            slot.item.RarityColor.b, 0.30f);
-            }
-            else if (hasIcon)
-            {
+                iconImage.sprite = slot.item.icon;
                 iconImage.color = Color.white;
+            }
+            else
+            {
+                // Без іконки — ховаємо Image: sprite=null все одно нічого не малює.
+                iconImage.enabled = false;
+                iconImage.sprite = null;
             }
         }
 

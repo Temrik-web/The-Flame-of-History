@@ -66,7 +66,7 @@ public sealed class HitscanWeapon : MonoBehaviour
     private float ShotInterval => 60f / roundsPerMinute;
 
     private void Awake()  => ResetAmmo();
-    private void OnEnable() { if (AmmunitionInMagazine <= 0 && _reserve <= 0) ResetAmmo(); }
+    // OnEnable НЕ дозаправляет spent-оружие: иначе подбор/переключение давало бы бесконечные патроны.
 
     public void SetMuzzle(Transform muzzleTransform)
     {

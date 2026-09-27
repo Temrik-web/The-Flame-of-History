@@ -76,7 +76,9 @@ public class InventorySystem : MonoBehaviour
     [Tooltip("Универсальный префаб с компонентом Pickup для дропа предметов без своего worldPrefab.")]
     public GameObject genericPickupPrefab;
     public float dropForwardOffset = 1.2f;
-    public float dropUpOffset = 0.4f;
+    [Tooltip("Высота точки выброса относительно камеры. Чуть ниже прицела — " +
+             "отрицательное значение (уровень груди), чтобы не падало «от головы».")]
+    public float dropUpOffset = -0.15f;
     public float dropThrowForce = 2.5f;
     [Header("Поведение при открытии")]
     public bool manageCursor = true;
@@ -98,6 +100,17 @@ public class InventorySystem : MonoBehaviour
     private bool isOpen;
     private Pickup currentTarget;
     private float lastSortTime = -1f;
+    private Coroutine dropAllRoutine;
+    /// <summary>Разброс броска по рысканью для массового сброса (0 — ровно вперёд).</summary>
+    private float dropScatterYaw = 0f;
+
+    /// <summary>
+    /// Скрытые шаблоны мировых пикапов: «как выглядит предмет в мире».
+    /// Снимаются со сцены при старте, пока оригиналы ещё не подобрали.
+    /// Нужны, чтобы дроп оружия спавнил настоящую модель Ppsh-41(GR) / нож /
+    /// гранату, а не универсальный куб. Ключ — ItemData.Id.
+    /// </summary>
+    private readonly Dictionary<string, GameObject> worldTemplateCache = new Dictionary<string, GameObject>();
 
     /// <summary>Открыт ли инвентарь. Другие скрипты читают это, чтобы блокировать ввод.</summary>
     public bool IsOpen => isOpen;
@@ -137,6 +150,9 @@ public class InventorySystem : MonoBehaviour
     void OnDestroy()
     {
         if (Instance == this) Instance = null;
+        // Якщо об'єкт знищили при відкритому інвентарі на паузі —
+        // не залишаємо timeScale = 0 на всю гру.
+        if (isOpen && pauseGameWhenOpen) Time.timeScale = 1f;
     }
 
     void Start()
@@ -147,9 +163,90 @@ public class InventorySystem : MonoBehaviour
         if (inventoryPanel != null) inventoryPanel.SetActive(false);
         isOpen = false;
 
+        CacheWorldPickupTemplates();
+
         if (autoLoadOnStart) Load();
 
         OnInventoryChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Запомнить, как предметы выглядят в мире, пока их не подобрали.
+    /// Для каждого ItemData без явного worldPrefab делаем скрытую неактивную
+    /// копию первого подходящего Pickup со сцены. После подбора оригинал
+    /// уничтожается (Pickup.OnPickedUp), а копия остаётся шаблоном для дропа.
+    /// Если на один предмет несколько пикапов (настоящая модель + тестовый куб
+    /// из визарда) — выбираем наиболее «настоящий» по эвристике.
+    /// </summary>
+    void CacheWorldPickupTemplates()
+    {
+        worldTemplateCache.Clear();
+
+        Pickup[] all;
+        try { all = FindObjectsOfType<Pickup>(true); }
+        catch { return; }
+
+        var bestScore = new Dictionary<string, int>();
+
+        foreach (Pickup pickup in all)
+        {
+            if (pickup == null || pickup.item == null) continue;
+            // Свои же скрытые шаблоны с прошлого кэширования не кэшируем повторно
+            if (pickup.gameObject.name.StartsWith("WorldTemplate_")) continue;
+            if ((pickup.gameObject.hideFlags & HideFlags.DontSave) != 0) continue;
+            // Ручная настройка важнее автоматики
+            if (pickup.item.worldPrefab != null) continue;
+
+            string id = pickup.item.Id;
+            if (string.IsNullOrEmpty(id)) continue;
+
+            int score = ScoreWorldTemplate(pickup);
+            if (worldTemplateCache.TryGetValue(id, out GameObject existing))
+            {
+                if (existing != null && bestScore.TryGetValue(id, out int old) && old >= score)
+                    continue;
+                if (existing != null) Destroy(existing);
+            }
+
+            GameObject backup = Instantiate(pickup.gameObject);
+            backup.name = $"WorldTemplate_{id}";
+            backup.SetActive(false);
+            backup.hideFlags = HideFlags.HideAndDontSave;
+            // Несобираемые триггеры оригинала нам не мешают: объект скрыт.
+            // Позицию сбрасываем в начало координат, чтобы не смущала в иерархии.
+            backup.transform.position = Vector3.zero;
+            backup.transform.rotation = Quaternion.identity;
+
+            worldTemplateCache[id] = backup;
+            bestScore[id] = score;
+        }
+
+        if (worldTemplateCache.Count > 0)
+            Debug.Log($"[Inventory] Запомнено шаблонов мировых моделей: {worldTemplateCache.Count}");
+    }
+
+    /// <summary>
+    /// Эвристика «настоящести» пикапа. Настоящие модели оружия в сцене
+    /// (Ppsh-41(GR) и т.п.) — триггер без Rigidbody и без вращения;
+    /// тестовые кубы визарда — наоборот: kinematic-Rigidbody + spin.
+    /// </summary>
+    static int ScoreWorldTemplate(Pickup pickup)
+    {
+        int score = 0;
+        GameObject go = pickup.gameObject;
+
+        if (pickup.spin) score -= 2;
+        if (go.GetComponent<Rigidbody>() == null) score += 2;
+
+        Collider[] colliders = go.GetComponentsInChildren<Collider>(true);
+        foreach (Collider c in colliders)
+            if (c != null && c.isTrigger) { score += 1; break; }
+
+        if (go.GetComponentsInChildren<Renderer>(true).Length > 1) score += 1;
+        if (go.name.Contains("(GR)")) score += 2;
+        if (go.name.StartsWith("Pickup_") || go.name.Contains("Generic")) score -= 1;
+
+        return score;
     }
 
     void OnApplicationQuit()
@@ -201,7 +298,7 @@ public class InventorySystem : MonoBehaviour
             if (index < 0)
             {
                 Debug.Log($"[Inventory] В слоте {digit} ничего нет.");
-                return;
+                continue;
             }
 
             if (Input.GetKey(dropKey)) DropSlot(index);
@@ -424,7 +521,11 @@ public class InventorySystem : MonoBehaviour
             if (slots[i].amount <= 0) slots.RemoveAt(i);
         }
 
-        if (remaining < amount) OnInventoryChanged?.Invoke();
+        if (remaining < amount)
+        {
+            OnInventoryChanged?.Invoke();
+            ValidateEquippedWeapon(item);
+        }
         return remaining <= 0;
     }
 
@@ -448,6 +549,7 @@ public class InventorySystem : MonoBehaviour
         }
 
         OnInventoryChanged?.Invoke();
+        ValidateEquippedWeapon(item);
         Debug.Log($"[Inventory] Использовано: {item.itemName}");
     }
 
@@ -456,6 +558,71 @@ public class InventorySystem : MonoBehaviour
     {
         if (!IsValidIndex(index)) return;
         Drop(index, slots[index].amount);
+    }
+
+    /// <summary>
+    /// Секретная фишка: выбросить ВЕСЬ инвентарь в мир.
+    /// Вызывается вручную или через контекстное меню компонента.
+    /// Предметы вылетают по штуке в кадр, а не стаками и не все разом — иначе всё
+    /// спавнится в одной точке и физика разрывает стопку. Руки пустеют сами через Validate.
+    /// </summary>
+    [ContextMenu("Секрет: выбросить весь инвентарь")]
+    public void DropAll()
+    {
+        if (slots.Count == 0)
+        {
+            Debug.Log("[Inventory] Инвентарь пуст — выбрасывать нечего.");
+            return;
+        }
+        if (dropAllRoutine != null) return;
+
+        dropAllRoutine = StartCoroutine(DropAllRoutine());
+    }
+
+    System.Collections.IEnumerator DropAllRoutine()
+    {
+        int startSlots = slots.Count;
+        int totalUnits = 0;
+        // Веер вместо одной кучи: стаки ложатся раздельно, их можно пересчитать.
+        dropScatterYaw = 25f;
+        Debug.Log($"[Inventory] Секретный сброс: выбрасываю всё ({startSlots} слотов).");
+
+        try
+        {
+            while (slots.Count > 0)
+            {
+                int last = slots.Count - 1;
+                int before = slots[last].amount;
+                DropOne(last);
+
+                // Слот либо уменьшился на штуку, либо исчез целиком.
+                // Иначе дроп не удался (нет префаба/шаблона) — дальше не идём,
+                // иначе зависнем в бесконечном цикле.
+                bool progressed = slots.Count < last + 1 ||
+                                  (slots.Count == last + 1 && slots[last].amount < before);
+                if (!progressed) break;
+                totalUnits += 1;
+
+                yield return null;
+            }
+        }
+        finally
+        {
+            dropScatterYaw = 0f;
+            dropAllRoutine = null;
+        }
+
+        Debug.Log($"[Inventory] Секретный сброс готов: слотов {startSlots}, " +
+                  $"предметов {totalUnits}. Всё лежит вокруг — количество в стаке " +
+                  $"видно на подсказке (xN), при подборе вернётся столько же.");
+    }
+
+    /// <summary>Направление броска. При массовом сбросе — веер, иначе ровно вперёд.</summary>
+    Vector3 GetThrowDirection(Transform origin)
+    {
+        if (dropScatterYaw <= 0f) return origin.forward;
+        float yaw = UnityEngine.Random.Range(-dropScatterYaw, dropScatterYaw);
+        return Quaternion.Euler(0f, yaw, 0f) * origin.forward;
     }
 
     void Drop(int index, int count)
@@ -472,23 +639,40 @@ public class InventorySystem : MonoBehaviour
         if (slot.amount <= 0) slots.RemoveAt(index);
 
         OnInventoryChanged?.Invoke();
+        ValidateEquippedWeapon(item);
         Debug.Log($"[Inventory] Выброшено: {item.itemName} x{count}");
     }
 
     bool SpawnInWorld(ItemData item, int count)
     {
-        GameObject prefab = item.worldPrefab != null ? item.worldPrefab : genericPickupPrefab;
-        if (prefab == null)
-        {
-            Debug.LogWarning($"[Inventory] Нет префаба для дропа {item.itemName}. " +
-                             "Задай Generic Pickup Prefab или World Prefab в ItemData.");
-            return false;
-        }
+        // Приоритет: 1) явный worldPrefab у предмета,
+        // 2) настоящая мировая модель со сцены (Ppsh-41(GR) и т.п.),
+        // 3) клон модели из рук (для оружия без мирового пикапа в сцене),
+        // 4) универсальный куб.
+        if (item.worldPrefab != null)
+            return SpawnFromPrefab(item.worldPrefab, item, count);
 
+        if (TrySpawnFromWorldTemplate(item, count))
+            return true;
+
+        if (item.IsEquippable && TrySpawnFromHeldModel(item, count))
+            return true;
+
+        if (genericPickupPrefab != null)
+            return SpawnFromPrefab(genericPickupPrefab, item, count);
+
+        Debug.LogWarning($"[Inventory] Нет префаба для дропа {item.itemName}. " +
+                         "Задай Generic Pickup Prefab или World Prefab в ItemData.");
+        return false;
+    }
+
+    bool SpawnFromPrefab(GameObject prefab, ItemData item, int count)
+    {
         Transform origin = playerCamera != null ? playerCamera.transform : transform;
         Vector3 pos = origin.position + origin.forward * dropForwardOffset + Vector3.up * dropUpOffset;
+        Vector3 throwDir = GetThrowDirection(origin);
 
-        GameObject obj = Instantiate(prefab, pos, Quaternion.LookRotation(origin.forward));
+        GameObject obj = Instantiate(prefab, pos, Quaternion.LookRotation(throwDir));
 
         Pickup p = obj.GetComponent<Pickup>();
         if (p == null) p = obj.GetComponentInChildren<Pickup>();
@@ -501,11 +685,219 @@ public class InventorySystem : MonoBehaviour
         }
         p.Configure(item, count);
         p.promptText = "";
+        p.RecaptureBase();
 
         Rigidbody rb = obj.GetComponent<Rigidbody>();
-        if (rb != null && dropThrowForce > 0f)
-            rb.AddForce(origin.forward * dropThrowForce, ForceMode.Impulse);
+        if (rb != null)
+        {
+            // GenericPickup з візарда — kinematic, тому AddForce мовчки нічого не дає
+            // і дроп зависає в повітрі. Вимикаємо kinematic, щоб кидок реально працював.
+            if (rb.isKinematic) rb.isKinematic = false;
+            rb.WakeUp();
+            if (dropThrowForce > 0f)
+                rb.AddForce(throwDir * dropThrowForce, ForceMode.Impulse);
+        }
         return true;
+    }
+
+    /// <summary>
+    /// Дроп клоном настоящей мировой модели из кэша (такой же, какую поднимали).
+    /// Оригиналы из сцены к моменту дропа обычно уже уничтожены подбором,
+    /// поэтому клонируем скрытый шаблон из CacheWorldPickupTemplates.
+    /// </summary>
+    bool TrySpawnFromWorldTemplate(ItemData item, int count)
+    {
+        if (item == null) return false;
+        if (!worldTemplateCache.TryGetValue(item.Id, out GameObject template) || template == null)
+            return false;
+
+        Transform origin = playerCamera != null ? playerCamera.transform : transform;
+        Vector3 pos = origin.position + origin.forward * dropForwardOffset + Vector3.up * dropUpOffset;
+
+        GameObject obj = Instantiate(template, pos, Quaternion.LookRotation(GetThrowDirection(origin)));
+        obj.hideFlags = HideFlags.None;
+        obj.name = $"Dropped_{item.itemName}";
+        obj.transform.SetParent(null, true);
+        obj.transform.position = pos;
+        obj.SetActive(true);
+
+        Pickup p = obj.GetComponent<Pickup>();
+        if (p == null) p = obj.GetComponentInChildren<Pickup>();
+        if (p == null)
+        {
+            Destroy(obj);
+            return false;
+        }
+
+        // Мировые пикапы висят триггерами без физики. Для броска включаем
+        // твёрдую физику на ВСЕХ коллайдерах (свой коллайдер тоже подхватится).
+        // Наведение всё равно работает: DetectPickup бьёт и по триггерам, и по твёрдым.
+        Collider[] templateColliders = obj.GetComponentsInChildren<Collider>(true);
+        foreach (Collider c in templateColliders)
+        {
+            if (c == null) continue;
+            c.enabled = true;
+            c.isTrigger = false;
+        }
+        if (templateColliders.Length == 0) EnsureBoxCollider(obj);
+
+        p.Configure(item, count);
+        p.promptText = "";
+        // На земле модель лежит, а не танцует: иначе уснувшая физика
+        // отдаст управление bob, и модель прыгнет назад в точку дропа.
+        p.spin = false;
+        p.bob = false;
+        p.RecaptureBase();
+
+        // Падение с физикой и заморозка — DroppedWeapon
+        // (как и у оружия, выпавшего из врагов). Без доводок трансформа.
+        LaunchWithDropPhysics(obj, origin);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Запасной путь: в сцене не было мирового пикапа для этого оружия
+    /// (например, тестовые кубы визарда) — клонируем визуал модели из рук.
+    /// С модели срезаются все боевые скрипты, остаётся только внешность.
+    /// </summary>
+    bool TrySpawnFromHeldModel(ItemData item, int count)
+    {
+        WeaponSlotManager mgr = WeaponSlotManager.Instance;
+        if (mgr == null) return false;
+
+        EquippableWeapon template = mgr.Find(item.equipWeaponId);
+        if (template == null) return false;
+
+        Transform origin = playerCamera != null ? playerCamera.transform : transform;
+        Vector3 pos = origin.position + origin.forward * dropForwardOffset + Vector3.up * dropUpOffset;
+        Quaternion rot = Quaternion.LookRotation(origin.forward);
+
+        // Клон модели из рук иначе сам перецепится обратно в держатель
+        // (HeldItem.Awake -> AttachToHolder). Подавляем на время Instantiate,
+        // как это уже делает GrenadeItem для копии-снаряда.
+        GameObject obj;
+        HeldItem.SuppressAttachOnAwake = true;
+        try
+        {
+            obj = Instantiate(template.gameObject, pos, rot);
+        }
+        finally
+        {
+            HeldItem.SuppressAttachOnAwake = false;
+        }
+
+        obj.name = $"Dropped_{item.itemName}";
+        obj.transform.SetParent(null, true);
+        obj.transform.position = pos;
+        obj.transform.rotation = rot;
+
+        // Срезаем логику рук/стрельбы: в мире нужна только внешность.
+        foreach (Wep w in obj.GetComponentsInChildren<Wep>(true))
+        {
+            w.enabled = false;
+            Destroy(w);
+        }
+        foreach (HeldItem held in obj.GetComponentsInChildren<HeldItem>(true))
+        {
+            held.enabled = false;
+            Destroy(held);
+        }
+        foreach (EquippableWeapon eq in obj.GetComponentsInChildren<EquippableWeapon>(true))
+        {
+            eq.enabled = false;
+            Destroy(eq);
+        }
+        foreach (Pickup old in obj.GetComponentsInChildren<Pickup>(true)) Destroy(old);
+        foreach (AudioSource src in obj.GetComponentsInChildren<AudioSource>(true)) Destroy(src);
+
+        // В иерархии рук могут быть свои Rigidbody (у гранат/ножей физика
+        // пригашена, но компоненты висят). Оставляем только корневой,
+        // иначе Unity ругнётся на несколько тел в одной иерархии.
+        Rigidbody rootRb = obj.GetComponent<Rigidbody>();
+        foreach (Rigidbody r in obj.GetComponentsInChildren<Rigidbody>(true))
+        {
+            if (r != null && r != rootRb) Destroy(r);
+        }
+
+        SetLayerRecursively(obj, 0);
+        foreach (Renderer r in obj.GetComponentsInChildren<Renderer>(true))
+            if (r != null) r.enabled = true;
+
+        Collider[] colliders = obj.GetComponentsInChildren<Collider>(true);
+        foreach (Collider c in colliders)
+        {
+            if (c == null) continue;
+            c.enabled = true;
+            c.isTrigger = false;
+        }
+        if (colliders.Length == 0) EnsureBoxCollider(obj);
+
+        obj.SetActive(true);
+
+        // Pickup добавляем последним: его Awake сразу кэширует рендереры
+        // уже очищенного объекта и создаёт подсветку.
+        Pickup p = obj.AddComponent<Pickup>();
+        p.spin = false;
+        p.bob = false;
+        p.Configure(item, count);
+        p.promptText = "";
+        p.RecaptureBase();
+
+        LaunchWithDropPhysics(obj, origin);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Бросок с настоящей физикой: гравитация и заморозка, когда успокоилось.
+    /// Тот же DroppedWeapon, что у оружия, выпавшего из врагов (см. EnemyLoadout).
+    /// Никаких принудительных доводок трансформа — только физика, иначе
+    /// kinematic-движки везут всё, что стоит на оружии.
+    /// Время жизни 0 — выброшенное игроком лежит, пока его не подберут.
+    /// </summary>
+    void LaunchWithDropPhysics(GameObject obj, Transform origin)
+    {
+        var dropper = obj.AddComponent<FlameOfHistory.AI.DroppedWeapon>();
+        Vector3 launch = GetThrowDirection(origin) * dropThrowForce + Vector3.up * 0.5f;
+        dropper.Initialize(
+            gravityDelay: 0.2f,
+            launchVelocity: launch,
+            // Без вращения вообще: летит ровно, как лежало в руках.
+            spin: Vector3.zero,
+            groundMask: ~0,
+            lifetime: 0f,
+            applySpin: false);
+    }
+
+    /// <summary>Страховочный твёрдый коллайдер по габаритам модели.</summary>
+    static void EnsureBoxCollider(GameObject obj)
+    {
+        Renderer rend = obj.GetComponentInChildren<Renderer>();
+        BoxCollider box = obj.AddComponent<BoxCollider>();
+        if (rend != null)
+        {
+            // bounds мировые — пересчитываем в локальные через потерю масштаба
+            Vector3 worldSize = rend.bounds.size;
+            Vector3 lossy = obj.transform.lossyScale;
+            box.size = new Vector3(
+                worldSize.x / Mathf.Max(0.001f, lossy.x),
+                worldSize.y / Mathf.Max(0.001f, lossy.y),
+                worldSize.z / Mathf.Max(0.001f, lossy.z));
+            box.center = obj.transform.InverseTransformPoint(rend.bounds.center);
+        }
+        else
+        {
+            box.size = new Vector3(0.6f, 0.2f, 0.2f);
+        }
+    }
+
+    static void SetLayerRecursively(GameObject root, int layer)
+    {
+        if (root == null || layer < 0) return;
+        root.layer = layer;
+        foreach (Transform child in root.transform)
+            SetLayerRecursively(child.gameObject, layer);
     }
 
     public bool HasSpaceFor(ItemData item, int amount)
@@ -558,6 +950,51 @@ public class InventorySystem : MonoBehaviour
             if (!s.IsEmpty && s.item.equipWeaponId == weaponId) return true;
 
         return false;
+    }
+
+    /// <summary>
+    /// Убедиться, что предмет в руках всё ещё есть в инвентаре.
+    /// Вызывается после Drop / RemoveItem / Clear / Use / Load.
+    /// Без этого выброшенное оружие оставалось видимым в руках,
+    /// хотя из инвентаря уже пропадало.
+    /// </summary>
+    public void ValidateEquippedWeapon() => ValidateEquippedWeapon(null);
+
+    /// <summary>
+    /// Точечная проверка: если изменившийся предмет не связан с оружием в руках,
+    /// руки не трогаем. Это защищает стартовое оружие (equippedOnStart без
+    /// предмета в сумке) от случайного holster при использовании бинта,
+    /// выбросе патронов и т.п.
+    /// </summary>
+    public void ValidateEquippedWeapon(ItemData changedItem)
+    {
+        WeaponSlotManager mgr = WeaponSlotManager.Instance;
+        if (mgr == null) return;
+
+        EquippableWeapon current = mgr.Current;
+        if (current == null) return;
+
+        // Изменился конкретный предмет, не связанный с тем, что в руках, — выходим.
+        // Сравнение по equipWeaponId, а не по ассету: разные ItemData могут
+        // давать одно и то же оружие.
+        if (changedItem != null && changedItem.equipWeaponId != current.weaponId) return;
+
+        if (HasWeaponItem(current.weaponId)) return;
+
+        // Бросок гранаты сам списывает последнюю штуку и сам убирает руки
+        // в конце анимации. Если убрать руки прямо здесь, OnDisable остановит
+        // корутину броска посередине (StopCoroutine в GrenadeItem.OnDisable).
+        GrenadeItem throwing = current.GetComponentInChildren<GrenadeItem>();
+        if (throwing != null && throwing.IsThrowing) return;
+
+        // Экипированного предмета в сумке больше нет — руки должны опустеть.
+        // Если осталось другое оружие, сразу переключаемся на него,
+        // иначе уходим в пустые руки.
+        var owned = mgr.GetOwnedWeapons();
+        if (owned.Count > 0)
+            mgr.Equip(owned[0].weaponId);
+        else
+            mgr.Holster();
     }
 
     // Граната после броска знает только weaponId — по нему ищем ассет для списания
@@ -704,6 +1141,7 @@ public class InventorySystem : MonoBehaviour
     {
         slots.Clear();
         OnInventoryChanged?.Invoke();
+        ValidateEquippedWeapon();
     }
 
     // =====================================================================
@@ -801,6 +1239,7 @@ public class InventorySystem : MonoBehaviour
         }
 
         OnInventoryChanged?.Invoke();
+        ValidateEquippedWeapon();
         Debug.Log($"[Inventory] Загружено слотов: {slots.Count}");
     }
 

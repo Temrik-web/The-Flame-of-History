@@ -297,8 +297,11 @@ public static class EnemySetupWizard
         so.FindProperty("arriveRadius").floatValue = 1.2f;
         so.FindProperty("bodyRadius").floatValue = 0.4f;
         so.FindProperty("groundOffset").floatValue = 1f;
-        // Исключаем слой персонажей, иначе враги спотыкаются друг о друга.
-        int exclude = ownerLayer >= 0 ? ~(1 << ownerLayer) : ~0;
+        // Исключаем только слой Characters, если он есть. Иначе (~0) — трогаем все слои.
+        // Было: исключение ownerLayer без проверки ломало землю на Default,
+        // если слоя Characters нет в проекте.
+        int charLayerIdx = LayerMask.NameToLayer("Characters");
+        int exclude = charLayerIdx >= 0 ? ~(1 << charLayerIdx) : ~0;
         so.FindProperty("groundMask").intValue = exclude;
         so.FindProperty("obstacleMask").intValue = exclude;
 

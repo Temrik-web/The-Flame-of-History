@@ -52,32 +52,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2635380279492669597}
   m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
---- !u!143 &3992230305189112345
-CharacterController:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2635380279492669597}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Height: 2
-  m_Radius: 0.5
-  m_SlopeLimit: 45
-  m_StepOffset: 0.45
-  m_SkinWidth: 0.08
-  m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1387646924769392271
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -161,15 +135,19 @@ MonoBehaviour:
   navMeshSnapRadius: 3
   groundMask:
     serializedVersion: 2
-    m_Bits: 4294967039
+    m_Bits: 247
   stepHeight: 0.45
   groundProbeDistance: 2.5
   maximumSlope: 50
+  maximumStepDown: 1.5
   gravity: 22
   groundOffset: 1
+  fallbackAcceleration: 6
+  fallbackDeceleration: 12
+  fallbackTurnRate: 270
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 4294967039
+    m_Bits: 247
   bodyRadius: 0.4
   lookAheadDistance: 1.4
   avoidanceAngles:
@@ -251,10 +229,10 @@ MonoBehaviour:
   enemyTeam: 0
   targetMask:
     serializedVersion: 2
-    m_Bits: 4294967039
+    m_Bits: 247
   visibilityMask:
     serializedVersion: 2
-    m_Bits: 4294967039
+    m_Bits: 247
   viewDistance: 45
   fieldOfView: 110
   verticalViewTolerance: 6
@@ -273,6 +251,29 @@ MonoBehaviour:
   preferredCombatDistance: 20
   maximumCombatDistance: 38
   combatRepositionDistance: 5
+  repositionSpeed: 1.4
+  combatAdvanceSpeed: 1.9
+  openingDuration: 4
+  openingSpread: 0.55
+  midFightSpread: 1.25
+  midFightPauseMult: 1.4
+  closingSpread: 0.85
+  pacingDamageStages:
+  - 0.45
+  - 0.65
+  - 0.8
+  - 1
+  - 1.2
+  pacingDamageJitter: 0.15
+  combatLoseSightGrace: 0.4
+  combatTurnSpeed: 115
+  jitterReaction: 1
+  burstClimb: 0.35
+  wanderWaitMin: 0.5
+  wanderWaitMax: 2
+  wanderSpeedVariation: 0.1
+  searchSweepAmplitude: 70
+  searchSweepSpeed: 95
   minimumBurstSize: 2
   maximumBurstSize: 5
   minimumBurstPause: 0.4
@@ -289,6 +290,7 @@ MonoBehaviour:
   suppressionDecay: 0.6
   pathRefreshInterval: 0.25
   corpseLifetime: 0
+  debugLogging: 0
 --- !u!114 &8492023427229120400
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -327,6 +329,9 @@ MonoBehaviour:
   dropGroundMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  dropObject: {fileID: 0}
+  droppedColliderCenter: {x: -2.402877, y: 1.935332, z: 0.03047342}
+  droppedColliderSize: {x: 12.5, y: 4.2, z: 0.7}
   equipSound: {fileID: 0}
 --- !u!114 &4719919999980490642
 MonoBehaviour:
@@ -346,6 +351,32 @@ MonoBehaviour:
   whizzClips: []
   whizzCooldown: 0.08
   enemyAI: {fileID: 3684448795484694151}
+--- !u!143 &3992230305189112345
+CharacterController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2635380279492669597}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Height: 2
+  m_Radius: 0.5
+  m_SlopeLimit: 45
+  m_StepOffset: 0.45
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &3398647734589750169
 GameObject:
   m_ObjectHideFlags: 0

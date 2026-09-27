@@ -24,6 +24,7 @@ public class DialogueUIEditor : EditorWindow
     private float choiceSize = 21f;
     private bool stylesLoaded;
 
+    [MenuItem("Tools/Диалоги/Редактор интерфейса", false, 11)]
     public static void Open()
     {
         GetWindow<DialogueUIEditor>("Интерфейс диалогов");

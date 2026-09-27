@@ -10,6 +10,9 @@ public static class NpcSequenceSetupWizard
 {
     const string MenuRoot = "Tools/Диалоги/";
 
+    [MenuItem(MenuRoot + "Проверить связки", false, 0)]
+    public static void ValidateAllMenu() => ValidateAll();
+
     public static void ValidateAll()
     {
         int errors = 0, warnings = 0;
@@ -211,6 +214,7 @@ public static class NpcSequenceSetupWizard
             $"Ошибок: {errors}, предупреждений: {warnings}.\nДетали — в консоли.", "Ок");
     }
 
+    [MenuItem(MenuRoot + "Создать NPC-куб (все диалоги)", false, 1)]
     public static void CreateNpcCube()
     {
         if (!RequireEditMode("Создать NPC-куб")) return;
@@ -336,6 +340,7 @@ public static class NpcSequenceSetupWizard
             $"Сохрани сцену (Ctrl+S) и жми Play, затем E у куба.{warn}", "Ок");
     }
 
+    [MenuItem(MenuRoot + "Связать ключ и дверь", false, 2)]
     public static void WireKeyAndDoor()
     {
         if (!RequireEditMode("Связать ключ и дверь")) return;
@@ -614,6 +619,7 @@ public static class NpcSequenceSetupWizard
         return data;
     }
 
+    [MenuItem(MenuRoot + "Переимпортировать диалоги", false, 3)]
     public static void ReimportDialogues()
     {
         if (!RequireEditMode("Переимпортировать диалоги")) return;
@@ -739,6 +745,46 @@ public static class NpcSequenceSetupWizard
         return false;
     }
 
+    [MenuItem(MenuRoot + "Сбросить прогресс диалогов", false, 21)]
+    public static void ResetDialogueSavesMenu()
+    {
+        // Если в Project выделены конкретные диалоги — сбрасываем только их,
+        // иначе все. Работает и в Play (тест «начать с D1 заново» без выхода).
+        var selected = Selection.objects.OfType<DialogueData>().Where(d => d != null).ToList();
+        if (selected.Count > 0)
+        {
+            foreach (var d in selected)
+                DialogueManager.ResetDialogue(d);
+            PlayerPrefs.Save();
+            if (!Application.isPlaying)
+            {
+                foreach (var s in Object.FindObjectsOfType<NpcDialogueSequence>(true))
+                {
+                    s.enabled = true;
+                    EditorUtility.SetDirty(s);
+                }
+                DirtyScene();
+            }
+            else
+            {
+                foreach (var s in Object.FindObjectsOfType<NpcDialogueSequence>(true))
+                    s.enabled = true;
+            }
+            Debug.Log($"[Диалоги] Сброшен прогресс выбранных ({selected.Count}): " +
+                      string.Join(", ", selected.Select(d => d.name).ToArray()) +
+                      ". Следующий разговор начнётся с начала.");
+            if (!Application.isPlaying)
+                EditorUtility.DisplayDialog("Диалоги",
+                    $"Сброшено диалогов: {selected.Count}.\nСледующий разговор начнётся с начала.", "Ок");
+            return;
+        }
+        ResetDialogueSaves();
+        if (!Application.isPlaying)
+            EditorUtility.DisplayDialog("Диалоги",
+                "Прогресс всех диалогов стёрт (узел, done, одноразовые кнопки, история).\n" +
+                "Сохрани сцену (Ctrl+S) и жми Play — начнётся с D1.", "Ок");
+    }
+
     public static void ResetDialogueSaves()
     {
         int n = 0;
@@ -760,12 +806,14 @@ public static class NpcSequenceSetupWizard
         foreach (var s in Object.FindObjectsOfType<NpcDialogueSequence>(true))
         {
             s.enabled = true;
-            EditorUtility.SetDirty(s);
+            if (!Application.isPlaying)
+                EditorUtility.SetDirty(s);
         }
         DirtyScene();
         Debug.Log($"[Диалоги] Сейвы стёрты ({n} диалогов: прогресс, done, кнопки, история). Цепочки включены. Сохрани сцену и жми Play.");
     }
 
+    [MenuItem(MenuRoot + "Сбросить квесты", false, 22)]
     public static void ResetQuests()
     {
         QuestSystem.ResetAll(true);

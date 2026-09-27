@@ -48,6 +48,7 @@ public class Pickup : MonoBehaviour
     private Light glowLight;
     private float glowBaseIntensity;
     private float glowBlend;
+    private Rigidbody cachedRb;
     // Id эмиссии закэшированы: разные пайплайны используют разные имена свойств
     private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
     private static readonly int EmissiveColorId = Shader.PropertyToID("_EmissiveColor");
@@ -56,7 +57,7 @@ public class Pickup : MonoBehaviour
 
     void Awake()
     {
-        startLocalPos = transform.localPosition;
+        cachedRb = GetComponent<Rigidbody>();
         bobTimer = Random.Range(0f, Mathf.PI * 2f);
 
         if (highlightRenderers == null || highlightRenderers.Length == 0)
@@ -67,6 +68,24 @@ public class Pickup : MonoBehaviour
 
         if (createGlowLight) CreateGlow();
         ApplyItemAppearance();
+    }
+
+    void Start()
+    {
+        // Базу bob берём в Start, а не в Awake: при Instantiate(prefab, pos)
+        // и при расстановке через wizard позиция выставляется уже после Awake,
+        // иначе предмет «стрибає» назад к нулю префаба.
+        startLocalPos = transform.localPosition;
+    }
+
+    /// <summary>Оновити базу bob після зовнішнього переміщення (телепорт, дроп).</summary>
+    public void RecaptureBase()
+    {
+        // Rigidbody могли причепити вже після Awake (дроп клонує модель
+        // і вішає фізику постфактум) — оновлюємо кеш, інакше bob пришиє
+        // об'єкт до точки і він зависне в повітрі.
+        cachedRb = GetComponent<Rigidbody>();
+        startLocalPos = transform.localPosition;
     }
 
     /// <summary>Настроить предмет после Instantiate, когда Awake уже выполнился.</summary>
@@ -120,12 +139,22 @@ public class Pickup : MonoBehaviour
     {
         if (spin)
             transform.Rotate(Vector3.up, spinSpeed * Time.deltaTime, Space.World);
-        if (bob)
+        // Фізика веде об'єкт сама: bob через localPosition боровся б із гравітацією
+        // і дроп зависав би в повітрі. Поки Rigidbody не kinematic — не чіпаємо позицію.
+        // Ліниво підхоплюємо Rigidbody, доданий після Awake (так робить дроп клонів).
+        if (cachedRb == null) cachedRb = GetComponent<Rigidbody>();
+        bool physicsDriven = cachedRb != null && !cachedRb.isKinematic && !cachedRb.IsSleeping();
+        if (bob && !physicsDriven)
         {
             bobTimer += Time.deltaTime * bobSpeed;
             Vector3 p = startLocalPos;
             p.y += Mathf.Sin(bobTimer) * bobAmplitude;
             transform.localPosition = p;
+        }
+        else if (bob && physicsDriven)
+        {
+            // Щоб не було стрибка фази, коли тіло засне
+            bobTimer += Time.deltaTime * bobSpeed;
         }
 
         UpdateGlow();

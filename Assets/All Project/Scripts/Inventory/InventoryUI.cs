@@ -254,7 +254,15 @@ public class InventoryUI : MonoBehaviour
     // =====================================================================
     void EnsureSlotViews()
     {
-        if (slotsContainer == null || slotPrefab == null) return;
+        if (slotsContainer == null || slotPrefab == null)
+        {
+            // В ручному режимі дизайнер міг забути призначити контейнер/префаб —
+            // мовчазний return перетворювався на «порожній інвентар без помилок».
+            if (!autoBuild && !built)
+                Debug.LogWarning("[InventoryUI] Не задані Slots Container або Slot Prefab. " +
+                                 "Увімкни autoBuild або признач посилання в інспекторі.");
+            return;
+        }
         if (slotViews.Count >= inventory.MaxSlots) return;
 
         while (slotViews.Count < inventory.MaxSlots)
@@ -278,9 +286,16 @@ public class InventoryUI : MonoBehaviour
 
         if (activeFilter == null)
         {
-            // «Всё»: слоты по порядку, остальные ячейки пустые
+            // «Всё»: слоты по порядку, остальные ячейки пустые.
+            // Ячейки понад MaxSlots ховаємо: інакше після зменшення maxSlots
+            // в інспекторі залишаються «привиди» порожніх клітинок.
             for (int i = 0; i < slotViews.Count; i++)
             {
+                if (i >= inventory.MaxSlots)
+                {
+                    slotViews[i].gameObject.SetActive(false);
+                    continue;
+                }
                 slotViews[i].gameObject.SetActive(true);
                 slotViews[i].SetSlot(inventory.GetSlot(i));
             }
@@ -292,6 +307,11 @@ public class InventoryUI : MonoBehaviour
 
             for (int i = 0; i < slotViews.Count; i++)
             {
+                if (i >= inventory.MaxSlots)
+                {
+                    slotViews[i].gameObject.SetActive(false);
+                    continue;
+                }
                 slotViews[i].gameObject.SetActive(true);
                 slotViews[i].SetSlot(i < indices.Count ? inventory.GetSlot(indices[i]) : null);
             }
@@ -337,6 +357,11 @@ public class InventoryUI : MonoBehaviour
 
     void HandleSorted()
     {
+        // Після сортування індекси зсуваються — старий selectedViewIndex
+        // міг би вказувати вже на інший предмет. Скидаємо вибір.
+        selectedViewIndex = -1;
+        UpdateSelectionVisuals();
+        RefreshDetails();
         // Волна «выпрыгивания» слева-направо, чтобы сортировка читалась глазом
         StartCoroutine(SortWave());
     }
@@ -490,7 +515,7 @@ public class InventoryUI : MonoBehaviour
         int real = ResolveIndex(viewIndex);
         if (real < 0) return;
 
-        if (Input.GetKey(KeyCode.LeftShift)) inventory.DropSlot(real);
+        if (IsDropAllModifier()) inventory.DropSlot(real);
         else inventory.DropOne(real);
     }
 
@@ -824,9 +849,12 @@ public class InventoryUI : MonoBehaviour
         int real = ResolveIndex(selectedViewIndex);
         if (real < 0) return;
 
-        if (Input.GetKey(KeyCode.LeftShift)) inventory.DropSlot(real);
+        if (IsDropAllModifier()) inventory.DropSlot(real);
         else inventory.DropOne(real);
     }
+
+    static bool IsDropAllModifier() =>
+        Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
     // =====================================================================
     // Автосборка UI кодом

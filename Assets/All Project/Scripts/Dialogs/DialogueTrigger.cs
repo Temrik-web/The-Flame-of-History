@@ -182,20 +182,51 @@ public class DialogueTrigger : MonoBehaviour
             return;
 
         isDialogueActive = true;
-        hasPlayed = true;
         Debug.Log($"[DialogueTrigger] {name}: старт диалога «{dialogue.dialogueName}» " +
                   $"(узелков: {dialogue.nodes?.Count ?? -1}).", this);
         string resumeNode = resumeFromSave ? DialogueManager.GetSavedNodeID(dialogue) : "";
         if (!string.IsNullOrEmpty(resumeNode) && dialogue.GetNodeByID(resumeNode) == null)
             resumeNode = "";
         DialogueManager.Instance.StartDialogue(dialogue, this, resumeNode);
+        if (!DialogueManager.Instance.isDialogueActive)
+        {
+            // Менеджер не взял диалог (нет UI и т.п.) — не считаем сыгранным,
+            // иначе с playOnce триггер умрёт, так и не показав разговор.
+            isDialogueActive = false;
+            return;
+        }
+        if (playOnce)
+            hasPlayed = true;
     }
 
     public void OnDialogueEnded()
     {
         isDialogueActive = false;
-        if (playOnce && hasPlayed)
+        // Гасим одноразовый триггер только если диалог реально прошли
+        // (done/completed). Выход по Esc оставляет триггер живым — иначе
+        // разговор нельзя продолжить, а соседний триггер/D2 выглядит как
+        // «перескок на второй диалог».
+        if (!playOnce || !hasPlayed)
+            return;
+        DialogueManager m = DialogueManager.Instance;
+        bool completed = m != null ? m.LastFinishedCompleted : true;
+        bool done = dialogue != null && DialogueManager.IsDialogueDone(dialogue);
+        if (completed || done)
             enabled = false;
+        else
+            hasPlayed = false;
+    }
+
+    /// <summary>Сбросить прогресс этого диалога (тесты: следующий разговор с начала).</summary>
+    [ContextMenu("Сбросить прогресс диалога")]
+    public void ResetProgress()
+    {
+        if (dialogue != null)
+            DialogueManager.ResetDialogue(dialogue);
+        hasPlayed = false;
+        isDialogueActive = false;
+        enabled = true;
+        Debug.Log($"[DialogueTrigger] {name}: прогресс диалога сброшен.", this);
     }
 
     void OnDrawGizmosSelected()

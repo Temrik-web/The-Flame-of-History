@@ -26,6 +26,9 @@ public sealed class SuppressionReceiver : MonoBehaviour
     {
         _health = GetComponentInParent<CharacterHealth>();
         if (enemyAI == null) enemyAI = GetComponentInParent<EnemyAI>();
+        if (_health == null)
+            Debug.LogWarning($"[SuppressionReceiver] {name}: CharacterHealth не найден в родителях — " +
+                "ни свист, ни подавление работать не будут. Повесь компонент на игрока/врага или его ребёнка.", this);
     }
 
     private void OnEnable()  => ProjectilePass.ShotFired += OnShot;

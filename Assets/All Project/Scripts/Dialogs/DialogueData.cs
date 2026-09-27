@@ -32,6 +32,12 @@ public class DialogueData : ScriptableObject
     void OnValidate()
     {
         if (nodes == null) return;
+        // Старт = nodes[0]: тихая смена порядка в инспекторе меняет начало.
+        if (nodes.Count > 0 && nodes[0] == null)
+        {
+            Debug.LogError($"[DialogueData] «{dialogueName}»: первый узел в списке — null. " +
+                            "Диалог стартует в пустоту.", this);
+        }
         var seen = new System.Collections.Generic.HashSet<string>();
         foreach (var node in nodes)
         {

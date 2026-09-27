@@ -209,8 +209,33 @@ public class DialogueHistory : MonoBehaviour
     static string EscapeRaw(string s) =>
         (s ?? "").Replace("\\", "\\\\").Replace("\n", "\\n").Replace("\x1E", "\\e").Replace("\x1F", "\\u");
 
-    static string Unescape(string s) =>
-        (s ?? "").Replace("\\u", "\x1F").Replace("\\e", "\x1E").Replace("\\n", "\n").Replace("\\\\", "\\");
+    // Декодируем слева направо за один проход (как GameState.Unescape).
+    // Цепочка Replace в неверном порядке ломала тексты с буквальными "\u","\n":
+    // "\\u" в исходнике экранируется в "\\\\u", а наивный Replace("\\u"->\x1F)
+    // съедал хвост escapes-последовательности.
+    static string Unescape(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s ?? "";
+        var result = new System.Text.StringBuilder(s.Length);
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (s[i] != '\\' || i + 1 >= s.Length)
+            {
+                result.Append(s[i]);
+                continue;
+            }
+            char e = s[++i];
+            switch (e)
+            {
+                case '\\': result.Append('\\'); break;
+                case 'n': result.Append('\n'); break;
+                case 'e': result.Append('\x1E'); break;
+                case 'u': result.Append('\x1F'); break;
+                default: result.Append('\\').Append(e); break;
+            }
+        }
+        return result.ToString();
+    }
 
     void BuildUI()
     {

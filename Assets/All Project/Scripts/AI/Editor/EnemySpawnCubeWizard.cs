@@ -35,7 +35,8 @@ public static class EnemySpawnCubeWizard
         Renderer rend = cube.GetComponent<Renderer>();
         if (rend != null)
         {
-            Material mat = new Material(Shader.Find("Standard"));
+            Shader shader = Shader.Find("Standard") ?? Shader.Find("Universal Render Pipeline/Lit");
+            Material mat = shader != null ? new Material(shader) : new Material(Shader.Find("Diffuse") ?? Shader.Find("Unlit/Color"));
             mat.color = new Color(1f, 0.15f, 0.15f, 1f);
             rend.sharedMaterial = mat;
         }

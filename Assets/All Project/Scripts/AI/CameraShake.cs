@@ -17,6 +17,8 @@ public class CameraShake : MonoBehaviour
     public void Shake(float duration, float magnitude)
     {
         if (duration <= 0f || magnitude <= 0f) return;
+        // Захватываем актуальную позицию: камера могла переехать после Awake.
+        _originalLocalPosition = transform.localPosition;
         if (_shakeRoutine != null) StopCoroutine(_shakeRoutine);
         _shakeRoutine = StartCoroutine(ShakeRoutine(duration, magnitude));
     }

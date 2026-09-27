@@ -366,6 +366,41 @@ public class DialogueManager : MonoBehaviour
         return GetUsedChoices(dialogue).Contains(MakeUsedKey(nodeID, choiceText));
     }
 
+    /// <summary>Одноразовый ли выбор (гаснет после нажатия).
+    /// Анти-фарм: одноразовые только выборы с реальным эффектом —
+    /// команды (выдача/квесты/флаги), требования предмета/квеста.
+    /// Чистая навигация («спросить ещё», хаб-возвраты N3&lt;-&gt;N4) и выходы
+    /// (endDialogue) остаются доступны повторно. Иначе игрок, вышедший через
+    /// «(уйти)» до выполнения квеста, в следующий раз видит обе кнопки
+    /// заблокированными — софтлок.</summary>
+    static bool IsSingleUseChoice(DialogueChoice choice)
+    {
+        if (choice == null) return false;
+        if (choice.endDialogue) return false;
+        if (!string.IsNullOrEmpty(choice.requiredItemId)) return true;
+        if (!string.IsNullOrEmpty(choice.requiredQuestId)) return true;
+        if (choice.onSelectCommands != null)
+        {
+            foreach (var cmd in choice.onSelectCommands)
+            {
+                if (cmd == null) continue;
+                if (!string.IsNullOrEmpty(cmd.stringParam)) return true;
+                if (cmd.gameObjectParam != null) return true;
+                if (cmd.clipParam != null) return true;
+                if (cmd.spriteParam != null) return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Нажимался ли уже ОДНОРАЗОВЫЙ выбор (для блокировки кнопки).</summary>
+    static bool IsChoiceSpent(DialogueData dialogue, string nodeID, DialogueChoice choice)
+    {
+        if (dialogue == null || choice == null) return false;
+        if (!IsSingleUseChoice(choice)) return false;
+        return IsChoiceUsed(dialogue, nodeID, choice.choiceText);
+    }
+
     static void ClearUsedChoices(DialogueData dialogue)
     {
         string key = DialogueKey(dialogue);
@@ -373,14 +408,13 @@ public class DialogueManager : MonoBehaviour
         PlayerPrefs.DeleteKey(UsedPrefix + key);
     }
 
-    /// <summary>С какой реплики продолжать после Esc: показанное не повторяем.</summary>
+    /// <summary>С какой реплики продолжать после Esc: с той же, что была показана.
+    /// Раньше возвращался СЛЕДУЮЩИЙ узел (показанное пропускалось), из-за чего
+    /// повторный разговор начинался «со второго диалога». Теперь — повтор.</summary>
     static string ComputeResumeNodeID(DialogueNode echoTarget, DialogueNode lastNode)
     {
         if (echoTarget != null) return echoTarget.nodeID;
         if (lastNode == null) return null;
-        bool hasChoices = lastNode.choices != null && lastNode.choices.Count > 0;
-        if (!hasChoices && !string.IsNullOrEmpty(lastNode.nextNodeID))
-            return lastNode.nextNodeID;
         return lastNode.nodeID;
     }
 
@@ -1211,7 +1245,7 @@ public class DialogueManager : MonoBehaviour
         foreach (var choice in currentNode.choices)
         {
             bool used = choice != null && currentDialogue != null &&
-                        IsChoiceUsed(currentDialogue, currentNode.nodeID, choice.choiceText);
+                        IsChoiceSpent(currentDialogue, currentNode.nodeID, choice);
             bool available = !used && IsChoiceAvailable(choice);
             if (!available && !used && (choice == null || !choice.showWhenLocked))
                 continue;
@@ -1319,7 +1353,10 @@ public class DialogueManager : MonoBehaviour
         {
             if (choicesPanel != null) choicesPanel.SetActive(false);
             isShowingChoices = false;
-            EndDialogue();
+            Debug.LogError($"[DialogueManager] Узел «{currentNode?.nodeID}»: все варианты скрыты " +
+                            "условиями (и ни один не showWhenLocked) — выборы показать нечего. " +
+                            "Диалог закрыт БЕЗ отметки прохождения, иначе цепочка перепрыгнет дальше.", this);
+            EndDialogue(false);
         }
         else if (entries.Count > slots.Count)
         {
@@ -1410,7 +1447,9 @@ public class DialogueManager : MonoBehaviour
         {
             if (choicesPanel != null) choicesPanel.SetActive(false);
             isShowingChoices = false;
-            EndDialogue();
+            Debug.LogError($"[DialogueManager] Узел «{currentNode?.nodeID}»: все варианты скрыты " +
+                            "условиями — закрыто БЕЗ отметки прохождения.", this);
+            EndDialogue(false);
         }
     }
 
@@ -1419,7 +1458,7 @@ public class DialogueManager : MonoBehaviour
         if (choicesPanel != null) choicesPanel.SetActive(false);
         HideStaticButtons();
         isShowingChoices = false;
-        if (choice != null && currentDialogue != null && currentNode != null)
+        if (choice != null && currentDialogue != null && currentNode != null && IsSingleUseChoice(choice))
             MarkChoiceUsed(currentDialogue, currentNode.nodeID, choice.choiceText);
 
         if (choice.onSelectCommands != null)
