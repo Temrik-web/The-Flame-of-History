@@ -23435,6 +23435,17 @@ MonoBehaviour:
   idleSwayAmount: 0.012
   breathAmplitude: 0.0035
   breathSpeed: 1
+  enableEquipAnimation: 1
+  equipDuration: 0.38
+  equipFromOffset: {x: 0.02, y: -0.24, z: -0.12}
+  equipFromRotation: {x: -22, y: 8, z: 6}
+  equipOvershoot: 1.4
+  equipArc: {x: 0.015, y: 0, z: 0.06}
+  rotationLead: 0.55
+  blockInputDuringEquip: 1
+  holsterDuration: 0.16
+  holsterToOffset: {x: 0, y: -0.18, z: -0.06}
+  holsterToRotation: {x: -14, y: 5, z: 3}
   manageCrosshair: 1
   crosshairObject: {fileID: 0}
   grenadePrefab: {fileID: 0}
@@ -23469,6 +23480,7 @@ MonoBehaviour:
   explosionDamage: 150
   explosionDamageRadius: 6
   explosionEdgeDamageFactor: 0.35
+  shotDetonationDelay: 0.12
   consumeFromInventory: 1
   inventoryWeaponId: 
   pinPullSound: {fileID: 0}
@@ -24042,6 +24054,17 @@ MonoBehaviour:
   idleSwayAmount: 0.012
   breathAmplitude: 0.0035
   breathSpeed: 1
+  enableEquipAnimation: 1
+  equipDuration: 0.38
+  equipFromOffset: {x: 0.02, y: -0.24, z: -0.12}
+  equipFromRotation: {x: -22, y: 8, z: 6}
+  equipOvershoot: 1.4
+  equipArc: {x: 0.015, y: 0, z: 0.06}
+  rotationLead: 0.55
+  blockInputDuringEquip: 1
+  holsterDuration: 0.16
+  holsterToOffset: {x: 0, y: -0.18, z: -0.06}
+  holsterToRotation: {x: -14, y: 5, z: 3}
   manageCrosshair: 1
   crosshairObject: {fileID: 0}
   lightDamage: 40
@@ -48858,6 +48881,16 @@ MonoBehaviour:
   kickbackRotationY: 1
   breathAmplitude: 0.004
   breathSpeed: 1
+  enableEquipAnimation: 1
+  equipDuration: 0.42
+  equipFromOffset: {x: 0.02, y: -0.26, z: -0.14}
+  equipFromRotation: {x: -24, y: 9, z: 7}
+  equipOvershoot: 1.4
+  equipArc: {x: 0.015, y: 0, z: 0.06}
+  rotationLead: 0.55
+  holsterDuration: 0.18
+  holsterToOffset: {x: 0, y: -0.2, z: -0.07}
+  holsterToRotation: {x: -15, y: 6, z: 4}
   inertiaSmoothness: 0.08
   inertiaMultiplier: 0.02
   landingSpringStiffness: 80
@@ -49081,6 +49114,7 @@ MonoBehaviour:
   defaultImpactPrefab: {fileID: 100002, guid: 20b31fcfaed0cb842a56fbbe2419428f, type: 3}
   impactOffset: 0.02
   impactLifetime: 1.25
+  explosiveHitAssist: 0.35
 --- !u!114 &1668674561
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -51724,6 +51758,7 @@ MonoBehaviour:
   toggleKey: 9
   maxSlots: 20
   useHotkeys: 1
+  hotkeyTogglesHolster: 1
   sortKey: 114
   autoSortOnPickup: 0
   dropKey: 103
@@ -51731,9 +51766,6 @@ MonoBehaviour:
   dropForwardOffset: 1.2
   dropUpOffset: -0.15
   dropThrowForce: 2.5
-  discSpamKey: 105
-  discSpamItemId: ammo_762
-  discSpamMax: 2000
   manageCursor: 1
   pauseGameWhenOpen: 0
   drawDebugGUI: 1
@@ -51763,6 +51795,8 @@ MonoBehaviour:
   holsterKey: 48
   hideCrosshairWhenUnarmed: 1
   crosshairObject: {fileID: 0}
+  animateSwitch: 1
+  maxHolsterWait: 0.3
 --- !u!114 &1743753197
 MonoBehaviour:
   m_ObjectHideFlags: 0

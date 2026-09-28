@@ -36,16 +36,22 @@ public class Wep : MonoBehaviour
     public bool logHits = false;
 
     [Header("Разброс (динамический)")]
-    public float baseSpread = 4f;
-    public float autoSpreadPerShot = 1.5f;
-    public float maxSpread = 18f;
-    public float spreadRecoverySpeed = 15f;
+    [Tooltip("Базовый конус разброса в градусах (пуля гуляет ±половина). " +
+             "4° — это ±1.75 м на 50 м, поэтому вдаль не летело.")]
+    public float baseSpread = 1.5f;
+    [Tooltip("Насколько растёт разброс с каждым выстрелом очередью.")]
+    public float autoSpreadPerShot = 0.7f;
+    [Tooltip("Потолок разброса: длинная очередь всё равно расползается.")]
+    public float maxSpread = 8f;
+    [Tooltip("Как быстро разброс возвращается к базовому после очереди.")]
+    public float spreadRecoverySpeed = 18f;
     private float currentSpread;
 
     [Header("Прицеливание")]
     public float normalFOV = 60f;
     public float aimFOV = 40f;
-    public float aimSpreadMultiplier = 0.4f;
+    [Tooltip("Во сколько раз прицел режет разброс. 0.25: в прицеле одиночные бьют точно и вдаль.")]
+    public float aimSpreadMultiplier = 0.25f;
     public float aimRecoilMultiplier = 0.6f;
     public Vector3 hipPosition = new Vector3(0.458f, -1.01f, 0.73f);
     public Vector3 aimPosition = new Vector3(0.004f, -0.778f, 0.429f);
@@ -126,6 +132,42 @@ public class Wep : MonoBehaviour
     public float breathAmplitude = 0.004f;
     public float breathSpeed = 1.0f;
     private float breathTimer = 0f;
+
+    [Header("Появление в руках (equip)")]
+    [Tooltip("Плавное появление оружия при взятии в руки / переключении. " +
+             "Выключено — оружие появляется мгновенно, как раньше.")]
+    public bool enableEquipAnimation = true;
+
+    [Tooltip("Сколько секунд оружие поднимается в руки (с пояса, из-за нижнего края экрана). В это время нельзя стрелять — как draw time в шутерах.")]
+    [Min(0.05f)] public float equipDuration = 0.65f;
+
+    [Tooltip("Откуда поднимается: смещение от позы в руках. Глубоко снизу из-за кадра — как с пояса.")]
+    public Vector3 equipFromOffset = new Vector3(0.04f, -0.58f, -0.16f);
+
+    [Tooltip("Стартовый наклон при появлении, градусы. Добавляется к позе в руках.")]
+    public Vector3 equipFromRotation = new Vector3(-35f, 12f, 8f);
+
+    [Tooltip("Сочность: перелёт в конце подъёма. 0 — максимально плавно, больше — резче.")]
+    [Range(0f, 3f)] public float equipOvershoot = 0.8f;
+
+    [Tooltip("Дуга подъёма: выгиб траектории в середине (вперёд и чуть вбок), " +
+             "чтобы оружие выходило с пояса по дуге, а не ехало по прямой как лифт.")]
+    public Vector3 equipArc = new Vector3(0.02f, 0f, 0.08f);
+
+    [Tooltip("Какая доля подъёма уходит на выпрямление наклона. " +
+             "Поворот заканчивается раньше позиции — как живая кисть: сначала доворот, потом доводка.")]
+    [Range(0.3f, 1f)] public float rotationLead = 0.55f;
+
+    [Header("Убирание из рук (holster)")]
+    [Tooltip("Сколько секунд оружие опускается перед выключением. " +
+             "Управляется WeaponSlotManager: он ждёт это время, потом прячет объект.")]
+    [Min(0.05f)] public float holsterDuration = 0.32f;
+
+    [Tooltip("Куда опускается: смещение от позы в руках. Глубоко вниз за край экрана — как на пояс.")]
+    public Vector3 holsterToOffset = new Vector3(0f, -0.52f, -0.12f);
+
+    [Tooltip("Наклон при убирании, градусы.")]
+    public Vector3 holsterToRotation = new Vector3(-25f, 8f, 6f);
 
     private Vector2 mouseDelta;
     private Vector3 inertiaPosition = Vector3.zero;
@@ -356,9 +398,63 @@ public class Wep : MonoBehaviour
     [Tooltip("Время жизни эффекта попадания (сек).")]
     public float impactLifetime = 3f;
 
+    [Header("Попадание по взрывчатке")]
+    [Tooltip("Радиус помощи попадания по гранате, метры. Луч считается попавшим, " +
+             "даже если прошёл рядом с мелкой целью — прощает промахи на дистанции. " +
+             "На стены, врагов и дырки не влияет.")]
+    [Range(0f, 1f)] public float explosiveHitAssist = 0.35f;
+
     private bool isInspecting = false;
     private Coroutine inspectRoutine;
     private bool isCinematicReload = false;
+
+    // Плавное появление/убирание: считается по времени в Update,
+    // поэтому не ломается при выключении объекта и не спорит с отдачей/покачиванием.
+    private float equipProgress = 1f;
+    private bool isHolstering;
+    private float holsterProgress;
+    private bool started;
+
+    /// <summary>Оружие сейчас поднимается в руки (первые доли секунды после экипировки).</summary>
+    public bool IsEquipping => enableEquipAnimation && equipProgress < 1f;
+
+    /// <summary>Оружие сейчас опускается (WeaponSlotManager вот-вот его спрячет).</summary>
+    public bool IsHolstering => isHolstering;
+
+    /// <summary>Начать опускание перед убиранием. Менеджер ждёт holsterDuration и прячет объект.</summary>
+    public void BeginHolster()
+    {
+        if (!enableEquipAnimation) return;
+        isHolstering = true;
+        holsterProgress = 0f;
+        equipProgress = 1f;
+    }
+
+    /// <summary>Отменить опускание (быстро переключились обратно) и проиграть подъём заново.</summary>
+    public void ReplayEquipAnimation()
+    {
+        isHolstering = false;
+        holsterProgress = 0f;
+        equipProgress = enableEquipAnimation ? 0f : 1f;
+        if (enableEquipAnimation) SnapToEquipStart();
+    }
+
+    /// <summary>Мгновенно поставить модель в стартовую позу подъёма (пояс).</summary>
+    void SnapToEquipStart()
+    {
+        if (weaponModel == null) weaponModel = transform;
+        if (weaponModel == null) return;
+        weaponModel.localPosition = hipPosition + equipFromOffset;
+        weaponModel.localRotation = Quaternion.Euler(hipRotation + equipFromRotation);
+    }
+
+    void UpdateEquipTimers()
+    {
+        if (enableEquipAnimation && equipProgress < 1f)
+            equipProgress = Mathf.Min(1f, equipProgress + Time.deltaTime / Mathf.Max(0.05f, equipDuration));
+        if (isHolstering)
+            holsterProgress = Mathf.Min(1f, holsterProgress + Time.deltaTime / Mathf.Max(0.05f, holsterDuration));
+    }
     private Vector3 oldMagOriginalLocalPos;
     private Quaternion oldMagOriginalLocalRot;
     private Vector3 newMagOriginalLocalPos;
@@ -439,6 +535,11 @@ public class Wep : MonoBehaviour
         weaponModel.localPosition = hipPosition;
         weaponModel.localRotation = Quaternion.Euler(hipRotation);
 
+        // Start идёт после OnEnable и только что вернул модель в хип.
+        // Если подъём уже запрошен — сразу ставим её обратно на пояс,
+        // иначе в первые кадры будет видно нырок вниз перед подъёмом.
+        if (enableEquipAnimation && equipProgress < 1f) SnapToEquipStart();
+
         lastPosition = transform.position;
         bobTime = 0f;
 
@@ -467,12 +568,23 @@ public class Wep : MonoBehaviour
 
         if (oldMagazine != null) oldMagazine.gameObject.SetActive(true);
         if (boltLight != null) boltLight.enabled = false;
+        started = true;
     }
 
     void OnEnable()
     {
         // Нож/граната гасят прицел — при возврате ППШ включаем обратно
         if (crosshairObject != null) crosshairObject.SetActive(true);
+        // Каждое включение (подбор, переключение, старт сцены) — красивый подъём в руки.
+        isHolstering = false;
+        holsterProgress = 0f;
+        equipProgress = enableEquipAnimation ? 0f : 1f;
+        // Хвост отдачи с прошлого раза ни к чему — иначе первый кадр дёрнется.
+        recoilKickPosition = Vector3.zero;
+        recoilKickRotation = Vector3.zero;
+        // Стартуем кадр сразу с пояса: иначе модель долетит туда из старой позы
+        // и будет видно, как оружие сначала дёргается назад, а потом идёт вверх.
+        if (enableEquipAnimation) SnapToEquipStart();
     }
     void Update()
     {
@@ -489,6 +601,8 @@ public class Wep : MonoBehaviour
         if (fpsController != null)
             SyncFromController();
 
+        UpdateEquipTimers();
+
         if (isInspecting)
         {
             if (interruptOnShoot && Input.GetMouseButtonDown(0)) StopInspect();
@@ -496,7 +610,8 @@ public class Wep : MonoBehaviour
             else if (interruptOnRun && isRunning) StopInspect();
         }
 
-        if (enableInspect && Input.GetKeyDown(inspectKey) && !isReloading && !isCinematicReload)
+        if (enableInspect && Input.GetKeyDown(inspectKey) && !isReloading && !isCinematicReload
+            && !IsEquipping && !isHolstering)
         {
             if (!isInspecting) StartInspect();
             else StopInspect();
@@ -561,6 +676,27 @@ public class Wep : MonoBehaviour
             {
                 basePos = Vector3.Lerp(hipPosition, aimPosition, aimBlend);
                 baseRot = Vector3.Lerp(hipRotation, aimRotation, aimBlend);
+
+                // Двухфазный подъём: кисть выпрямляется первой (поворот — быстро и без перелёта),
+                // затем рука доводит оружие по дуге с мягким дотягом в конце. Складывается с позой,
+                // поэтому не спорит с отдачей, дыханием и покачиванием.
+                if (enableEquipAnimation)
+                {
+                    if (equipProgress < 1f)
+                    {
+                        float rotK = WeaponEquipEases.EaseOutCubic(Mathf.Clamp01(equipProgress / Mathf.Max(0.3f, rotationLead)));
+                        float posK = WeaponEquipEases.EaseOutBack(equipProgress, equipOvershoot);
+                        float arcK = Mathf.Sin(Mathf.Clamp01(equipProgress) * Mathf.PI);
+                        basePos += Vector3.Lerp(equipFromOffset, Vector3.zero, posK) + equipArc * arcK;
+                        baseRot += Vector3.Lerp(equipFromRotation, Vector3.zero, rotK);
+                    }
+                    else if (isHolstering)
+                    {
+                        float h = WeaponEquipEases.EaseInQuad(holsterProgress);
+                        basePos += Vector3.Lerp(Vector3.zero, holsterToOffset, h);
+                        baseRot += Vector3.Lerp(Vector3.zero, holsterToRotation, h);
+                    }
+                }
             }
             else
             {
@@ -570,6 +706,14 @@ public class Wep : MonoBehaviour
 
             bool isMovingNow = IsMoving();
             float stabilityFactor = 1f - aimBlend * (isMovingNow ? 0.75f : 0.85f);
+            // Покачивание гаснет плавно вместе с анимацией — иначе в конце подъёма виден щелчок.
+            if (enableEquipAnimation)
+            {
+                if (equipProgress < 1f)
+                    stabilityFactor *= Mathf.Lerp(0.25f, 1f, Mathf.SmoothStep(0f, 1f, equipProgress));
+                else if (isHolstering)
+                    stabilityFactor *= Mathf.Lerp(1f, 0.25f, Mathf.SmoothStep(0f, 1f, holsterProgress));
+            }
 
             Vector3 offsetPos = (swayPositionOffset + bobPosition + recoilKickPosition) * stabilityFactor;
             Vector3 offsetRot = (swayRotationOffset + bobRotation + recoilKickRotation) * stabilityFactor;
@@ -613,13 +757,14 @@ public class Wep : MonoBehaviour
             bool fireHeld = Input.GetMouseButton(0);
             bool fireDown = Input.GetMouseButtonDown(0);
 
-            if (!isReloading && Time.time - lastShotTime >= fireRate)
+            if (!isReloading && !IsEquipping && !isHolstering && Time.time - lastShotTime >= fireRate)
             {
                 if (currentFireMode == FireMode.Auto && fireHeld) Shoot();
                 else if (currentFireMode == FireMode.Semi && fireDown) Shoot();
             }
 
-            if (Input.GetKeyDown(KeyCode.R) && !isReloading && currentAmmo < maxAmmo && spareMagazines > 0)
+            if (Input.GetKeyDown(KeyCode.R) && !isReloading && !IsEquipping && !isHolstering
+                && currentAmmo < maxAmmo && spareMagazines > 0)
             {
                 StartCoroutine(ReloadSequence());
             }
@@ -696,6 +841,7 @@ public class Wep : MonoBehaviour
         Vector3 rayOrigin = playerCamera.transform.position;
         Vector3 endPoint = rayOrigin + direction * range;
         bool hitSomething = false;
+        GameObject shooter = fpsController != null ? fpsController.gameObject : gameObject;
 
         if (Physics.Raycast(rayOrigin, direction, out RaycastHit hit, range, hitMask,
                             QueryTriggerInteraction.Ignore))
@@ -719,6 +865,11 @@ public class Wep : MonoBehaviour
             SpawnImpactEffect(hit);
         }
 
+        // Пикапы в мире обычно висят на триггерах — основной луч их не видит.
+        // Отдельный проход: граната перехватывает пулю, если она ближе твёрдого попадания.
+        CheckTriggerExplosives(rayOrigin, direction, hitSomething ? hit.distance : range,
+                               shooter, ref endPoint, ref hitSomething);
+
         if (bulletTrailPrefab != null)
         {
             LineRenderer trail = Instantiate(bulletTrailPrefab, muzzlePoint.position, Quaternion.identity);
@@ -729,7 +880,6 @@ public class Wep : MonoBehaviour
 
         // Враги должны реагировать на пролетевшую пулю (подавление, поиск стрелка)
         // и на звук выстрела, иначе игрок стреляет в полной «тишине» для ИИ.
-        GameObject shooter = fpsController != null ? fpsController.gameObject : gameObject;
         var shooterHealth = shooter.GetComponentInParent<FlameOfHistory.AI.CharacterHealth>();
         var team = shooterHealth != null ? shooterHealth.Team : shooterTeam;
         FlameOfHistory.AI.ProjectilePass.Emit(new FlameOfHistory.AI.ProjectilePass.Shot(
@@ -1093,6 +1243,10 @@ public class Wep : MonoBehaviour
             return true;
         }
 
+        // Выстрел по лежащей гранате-пикапу — детонация вместо дырки.
+        // Живая брошенная граната обрабатывается выше через IDamageable.
+        if (TryDetonateExplosivePickup(col, shooter)) return true;
+
         // Попали в физический объект — толкаем его, чтобы выстрел ощущался
         Rigidbody body = col.attachedRigidbody;
         if (body != null && !body.isKinematic)
@@ -1100,6 +1254,69 @@ public class Wep : MonoBehaviour
 
         if (logHits) Debug.Log($"[Gun] Попадание в {col.name} (не живое).");
         return false;
+    }
+
+    /// <summary>
+    /// Лежащая граната-пикап взрывается от пули. Настройки взрыва берутся
+    /// с GrenadeItem в руках (там уже настроены урон, радиус, эффекты).
+    /// True если это была граната и она сдетонировала.
+    /// </summary>
+    bool TryDetonateExplosivePickup(Collider col, GameObject shooter)
+    {
+        Pickup pickup = col.GetComponentInParent<Pickup>();
+        if (pickup == null || pickup.item == null) return false;
+        if (string.IsNullOrEmpty(pickup.item.equipWeaponId)) return false;
+        if (WeaponSlotManager.Instance == null) return false;
+
+        EquippableWeapon eq = WeaponSlotManager.Instance.Find(pickup.item.equipWeaponId);
+        GrenadeItem grenade = eq != null ? eq.GetComponentInChildren<GrenadeItem>(true) : null;
+        if (grenade == null) return false;
+
+        grenade.DetonatePickup(pickup.gameObject, shooter);
+        return true;
+    }
+
+    /// <summary>
+    /// Триггер-коллайдеры основной луч игнорирует (иначе пули вязли бы в невидимых
+    /// зонах), а пикапы в мире часто именно триггеры. Отдельный проход по триггерам
+    /// вдоль полёта пули: граната перехватывает её, если она ближе твёрдого попадания.
+    /// Пуля при этом гаснет на гранате — трассер и шум ИИ идут от точки взрыва.
+    /// </summary>
+    void CheckTriggerExplosives(Vector3 origin, Vector3 direction, float maxDistance, GameObject shooter,
+                                ref Vector3 endPoint, ref bool hitSomething)
+    {
+        // Толстый луч: мелкая граната детонирует и при прохождении пули рядом, а не только при прямом попадании.
+        float assist = Mathf.Max(0.01f, explosiveHitAssist);
+        RaycastHit[] hits = Physics.SphereCastAll(origin, assist, direction, maxDistance, hitMask,
+                                                  QueryTriggerInteraction.Collide);
+        if (hits == null || hits.Length == 0) return;
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+        foreach (RaycastHit th in hits)
+        {
+            if (th.collider == null || !th.collider.isTrigger) continue;
+            // Граната ближе дула (под ногами, за спиной) — пуля стартует мимо неё, не взрываемся сами.
+            if (th.distance < 0.4f) continue;
+
+            // Живая брошенная граната на триггере — детонация от пули.
+            ThrownGrenade live = th.collider.GetComponentInParent<ThrownGrenade>();
+            if (live != null)
+            {
+                ((FlameOfHistory.AI.IDamageable)live).TakeDamage(
+                    new FlameOfHistory.AI.DamageInfo(damage, th.point, direction, shooter));
+                endPoint = th.point;
+                hitSomething = true;
+                return;
+            }
+
+            // Лежащий пикап-граната — детонация вместо пролёта сквозь.
+            if (TryDetonateExplosivePickup(th.collider, shooter))
+            {
+                endPoint = th.point;
+                hitSomething = true;
+                return;
+            }
+        }
     }
 
     /// <summary>Считается ли коллайдер головой — по имени из headColliderNames.</summary>
@@ -1285,7 +1502,30 @@ public class Wep : MonoBehaviour
         }
         isReloading = false;
         isCinematicReload = false;
+        reloadProgress = 0f;
         isInspecting = false;
+        if (started)
+        {
+            // Смена оружия посреди перезарядки: возвращаем магазины/затвор/рычаг
+            // в исходное — как в начале ReloadSequence, иначе останутся висеть в воздухе.
+            if (oldMagazine != null)
+            {
+                oldMagazine.gameObject.SetActive(true);
+                oldMagazine.localPosition = oldMagOriginalLocalPos;
+                oldMagazine.localRotation = oldMagOriginalLocalRot;
+            }
+            if (newMagazine != null) newMagazine.gameObject.SetActive(false);
+            if (lever != null) lever.localPosition = leverOriginalLocalPos;
+            if (bolt != null)
+            {
+                bolt.localPosition = boltOriginalLocalPos;
+                bolt.localRotation = boltOriginalLocalRot;
+            }
+            if (boltLight != null) boltLight.enabled = false;
+        }
+        isHolstering = false;
+        holsterProgress = 0f;
+        equipProgress = 1f;
     }
 
     // === КИНЕМАТОГРАФИЧНАЯ ПЕРЕЗАРЯДКА ===
@@ -1563,4 +1803,19 @@ public class Wep : MonoBehaviour
         reloadProgress = 0f;
         reloadRoutine = null;
     }
+
+#if UNITY_EDITOR
+    [ContextMenu("Баланс: точная стрельба на дистанцию")]
+    void ApplyLongRangeBalance()
+    {
+        // Значения в инспекторе сцены не обновляются сами при смене дефолтов в коде —
+        // эта кнопка применяет баланс на конкретный ППШ в один клик.
+        baseSpread = 1.5f;
+        autoSpreadPerShot = 0.7f;
+        maxSpread = 8f;
+        aimSpreadMultiplier = 0.25f;
+        spreadRecoverySpeed = 18f;
+        Debug.Log("[Gun] Применён баланс для дистанции: одиночные в прицеле бьют точно, очередь всё ещё расползается.", this);
+    }
+#endif
 }

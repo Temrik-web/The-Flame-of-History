@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -33,9 +34,21 @@ public class WeaponSlotManager : MonoBehaviour
     [Tooltip("Объект перекрестия. Пусто — возьмётся у первого Wep в сцене.")]
     public GameObject crosshairObject;
 
+    [Header("Анимация смены")]
+    [Tooltip("Плавно опускать старое оружие и поднимать новое. " +
+             "Длительности и амплитуды настраиваются на самом предмете " +
+             "(Wep / HeldItem → «Появление в руках»).")]
+    public bool animateSwitch = true;
+
+    [Tooltip("Страховка: дольше этого опускание не ждём, даже если на предмете стоит больше.")]
+    [Min(0.05f)] public float maxHolsterWait = 0.45f;
+
     /// <summary>Экипировано другое оружие. Может быть null (пустые руки).</summary>
     public event Action<EquippableWeapon> OnEquippedChanged;
     private EquippableWeapon current;
+    private Coroutine switchRoutine;
+    private int switchVersion;
+    private EquippableWeapon holstering;
     /// <summary>Что сейчас в руках (может быть null).</summary>
     public EquippableWeapon Current => current;
     /// <summary>Id того, что в руках, или пустая строка.</summary>
@@ -75,10 +88,6 @@ public class WeaponSlotManager : MonoBehaviour
         current = startWeapon;
         OnEquippedChanged?.Invoke(current);
         ApplyCrosshairVisibility();
-        if (current != null)
-            Debug.Log($"[WeaponSlot] Стартовое оружие: {current.displayName}");
-        else
-            Debug.Log("[WeaponSlot] Руки пустые. Оружие появится после подбора и экипировки.");
     }
     // При пустых руках Wep выключен и прицел гасить некому — показываем только когда есть что-то в руках
     void ApplyCrosshairVisibility()
@@ -137,7 +146,6 @@ public class WeaponSlotManager : MonoBehaviour
         weapons.Clear();
         foreach (EquippableWeapon w in FindObjectsOfType<EquippableWeapon>(true))
             weapons.Add(w);
-        Debug.Log($"[WeaponSlot] Найдено оружия в сцене: {weapons.Count}");
     }
 
     /// <summary>Найти оружие по id. Null если нет.</summary>
@@ -158,38 +166,128 @@ public class WeaponSlotManager : MonoBehaviour
         if (target == null)
         {
             Debug.LogWarning($"[WeaponSlot] Оружие с id '{weaponId}' не найдено в сцене. " +
-                             "Проверь, что на модели висит EquippableWeapon с этим Weapon Id.");
+                              "Проверь, что на модели висит EquippableWeapon с этим Weapon Id.");
             return false;
         }
 
         if (current == target)
         {
-            Debug.Log($"[WeaponSlot] {target.displayName} уже в руках.");
+            // Возврат к оружию, которое прямо сейчас убирается: отменяем опускание.
+            if (holstering == target)
+            {
+                switchVersion++;
+                if (switchRoutine != null) { StopCoroutine(switchRoutine); switchRoutine = null; }
+                holstering = null;
+                target.EquipNow(playSound: false);
+                OnEquippedChanged?.Invoke(current);
+                ApplyCrosshairVisibility();
+            }
             return true;
         }
 
-        foreach (EquippableWeapon w in weapons)
-            if (w != null && w != target) w.SetEquipped(false);
-
-        target.SetEquipped(true, playSound: true);
-        current = target;
-
-        OnEquippedChanged?.Invoke(current);
-        ApplyCrosshairVisibility();
-        Debug.Log($"[WeaponSlot] Экипировано: {target.displayName}");
+        StartSwitch(target);
         return true;
     }
 
     /// <summary>Спрятать всё — пустые руки.</summary>
     public void Holster()
     {
-        if (current == null) return;
+        if (current == null && holstering == null) return;
+        switchVersion++;
+        if (switchRoutine != null) { StopCoroutine(switchRoutine); switchRoutine = null; }
+        switchRoutine = StartCoroutine(HolsterRoutine(switchVersion));
+    }
+
+    void StartSwitch(EquippableWeapon target)
+    {
+        switchVersion++;
+        // Прерванное опускание чужого — гасим сразу, очередь не копим (защита от спама колесом).
+        if (holstering != null && holstering != target)
+        {
+            holstering.SetEquipped(false);
+            holstering = null;
+        }
+        if (switchRoutine != null) { StopCoroutine(switchRoutine); switchRoutine = null; }
+        switchRoutine = StartCoroutine(SwitchRoutine(target, switchVersion));
+    }
+
+    // Старое красиво опускается, потом включается новое с подъёмом.
+    // Подъём нового проигрывается сам через OnEnable (Wep/HeldItem).
+    IEnumerator SwitchRoutine(EquippableWeapon target, int version)
+    {
+        EquippableWeapon previous = current;
+        current = target;
+
+        if (previous != null && previous != target && previous.gameObject.activeSelf)
+        {
+            holstering = previous;
+            if (animateSwitch && previous.BeginHolster())
+            {
+                float wait = Mathf.Min(previous.HolsterWaitTime, maxHolsterWait);
+                float t = 0f;
+                while (t < wait)
+                {
+                    if (version != switchVersion) yield break;
+                    t += Time.deltaTime;
+                    yield return null;
+                }
+                if (version != switchVersion) yield break;
+            }
+            previous.SetEquipped(false);
+            if (holstering == previous) holstering = null;
+        }
+
+        // Всё лишнее — сразу (рассинхрон после быстрого листания).
         foreach (EquippableWeapon w in weapons)
-            if (w != null) w.SetEquipped(false);
+            if (w != null && w != target && w.gameObject.activeSelf) w.SetEquipped(false);
+        if (holstering != null && holstering != target)
+        {
+            holstering.SetEquipped(false);
+            holstering = null;
+        }
+
+        // Включаем новое; если это возврат к недотушенному — подъём переигрывается.
+        if (holstering == target) holstering = null;
+        target.EquipNow(playSound: true);
+
+        OnEquippedChanged?.Invoke(current);
+        ApplyCrosshairVisibility();
+        switchRoutine = null;
+    }
+
+    IEnumerator HolsterRoutine(int version)
+    {
+        // Хвост прерванного переключения — сразу, иначе зависнет в полуопущенной позе.
+        if (holstering != null)
+        {
+            holstering.SetEquipped(false);
+            holstering = null;
+        }
+        EquippableWeapon previous = current;
         current = null;
+
+        if (previous != null && previous.gameObject.activeSelf)
+        {
+            holstering = previous;
+            if (animateSwitch && previous.BeginHolster())
+            {
+                float wait = Mathf.Min(previous.HolsterWaitTime, maxHolsterWait);
+                float t = 0f;
+                while (t < wait)
+                {
+                    if (version != switchVersion) yield break;
+                    t += Time.deltaTime;
+                    yield return null;
+                }
+                if (version != switchVersion) yield break;
+            }
+            previous.SetEquipped(false);
+            if (holstering == previous) holstering = null;
+        }
+
         OnEquippedChanged?.Invoke(null);
         ApplyCrosshairVisibility();
-        Debug.Log("[WeaponSlot] Оружие убрано.");
+        switchRoutine = null;
     }
     // Листает только подобранное (есть ItemData в инвентаре), остальное пропускает
     public void CycleOwned(int direction)

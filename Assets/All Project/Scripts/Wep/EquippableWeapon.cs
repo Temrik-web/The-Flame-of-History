@@ -40,6 +40,58 @@ public class EquippableWeapon : MonoBehaviour
     /// <summary>Экипировано ли сейчас.</summary>
     public bool IsEquipped => isEquipped;
 
+    private HeldItem cachedHeld;
+    private Wep cachedWep;
+    private bool animCacheBuilt;
+
+    /// <summary>Сколько ждать опускания перед скрытием. 0 — анимации нет, прятать сразу.</summary>
+    public float HolsterWaitTime
+    {
+        get
+        {
+            BuildAnimCache();
+            if (cachedHeld != null && cachedHeld.enableEquipAnimation) return Mathf.Max(0.05f, cachedHeld.holsterDuration);
+            if (cachedWep != null && cachedWep.enableEquipAnimation) return Mathf.Max(0.05f, cachedWep.holsterDuration);
+            return 0f;
+        }
+    }
+
+    /// <summary>Начать опускание перед убиранием. False — анимации нет, можно прятать сразу.</summary>
+    public bool BeginHolster()
+    {
+        BuildAnimCache();
+        if (cachedHeld != null && cachedHeld.enableEquipAnimation)
+        {
+            if (!cachedHeld.gameObject.activeInHierarchy) return false;
+            cachedHeld.BeginHolster();
+            return true;
+        }
+        if (cachedWep != null && cachedWep.enableEquipAnimation)
+        {
+            if (!cachedWep.gameObject.activeInHierarchy) return false;
+            cachedWep.BeginHolster();
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>Включить и гарантировать подъём (перекрывает прерванное опускание).</summary>
+    public void EquipNow(bool playSound = false)
+    {
+        SetEquipped(true, playSound);
+        BuildAnimCache();
+        if (cachedHeld != null) cachedHeld.ReplayEquipAnimation();
+        if (cachedWep != null) cachedWep.ReplayEquipAnimation();
+    }
+
+    void BuildAnimCache()
+    {
+        if (animCacheBuilt) return;
+        animCacheBuilt = true;
+        cachedHeld = GetComponentInChildren<HeldItem>(true);
+        cachedWep = GetComponentInChildren<Wep>(true);
+    }
+
     void Awake()
     {
         if (string.IsNullOrEmpty(weaponId))

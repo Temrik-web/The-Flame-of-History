@@ -112,7 +112,6 @@ public class WeaponAmmoLink : MonoBehaviour
         isSyncing = true;
         inventory.RemoveItem(magazineItem, itemsToRemove);
         isSyncing = false;
-        Debug.Log($"[AmmoLink] Израсходован магазин. Осталось: {inventory.CountItem(magazineItem)}");
     }
     public void SyncToWeapon()
     {

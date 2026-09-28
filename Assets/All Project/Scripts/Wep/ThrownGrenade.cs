@@ -4,7 +4,7 @@ using FlameOfHistory.AI;
 
 /// <summary>Выпущенная граната: летит, тикает, взрывается. Урон падает к краю радиуса, стена укрывает.</summary>
 [DisallowMultipleComponent]
-public class ThrownGrenade : MonoBehaviour
+public class ThrownGrenade : MonoBehaviour, IDamageable
 {
     [Header("Запал")]
     [Tooltip("Через сколько секунд после броска рванёт.")]
@@ -92,6 +92,11 @@ public class ThrownGrenade : MonoBehaviour
     [Tooltip("Радиус, в котором враги услышат взрыв.")]
     public float noiseRadius = 45f;
 
+    [Header("Детонация от внешнего воздействия")]
+    [Tooltip("Через сколько секунд после пули/удара/близкого взрыва сдетонировать, " +
+             "если свой запал дольше. Реалистичная пауза срабатывания.")]
+    [Min(0f)] public float impactDetonationDelay = 0.12f;
+
     [Header("Отладка")]
     public bool logDamage = false;
 
@@ -128,8 +133,46 @@ public class ThrownGrenade : MonoBehaviour
 
     void Awake()
     {
+        // Копия из рук наследует слой HeldObjects, который исключён из HitMask оружия, —
+        // пули проходили бы сквозь гранату и выстрелом её было бы не взорвать.
+        int heldLayer = LayerMask.NameToLayer("HeldObjects");
+        if (heldLayer >= 0 && gameObject.layer == heldLayer)
+            SetLayerRecursively(gameObject, 0);
         if (fuseTimer <= 0f) fuseTimer = fuseTime;
         EnsureBody();
+    }
+
+    static void SetLayerRecursively(GameObject root, int layer)
+    {
+        if (root == null) return;
+        root.layer = layer;
+        foreach (Transform child in root.transform)
+            SetLayerRecursively(child.gameObject, layer);
+    }
+
+    // Пуля (своя, вражеская) или чужой взрыв — мгновенная детонация.
+    // Цепные взрывы лежащих рядом гранат получаются сами собой.
+    bool IDamageable.IsAlive => !hasExploded;
+
+    Team IDamageable.Team
+    {
+        get
+        {
+            if (Thrower != null)
+            {
+                CharacterHealth health = Thrower.GetComponentInParent<CharacterHealth>();
+                if (health != null) return health.Team;
+            }
+            return Team.Axis;
+        }
+    }
+
+    void IDamageable.TakeDamage(DamageInfo damage)
+    {
+        if (hasExploded) return;
+        // Внешнее воздействие не глушит свой запал, а ускоряет его до паузы срабатывания.
+        if (impactDetonationDelay <= 0f) Explode();
+        else fuseTimer = Mathf.Min(fuseTimer, impactDetonationDelay);
     }
 
     void Start()

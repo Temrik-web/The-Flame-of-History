@@ -67,6 +67,9 @@ public class InventorySystem : MonoBehaviour
     [Min(1)] public int maxSlots = 20;
     [Tooltip("Использовать предмет по цифрам 1..9.")]
     public bool useHotkeys = true;
+    [Tooltip("Повторное нажатие цифры оружия, которое уже в руках, — убрать его (пустые руки). " +
+             "Как переключение оружия в шутерах. G+цифра по-прежнему выбрасывает предмет.")]
+    public bool hotkeyTogglesHolster = true;
     [Tooltip("Клавиша сортировки по категориям.")]
     public KeyCode sortKey = KeyCode.R;
     [Tooltip("Автоматически сортировать после каждого подбора.")]
@@ -302,9 +305,27 @@ public class InventorySystem : MonoBehaviour
             }
 
             if (Input.GetKey(dropKey)) DropSlot(index);
-            else UseSlot(index);
+            else if (!(hotkeyTogglesHolster && ToggleHolsterIfEquipped(index))) UseSlot(index);
             return;
         }
+    }
+
+    /// <summary>
+    /// Повторная цифра: если это оружие уже в руках — убрать его.
+    /// True если убрали (UseSlot вызывать не надо).
+    /// </summary>
+    bool ToggleHolsterIfEquipped(int index)
+    {
+        if (!IsValidIndex(index)) return false;
+
+        ItemData item = slots[index].item;
+        if (item == null || !item.IsEquippable) return false;
+        if (!item.IsCurrentlyEquipped) return false;
+        if (WeaponSlotManager.Instance == null) return false;
+
+        WeaponSlotManager.Instance.Holster();
+        Debug.Log($"[Inventory] {item.itemName} убрано повторной цифрой.");
+        return true;
     }
 
     public int FindSlotByHotbar(int digit)

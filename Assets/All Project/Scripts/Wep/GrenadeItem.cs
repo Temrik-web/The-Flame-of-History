@@ -97,6 +97,10 @@ public class GrenadeItem : HeldItem
     [Tooltip("Доля урона на границе радиуса. 0.35 при уроне 150 — это 52 урона на краю.")]
     [Range(0f, 1f)] public float explosionEdgeDamageFactor = 0.35f;
 
+    [Tooltip("Задержка между попаданием пули в лежащую гранату и взрывом, сек. " +
+             "Реалистичная пауза срабатывания.")]
+    [Range(0f, 1f)] public float shotDetonationDelay = 0.12f;
+
     [Header("Расход из инвентаря")]
     [Tooltip("Списывать одну гранату из инвентаря при броске.")]
     public bool consumeFromInventory = true;
@@ -197,6 +201,33 @@ public class GrenadeItem : HeldItem
     }
 
     // =====================================================================
+    /// <summary>
+    /// Взорвать лежащую в мире гранату-пикап выстрелом: с минимальной реалистичной
+    /// задержкой срабатывания. Настройки взрыва — этого предмета. Вызывается из Wep.
+    /// </summary>
+    public void DetonatePickup(GameObject pickupObject, GameObject shooter)
+    {
+        if (pickupObject == null) return;
+
+        foreach (Pickup p in pickupObject.GetComponentsInChildren<Pickup>(true))
+        {
+            p.enabled = false;
+            Destroy(p);
+        }
+        foreach (FlameOfHistory.AI.DroppedWeapon d in pickupObject.GetComponentsInChildren<FlameOfHistory.AI.DroppedWeapon>(true))
+            Destroy(d);
+
+        ThrownGrenade thrown = pickupObject.GetComponent<ThrownGrenade>();
+        if (thrown == null) thrown = pickupObject.AddComponent<ThrownGrenade>();
+        ApplyExplosionSettings(thrown);
+        // Launch ради привязки Thrower (реакция ИИ, засчитывание урона) и запала-паузы.
+        thrown.Launch(Vector3.zero, Vector3.zero, shooter, Mathf.Max(0.01f, shotDetonationDelay));
+        if (shotDetonationDelay <= 0f) thrown.Explode();
+
+        if (logActions) Debug.Log("[Grenade] Выстрел по лежащей гранате — детонация с паузой срабатывания.");
+    }
+
+    // =====================================================================
     protected override void HandleInput()
     {
         if (isThrowing) return;
@@ -228,19 +259,13 @@ public class GrenadeItem : HeldItem
         cookTimer = 0f;
         PlaySound(pinPullSound, soundVolume);
         AddKick(new Vector3(-0.02f, 0f, -0.03f), new Vector3(-3f, 2f, 0f));
-
-        if (logActions) Debug.Log("[Grenade] Запал выдернут.");
     }
 
     /// <summary>Бросить гранату с заданной силой.</summary>
     public void Throw(float force)
     {
         if (isThrowing) return;
-        if (!HasGrenadeInInventory())
-        {
-            if (logActions) Debug.Log("[Grenade] Гранат больше нет.");
-            return;
-        }
+        if (!HasGrenadeInInventory()) return;
 
         throwRoutine = StartCoroutine(ThrowSequence(force));
     }
@@ -294,7 +319,6 @@ public class GrenadeItem : HeldItem
             throwRoutine = null;
             if (WeaponSlotManager.Instance != null) WeaponSlotManager.Instance.Holster();
             else SetModelVisible(false);
-            if (logActions) Debug.Log("[Grenade] Последняя граната брошена, руки пустые.");
             yield break;
         }
         if (rearmTime > 0f) yield return new WaitForSeconds(rearmTime);
@@ -321,8 +345,6 @@ public class GrenadeItem : HeldItem
         float remainingFuse = pinPulled ? Mathf.Max(0.15f, fuseTime - cookTimer) : fuseTime;
         GameObject thrower = Controller != null ? Controller.gameObject : gameObject;
         thrown.Launch(velocity, throwSpin * Mathf.Deg2Rad * 30f, thrower, remainingFuse);
-        if (logActions)
-            Debug.Log($"[Grenade] Брошена: сила {force:0.#}, запал {remainingFuse:0.##} с.");
     }
     // Настройки взрыва переносим на снаряд-копию: у AddComponent иначе только дефолты без эффекта и звука
     void ApplyExplosionSettings(ThrownGrenade thrown)
@@ -350,6 +372,7 @@ public class GrenadeItem : HeldItem
         thrown.damage = explosionDamage;
         thrown.damageRadius = explosionDamageRadius;
         thrown.edgeDamageFactor = explosionEdgeDamageFactor;
+        thrown.impactDetonationDelay = shotDetonationDelay;
     }
 
     // Копия модели из рук как снаряд — чтобы летала даже без префаба

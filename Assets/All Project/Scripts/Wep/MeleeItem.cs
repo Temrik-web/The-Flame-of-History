@@ -288,7 +288,6 @@ public class MeleeItem : HeldItem
         GameObject self = Controller != null ? Controller.gameObject : gameObject;
         int limit = heavy ? maxTargetsPerHeavy : maxTargetsPerLight;
         int applied = 0;
-        bool blockedBySurface = false;
 
         foreach (RaycastHit hit in hits)
         {
@@ -314,29 +313,16 @@ public class MeleeItem : HeldItem
             if (hitNoiseRadius > 0f)
                 NoiseSystem.Emit(hit.point, hitNoiseRadius, self, damagedLiving ? 0.7f : 0.4f);
 
-            if (logActions)
-            {
-                string kind = heavy ? "Размах" : "Тычок";
-                string what = damagedLiving ? $"{root.name} на {damage:0.#} урона" : root.name;
-                Debug.Log($"[Melee] {kind}: {what}{(backstab ? " (в спину)" : "")}");
-            }
-
             applied++;
 
             if (!damagedLiving)
             {
-                if (!heavy) { blockedBySurface = true; break; }
+                if (!heavy) break;
                 continue;
             }
 
             if (applied >= limit) break;
         }
-
-        if (applied == 0 && logActions && forceBackstabAttempt)
-            Debug.Log("[Melee] Удар в спину: цели рядом нет.");
-
-        if (blockedBySurface && logActions)
-            Debug.Log("[Melee] Тычок упёрся в поверхность.");
 
         return applied;
     }

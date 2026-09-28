@@ -84,6 +84,45 @@ public abstract class HeldItem : MonoBehaviour
     public float breathAmplitude = 0.0035f;
     public float breathSpeed = 1f;
 
+    [Header("Появление в руках (equip)")]
+    [Tooltip("Плавное появление предмета при взятии в руки / переключении. " +
+             "Выключено — предмет появляется мгновенно, как раньше.")]
+    public bool enableEquipAnimation = true;
+
+    [Tooltip("Сколько секунд предмет поднимается в руки (с пояса, из-за нижнего края экрана).")]
+    [Min(0.05f)] public float equipDuration = 0.6f;
+
+    [Tooltip("Откуда поднимается: смещение от позы в руках. Глубоко снизу из-за кадра — как с пояса.")]
+    public Vector3 equipFromOffset = new Vector3(0.04f, -0.55f, -0.14f);
+
+    [Tooltip("Стартовый наклон при появлении, градусы. Добавляется к позе в руках.")]
+    public Vector3 equipFromRotation = new Vector3(-32f, 10f, 8f);
+
+    [Tooltip("Сочность: перелёт в конце подъёма. 0 — максимально плавно, больше — резче.")]
+    [Range(0f, 3f)] public float equipOvershoot = 0.8f;
+
+    [Tooltip("Дуга подъёма: выгиб траектории в середине (вперёд и чуть вбок), " +
+             "чтобы предмет выходил с пояса по дуге, а не ехал по прямой как лифт.")]
+    public Vector3 equipArc = new Vector3(0.02f, 0f, 0.08f);
+
+    [Tooltip("Какая доля подъёма уходит на выпрямление наклона. " +
+             "Поворот заканчивается раньше позиции — как живая кисть: сначала доворот, потом доводка.")]
+    [Range(0.3f, 1f)] public float rotationLead = 0.55f;
+
+    [Tooltip("Блокировать атаку/бросок, пока предмет достаётся (как draw time в шутерах).")]
+    public bool blockInputDuringEquip = true;
+
+    [Header("Убирание из рук (holster)")]
+    [Tooltip("Сколько секунд предмет опускается перед выключением. " +
+             "Управляется WeaponSlotManager: он ждёт это время, потом прячет объект.")]
+    [Min(0.05f)] public float holsterDuration = 0.3f;
+
+    [Tooltip("Куда опускается: смещение от позы в руках. Глубоко вниз за край экрана — как на пояс.")]
+    public Vector3 holsterToOffset = new Vector3(0f, -0.5f, -0.1f);
+
+    [Tooltip("Наклон при убирании, градусы.")]
+    public Vector3 holsterToRotation = new Vector3(-24f, 8f, 5f);
+
     [Header("Прицел")]
     [Tooltip("Показывать перекрестие, пока предмет в руках. Объект берётся у ППШ, " +
              "чтобы прицел не оставался спрятанным после смены оружия.")]
@@ -135,6 +174,18 @@ public abstract class HeldItem : MonoBehaviour
     private Vector3 poseOverridePosition;
     private Vector3 poseOverrideRotation;
     private float poseOverrideWeight;
+
+    // Плавное появление/убирание: считается по времени в UpdatePose,
+    // поэтому не ломается при выключении объекта и не спорит со sway/bob.
+    private float equipProgress = 1f;
+    private bool isHolstering;
+    private float holsterProgress;
+
+    /// <summary>Предмет сейчас поднимается в руки (первые доли секунды после экипировки).</summary>
+    public bool IsEquipping => enableEquipAnimation && equipProgress < 1f;
+
+    /// <summary>Предмет сейчас опускается (WeaponSlotManager вот-вот его спрячет).</summary>
+    public bool IsHolstering => isHolstering;
 
     private Renderer[] cachedRenderers;
     private bool initFailed;
@@ -189,6 +240,33 @@ public abstract class HeldItem : MonoBehaviour
         }
     }
 
+    /// <summary>Начать опускание перед убиранием. Менеджер ждёт holsterDuration и прячет объект.</summary>
+    public void BeginHolster()
+    {
+        if (!enableEquipAnimation) return;
+        isHolstering = true;
+        holsterProgress = 0f;
+        equipProgress = 1f;
+    }
+
+    /// <summary>Отменить опускание (быстро переключились обратно) и проиграть подъём заново.</summary>
+    public void ReplayEquipAnimation()
+    {
+        isHolstering = false;
+        holsterProgress = 0f;
+        equipProgress = enableEquipAnimation ? 0f : 1f;
+        ClearPoseOverride();
+        if (enableEquipAnimation) SnapToEquipStart();
+    }
+
+    /// <summary>Мгновенно поставить модель в стартовую позу подъёма (пояс).</summary>
+    void SnapToEquipStart()
+    {
+        if (itemModel == null) return;
+        itemModel.localPosition = hipPosition + equipFromOffset;
+        itemModel.localRotation = Quaternion.Euler(hipRotation + equipFromRotation);
+    }
+
     protected virtual void OnEnable()
     {
         ClearPoseOverride();
@@ -197,6 +275,13 @@ public abstract class HeldItem : MonoBehaviour
         aimProgress = 0f;
         AimBlend = 0f;
         IsAiming = false;
+        // Каждое включение (подбор, переключение, старт сцены) — красивый подъём в руки.
+        isHolstering = false;
+        holsterProgress = 0f;
+        equipProgress = enableEquipAnimation ? 0f : 1f;
+        // Стартуем кадр сразу с пояса: иначе модель долетит туда из старой позы
+        // и будет видно, как предмет сначала дёргается назад, а потом идёт вверх.
+        if (enableEquipAnimation) SnapToEquipStart();
         SetModelVisible(true);
         if (manageCrosshair) ApplyCrosshair(true);
     }
@@ -206,6 +291,9 @@ public abstract class HeldItem : MonoBehaviour
         ClearPoseOverride();
         kickPosition = Vector3.zero;
         kickRotation = Vector3.zero;
+        isHolstering = false;
+        holsterProgress = 0f;
+        equipProgress = 1f;
     }
     protected virtual void Update()
     {
@@ -216,8 +304,10 @@ public abstract class HeldItem : MonoBehaviour
         SyncFromController();
         if (!InputBlocked)
         {
-            if (useRightMouseAsAim) IsAiming = Input.GetMouseButton(1);
-            HandleInput();
+            if (useRightMouseAsAim) IsAiming = Input.GetMouseButton(1) && !IsEquipping && !isHolstering;
+            // Удар/бросок из полудостанного предмета выглядит багнуто — ждём конца подъёма.
+            if ((blockInputDuringEquip && IsEquipping) || isHolstering) { }
+            else HandleInput();
         }
         else
         {
@@ -299,7 +389,6 @@ public abstract class HeldItem : MonoBehaviour
         if (transform.parent != target)
         {
             transform.SetParent(target, false);
-            Debug.Log($"[HeldItem] {name} перецеплен в руки к «{target.name}».");
         }
         transform.localPosition = hipPosition;
         transform.localRotation = Quaternion.Euler(hipRotation);
@@ -439,8 +528,18 @@ public abstract class HeldItem : MonoBehaviour
         breathTimer += Time.deltaTime * breathSpeed;
     }
 
+    void UpdateEquipTimers()
+    {
+        if (enableEquipAnimation && equipProgress < 1f)
+            equipProgress = Mathf.Min(1f, equipProgress + Time.deltaTime / Mathf.Max(0.05f, equipDuration));
+        if (isHolstering)
+            holsterProgress = Mathf.Min(1f, holsterProgress + Time.deltaTime / Mathf.Max(0.05f, holsterDuration));
+    }
+
     void UpdatePose()
     {
+        UpdateEquipTimers();
+
         Vector3 basePos = Vector3.Lerp(hipPosition, aimPosition, AimBlend);
         Vector3 baseRot = Vector3.Lerp(hipRotation, aimRotation, AimBlend);
 
@@ -450,9 +549,38 @@ public abstract class HeldItem : MonoBehaviour
             baseRot = Vector3.Lerp(baseRot, poseOverrideRotation, poseOverrideWeight);
         }
 
+        // Двухфазный подъём: кисть выпрямляется первой (поворот — быстро и без перелёта),
+        // затем рука доводит предмет по дуге с мягким дотягом в конце. Складывается с позой,
+        // поэтому не спорит с покачиванием, дыханием и замахом.
+        if (enableEquipAnimation)
+        {
+            if (equipProgress < 1f)
+            {
+                float rotK = WeaponEquipEases.EaseOutCubic(Mathf.Clamp01(equipProgress / Mathf.Max(0.3f, rotationLead)));
+                float posK = WeaponEquipEases.EaseOutBack(equipProgress, equipOvershoot);
+                float arcK = Mathf.Sin(Mathf.Clamp01(equipProgress) * Mathf.PI);
+                basePos += Vector3.Lerp(equipFromOffset, Vector3.zero, posK) + equipArc * arcK;
+                baseRot += Vector3.Lerp(equipFromRotation, Vector3.zero, rotK);
+            }
+            else if (isHolstering)
+            {
+                float h = WeaponEquipEases.EaseInQuad(holsterProgress);
+                basePos += Vector3.Lerp(Vector3.zero, holsterToOffset, h);
+                baseRot += Vector3.Lerp(Vector3.zero, holsterToRotation, h);
+            }
+        }
+
         // Поднятый предмет качается меньше, во время анимации — почти не качается
         float motion = 1f - AimBlend * 0.7f;
         if (poseOverrideActive) motion *= 1f - poseOverrideWeight * animationMotionDamping;
+        // Подавление качания гаснет плавно вместе с анимацией — иначе в конце подъёма виден щелчок.
+        if (enableEquipAnimation)
+        {
+            if (equipProgress < 1f)
+                motion *= Mathf.Lerp(0.25f, 1f, Mathf.SmoothStep(0f, 1f, equipProgress));
+            else if (isHolstering)
+                motion *= Mathf.Lerp(1f, 0.25f, Mathf.SmoothStep(0f, 1f, holsterProgress));
+        }
 
         Vector3 offsetPos = (swayPositionOffset + bobPosition + kickPosition) * motion;
         Vector3 offsetRot = (swayRotationOffset + bobRotation + kickRotation) * motion;
