@@ -1,7 +1,6 @@
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>Тестовый куб: по E включает 3 немцев. Tools -> Тест -> Создать куб спавна немцев.</summary>
 public static class EnemySpawnCubeWizard
 {
     [MenuItem("Tools/Тест/Создать куб спавна немцев", false, 0)]
@@ -114,7 +113,7 @@ public static class EnemySpawnCubeWizard
     {
         GameObject tagged = null;
         try { tagged = GameObject.FindGameObjectWithTag("Player"); }
-        catch { /* тег может быть не определён */ }
+        catch {  }
         if (tagged != null) return tagged;
 
         var cc = Object.FindObjectOfType<CharacterController>();

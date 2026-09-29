@@ -6,7 +6,6 @@ using FlameOfHistory.AI;
 using CombatEnemyAI = FlameOfHistory.AI.EnemyAI;
 using CombatTeam = FlameOfHistory.AI.Team;
 
-/// <summary>Создание префаба врага, шаблона и настройка игрока. Меню Tools -> Враги.</summary>
 public static class EnemySetupWizard
 {
     private const string GameDataFolder = "Assets/GameData";
@@ -49,10 +48,47 @@ public static class EnemySetupWizard
             if (prefab == null) return;
         }
 
-        GameObject player = FindPlayer();
+        GetSpawnBeforePlayer(out Vector3 spawnPos, out Quaternion spawnRot);
 
-        Vector3 spawnPos;
-        Quaternion spawnRot;
+        GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+        instance.name = EnemyTemplateName;
+        instance.transform.SetPositionAndRotation(spawnPos, spawnRot);
+
+        Undo.RegisterCreatedObjectUndo(instance, "Spawn enemy template");
+        Selection.activeGameObject = instance;
+        EditorGUIUtility.PingObject(instance);
+
+        if (SceneView.lastActiveSceneView != null)
+            SceneView.lastActiveSceneView.FrameSelected();
+
+        Debug.Log("[EnemySetup] Эталонный враг размещён перед игроком. " +
+                  "Выдели его и жми Ctrl+D, чтобы клонировать и расставить по уровню.");
+    }
+
+    [MenuItem("Tools/Враги/Создать врага-капсулу на сцене", false, 2)]
+    public static void CreateCapsuleEnemyInScene()
+    {
+        GetSpawnBeforePlayer(out Vector3 spawnPos, out Quaternion spawnRot);
+
+        GameObject root = BuildEnemyObject();
+        root.name = "Enemy (капсула)";
+        root.transform.SetPositionAndRotation(spawnPos, spawnRot);
+
+        Undo.RegisterCreatedObjectUndo(root, "Create capsule enemy");
+        Selection.activeGameObject = root;
+        EditorGUIUtility.PingObject(root);
+
+        if (SceneView.lastActiveSceneView != null)
+            SceneView.lastActiveSceneView.FrameSelected();
+
+        Debug.Log("[EnemySetup] Рабочая капсула создана: EnemyAI + Motor + Health + " +
+                  "Loadout + Weapon + Voice + SuppressionReceiver. Жми Play — " +
+                  "патрулирует, видит игрока, стреляет.", root);
+    }
+
+    private static void GetSpawnBeforePlayer(out Vector3 spawnPos, out Quaternion spawnRot)
+    {
+        GameObject player = FindPlayer();
 
         if (player != null)
         {
@@ -77,20 +113,6 @@ public static class EnemySetupWizard
             Debug.Log("[EnemySetup] NavMesh рядом не найден. Враг будет ходить в режиме " +
                       "EnemyMotor.Fallback (по коллайдерам земли). Для полноценной навигации " +
                       "с обходом препятствий запеки NavMesh.");
-
-        GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-        instance.name = EnemyTemplateName;
-        instance.transform.SetPositionAndRotation(spawnPos, spawnRot);
-
-        Undo.RegisterCreatedObjectUndo(instance, "Spawn enemy template");
-        Selection.activeGameObject = instance;
-        EditorGUIUtility.PingObject(instance);
-
-        if (SceneView.lastActiveSceneView != null)
-            SceneView.lastActiveSceneView.FrameSelected();
-
-        Debug.Log("[EnemySetup] Эталонный враг размещён перед игроком. " +
-                  "Выдели его и жми Ctrl+D, чтобы клонировать и расставить по уровню.");
     }
 
     [MenuItem("Tools/Враги/Настроить игрока (свист пуль + тряска)", false, 20)]
@@ -123,7 +145,6 @@ public static class EnemySetupWizard
 
         GameObject camGo = cam.gameObject;
 
-        // SuppressionReceiver тряску не вызывает (только звук), но CameraShake нужен другим системам.
         CameraShake shake = camGo.GetComponent<CameraShake>();
         if (shake == null) Undo.AddComponent<CameraShake>(camGo);
 
@@ -258,7 +279,6 @@ public static class EnemySetupWizard
         aiSo.FindProperty("voice").objectReferenceValue = voice;
         aiSo.FindProperty("enemyTeam").enumValueIndex = (int)CombatTeam.Axis;
 
-        // Свой коллайдер не должен закрывать обзор (глаза внутри тела).
         int selfLayerMask = charLayer >= 0 ? (1 << charLayer) : 0;
 
         SerializedProperty targetMask = aiSo.FindProperty("targetMask");
@@ -267,7 +287,6 @@ public static class EnemySetupWizard
         visibilityMask.intValue = selfLayerMask != 0 ? ~selfLayerMask : ~0;
         aiSo.ApplyModifiedProperties();
 
-        // existingWeapon не проставляем: Loadout сам найдёт оружие, не сбивая позицию.
         root.AddComponent<EnemyLoadout>();
         SuppressionReceiver receiver = root.AddComponent<SuppressionReceiver>();
         var recSo = new SerializedObject(receiver);
@@ -297,9 +316,6 @@ public static class EnemySetupWizard
         so.FindProperty("arriveRadius").floatValue = 1.2f;
         so.FindProperty("bodyRadius").floatValue = 0.4f;
         so.FindProperty("groundOffset").floatValue = 1f;
-        // Исключаем только слой Characters, если он есть. Иначе (~0) — трогаем все слои.
-        // Было: исключение ownerLayer без проверки ломало землю на Default,
-        // если слоя Characters нет в проекте.
         int charLayerIdx = LayerMask.NameToLayer("Characters");
         int exclude = charLayerIdx >= 0 ? ~(1 << charLayerIdx) : ~0;
         so.FindProperty("groundMask").intValue = exclude;
@@ -316,14 +332,13 @@ public static class EnemySetupWizard
             AssetDatabase.CreateFolder(GameDataFolder, "Prefabs");
     }
 
-    /// <summary>Ищем игрока в сцене, не завязываясь на сторонние типы.</summary>
     private static GameObject FindPlayer()
     {
         var pc = Object.FindObjectOfType<PlayerHealth>();
         if (pc != null) return pc.gameObject;
         GameObject tagged = null;
         try { tagged = GameObject.FindGameObjectWithTag("Player"); }
-        catch { /* тег может быть не определён */ }
+        catch {  }
         if (tagged != null) return tagged;
         var cc = Object.FindObjectOfType<CharacterController>();
         if (cc != null) return cc.gameObject;

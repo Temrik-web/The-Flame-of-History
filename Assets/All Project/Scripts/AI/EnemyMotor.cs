@@ -3,7 +3,6 @@ using UnityEngine.AI;
 
 namespace FlameOfHistory.AI
 {
-    /// <summary>Ходьба врага: NavMesh, а без него — ручной Fallback по коллайдерам. Режим выбирается сам.</summary>
     [RequireComponent(typeof(NavMeshAgent))]
     [DisallowMultipleComponent]
     public sealed class EnemyMotor : MonoBehaviour
@@ -65,16 +64,12 @@ namespace FlameOfHistory.AI
         [Tooltip("Не шагать туда, где под ногами нет земли (обрывы, ямы).")]
         [SerializeField] private bool avoidLedges = true;
 
-        /// <summary>Текущий режим передвижения.</summary>
         public MotorMode Mode { get; private set; } = MotorMode.NavMesh;
 
-        /// <summary>Есть ли активный пункт назначения.</summary>
         public bool HasDestination { get; private set; }
 
-        /// <summary>Текущая цель движения (валидна при HasDestination).</summary>
         public Vector3 Destination => _destination;
 
-        /// <summary>Фактическая скорость перемещения в м/с (без вертикали).</summary>
         public float CurrentSpeed
         {
             get
@@ -85,13 +80,10 @@ namespace FlameOfHistory.AI
             }
         }
 
-        /// <summary>Фактическая скорость с вертикалью — для анимаций.</summary>
         public Vector3 Velocity => _measuredVelocity;
 
-        /// <summary>Стоит ли враг на земле (в режиме NavMesh всегда true).</summary>
         public bool IsGrounded => Mode == MotorMode.NavMesh || _isGrounded;
 
-        /// <summary>Готов ли мотор двигать врага хоть каким-то способом.</summary>
         public bool CanMove =>
             (Mode == MotorMode.NavMesh && AgentUsable) ||
             (Mode == MotorMode.Fallback && allowFallbackMovement);
@@ -111,14 +103,12 @@ namespace FlameOfHistory.AI
         private Vector3 _measuredVelocity;
         private float _fallbackSpeed;
         private Vector3 _fallbackMoveDir;
-        // Топчется с активной целью — считаем упёршимся, HasArrived вернёт true.
         private Vector3 _lastProgressPos;
         private float _lastProgressTime;
         private float _nextNavMeshCheckTime;
         private static bool s_fallbackNoticeShown;
         private static bool s_fallbackDisabledNoticeShown;
         private readonly Collider[] _obstacleCheckBuffer = new Collider[8];
-        // Задние углы — последний шанс выйти из тупика разворотом.
         private static readonly float[] RearAvoidanceAngles = { 135f, -135f, 180f };
 
         private bool AgentUsable => _agent != null && _agent.enabled && _agent.isOnNavMesh;
@@ -135,7 +125,6 @@ namespace FlameOfHistory.AI
             _autoRotation = _agent.updateRotation;
         }
 
-        /// <summary>Высота центра над землёй: у капсулы position — центр, а не ступни.</summary>
         private float MeasureGroundOffset()
         {
             if (_controller != null)
@@ -150,7 +139,7 @@ namespace FlameOfHistory.AI
                 if (offset > best) best = offset;
             }
 
-            return best > 0.01f ? best : 1f; // 1f — половина стандартной капсулы
+            return best > 0.01f ? best : 1f;
         }
 
         private void Start() => EvaluateMode(true);
@@ -163,15 +152,12 @@ namespace FlameOfHistory.AI
             _lastProgressTime = Time.time;
         }
 
-        // Публичный API для EnemyAI.
-        /// <summary>Задать скорость передвижения.</summary>
         public void SetSpeed(float speed)
         {
             _desiredSpeed = Mathf.Max(0f, speed);
             if (AgentUsable) _agent.speed = _desiredSpeed;
         }
 
-        /// <summary>Идти к точке. Возвращает false, если путь построить не удалось.</summary>
         public bool MoveTo(Vector3 target)
         {
             _destination = target;
@@ -198,7 +184,6 @@ namespace FlameOfHistory.AI
         public void Stop()
         {
             _blockedCompletely = false;
-            // Search дёргает Stop каждый кадр — без проверки ResetPath молотил бы впустую.
             bool agentBusy = AgentUsable && (_agent.hasPath || _agent.pathPending || !_agent.isStopped);
             if (!HasDestination && !agentBusy) return;
 
@@ -214,12 +199,10 @@ namespace FlameOfHistory.AI
         public bool HasArrived()
         {
             if (!HasDestination) return true;
-            // Путь строится асинхронно ~0.15с: без паузы ИИ решил бы, что уже пришёл.
             if (Time.time - _destinationSetTime < 0.15f) return false;
             if (Mode == MotorMode.NavMesh && AgentUsable)
             {
                 if (_agent.pathPending) return false;
-                // Непостроимый путь считаем прибытием, иначе ИИ зависнет навсегда.
                 if (_agent.pathStatus == NavMeshPathStatus.PathInvalid) return true;
                 if (!_agent.hasPath) return true;
 
@@ -246,12 +229,10 @@ namespace FlameOfHistory.AI
                 return false;
             }
 
-            // Луч от уровня ног, иначе на рельефе уйдёт в воздух.
             Vector3 probe = new(desired.x, transform.position.y - groundOffset + stepHeight + 1f, desired.z);
             if (TryFindGround(probe, out Vector3 grounded))
             {
                 result = grounded + Vector3.up * groundOffset;
-                // Точку внутри стены не выдаём — CharacterController на тонких стенах проталкивает насквозь.
                 if (IsPointInsideObstacle(result)) { result = desired; return false; }
 
                 return true;
@@ -271,7 +252,6 @@ namespace FlameOfHistory.AI
                 Collider collider = _obstacleCheckBuffer[i];
                 if (collider == null || collider.isTrigger) continue;
                 if (collider.transform.root == transform.root) continue;
-                // Ниже ступеньки — переступим, это не стена.
                 float footY = point.y - groundOffset;
                 if (collider.bounds.max.y - footY <= stepHeight) continue;
 
@@ -285,7 +265,6 @@ namespace FlameOfHistory.AI
         {
             FaceTowardsAtSpeed(worldPoint, turnSpeed * Mathf.Max(0.05f, turnSpeedMultiplier));
         }
-        /// <summary>Доводка с затуханием к концу — без роботизированного щелчка.</summary>
         public void FaceTowardsAtSpeed(Vector3 worldPoint, float degreesPerSecond)
         {
             Vector3 direction = worldPoint - transform.position;
@@ -298,24 +277,18 @@ namespace FlameOfHistory.AI
                 EaseTurnSpeed(transform.rotation, target, degreesPerSecond) * Time.deltaTime);
         }
 
-        /// <summary>
-        /// Затухание доводки: чем меньше осталось довернуть, тем медленнее.
-        /// Убирает роботизированный «щелчок» в конце поворота.
-        /// </summary>
         public static float EaseTurnSpeed(Quaternion current, Quaternion target, float maxSpeed)
         {
             float angle = Quaternion.Angle(current, target);
             return Mathf.Max(1f, maxSpeed) * Mathf.Clamp01(angle / 40f + 0.12f);
         }
 
-        /// <summary>Кто управляет поворотом: агент или сам ИИ.</summary>
         public void SetAutoRotation(bool enabled)
         {
             _autoRotation = enabled;
             if (_agent != null) _agent.updateRotation = enabled;
         }
 
-        /// <summary>Полностью отключить мотор (смерть врага).</summary>
         public void Disable()
         {
             Stop();
@@ -356,7 +329,6 @@ namespace FlameOfHistory.AI
                     Mode = MotorMode.NavMesh;
                     _verticalVelocity = 0f;
 
-                    // NavMeshAgent сам двигает трансформ — CharacterController мешает.
                     if (_controller != null && _controller.enabled)
                         _controller.enabled = false;
 
@@ -365,7 +337,6 @@ namespace FlameOfHistory.AI
                 return;
             }
 
-            // Агент выключен или свалился с навмеша — пробуем вернуть.
             if (TryReturnToNavMesh())
             {
                 Mode = MotorMode.NavMesh;
@@ -380,7 +351,6 @@ namespace FlameOfHistory.AI
                 Mode = MotorMode.Fallback;
                 if (_agent.enabled) _agent.enabled = false;
 
-                // Включаем CharacterController для fallback-движения с физикой.
                 if (_controller != null && !_controller.enabled)
                     _controller.enabled = true;
 
@@ -410,7 +380,6 @@ namespace FlameOfHistory.AI
                     navMeshSnapRadius, NavMesh.AllAreas))
                 return false;
 
-            // Warp без проверки тащит сквозь стену, если навмеш за ней.
             Vector3 from = transform.position + Vector3.up * 1f;
             Vector3 to = hit.position + Vector3.up * 1f;
             if (Physics.Linecast(from, to, obstacleMask, QueryTriggerInteraction.Ignore))
@@ -432,7 +401,6 @@ namespace FlameOfHistory.AI
         private void UpdateFallbackMovement(float dt)
         {
             Vector3 position = transform.position;
-            // position — центр тела, землю считаем от ног, иначе «висит» в воздухе.
             float footY = position.y - groundOffset;
             Vector3 horizontal = Vector3.zero;
             float desiredSpeed = 0f;
@@ -460,7 +428,6 @@ namespace FlameOfHistory.AI
                         desiredDirection = clearDirection;
                         hasDirection = true;
 
-                        // В бою разворотом рулит ИИ, тут не мешаем.
                         if (_autoRotation)
                         {
                             Quaternion target = Quaternion.LookRotation(clearDirection, Vector3.up);
@@ -498,7 +465,6 @@ namespace FlameOfHistory.AI
                 horizontal = _fallbackMoveDir * _fallbackSpeed;
             }
 
-            // Буксует на месте дольше секунды — считаем упёршимся, ИИ выберет новую точку.
             if (HasDestination && _desiredSpeed > 0.01f && !_blockedCompletely)
             {
                 if (Time.time - _lastProgressTime >= 1f)
@@ -515,7 +481,6 @@ namespace FlameOfHistory.AI
                 _lastProgressTime = Time.time;
             }
 
-            // --- вертикаль: прижатие к земле или падение ---
             Vector3 probeStart = new(position.x, footY + stepHeight + 0.1f, position.z);
             bool groundFound = TryFindGround(probeStart, out Vector3 groundPoint);
 
@@ -593,7 +558,6 @@ namespace FlameOfHistory.AI
                 }
             }
 
-            // Разворот — последний шанс выйти из тупика.
             foreach (float angle in RearAvoidanceAngles)
             {
                 Vector3 candidate = Quaternion.Euler(0f, angle, 0f) * desired;
@@ -640,7 +604,6 @@ namespace FlameOfHistory.AI
                 return true;
             }
 
-            // Луч мог задеть себя — добираем полным списком.
             var hits = Physics.RaycastAll(from, Vector3.down, distance, groundMask,
                 QueryTriggerInteraction.Ignore);
             System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));

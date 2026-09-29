@@ -27,6 +27,9 @@ namespace FlameOfHistory.AI
         [SerializeField, Min(1f)] private float viewDistance = 45f;
         [SerializeField, Range(1f, 180f)] private float fieldOfView = 110f;
         [SerializeField, Min(1f)] private float verticalViewTolerance = 6f;
+        [Tooltip("В упор враг замечает движение/звук даже вне конуса зрения " +
+                 "(периферия, шорох). Внутри этого радиуса FOV игнорируется.")]
+        [SerializeField, Min(0f)] private float closeDetectDistance = 7f;
         [SerializeField, Min(0.02f)] private float perceptionInterval = 0.15f;
         [SerializeField, Min(0f)] private float targetMemoryDuration = 8f;
 
@@ -97,10 +100,12 @@ namespace FlameOfHistory.AI
         [SerializeField, Min(10f)] private float searchSweepAmplitude = 70f;
         [Tooltip("Скорость этих качаний, град/сек.")]
         [SerializeField, Min(10f)] private float searchSweepSpeed = 95f;
-        [SerializeField, Range(1, 20)] private int minimumBurstSize = 2;
-        [SerializeField, Range(1, 20)] private int maximumBurstSize = 5;
-        [SerializeField, Min(0f)] private float minimumBurstPause = 0.5f;
-        [SerializeField, Min(0f)] private float maximumBurstPause = 1.6f;
+        [Tooltip("Длина очереди: враг жмёт длинными очередями почти в весь магазин " +
+                 "(32 патрона), а не по 2–3 пули.")]
+        [SerializeField, Range(1, 64)] private int minimumBurstSize = 16;
+        [SerializeField, Range(1, 64)] private int maximumBurstSize = 32;
+        [SerializeField, Min(0f)] private float minimumBurstPause = 0.35f;
+        [SerializeField, Min(0f)] private float maximumBurstPause = 0.9f;
 
         [Header("Accuracy (метры разброса по цели)")]
         [SerializeField, Min(0f)] private float baseSpread = 0.35f;
@@ -154,6 +159,9 @@ namespace FlameOfHistory.AI
         private bool _hasSuspicion;
 
         private float _nextPerceptionTime;
+        private float _lastPerceptionVisibleTime = float.NegativeInfinity;
+        private float _lastPerceptionTime = float.NegativeInfinity;
+        private float _searchUntil;
         private float _nextPathRefreshTime;
         private float _patrolWaitUntil;
         private bool _waitingAtPoint;
@@ -165,7 +173,6 @@ namespace FlameOfHistory.AI
         private int _shotsRemaining;
         private float _nextBurstTime;
 
-        // Держим точку отхода до конца, иначе враг пятится в стену и дёргается.
         private Vector3 _repositionPoint;
         private bool _hasRepositionPoint;
         private float _nextRepositionPickTime;
@@ -201,7 +208,6 @@ namespace FlameOfHistory.AI
         private readonly RaycastHit[] _losBuffer = new RaycastHit[16];
         private readonly Collider[] _eyeBuffer = new Collider[4];
 
-        // OverlapSphere не видит цели без Collider и с одними триггерами — добираем через реестр.
         private static readonly HashSet<CharacterHealth> s_characters = new();
         public static void RegisterCharacter(CharacterHealth character)
         {
@@ -223,7 +229,6 @@ namespace FlameOfHistory.AI
 
         private void Awake()
         {
-            // RequireComponent задним числом не добавляет EnemyMotor старым сценам — чиним здесь.
             _motor = GetComponent<EnemyMotor>();
             if (_motor == null)
             {
@@ -245,7 +250,6 @@ namespace FlameOfHistory.AI
             if (loadout == null) loadout = GetComponent<EnemyLoadout>();
             if (animator == null) animator = GetComponentInChildren<Animator>();
 
-            // targetMask пуст (0) = слепой, включаем все слои.
             if (targetMask == 0)
             {
                 targetMask = ~0;
@@ -254,7 +258,6 @@ namespace FlameOfHistory.AI
                     "для корректной работы.", this);
             }
 
-            // enemyTeam Allies из старой сцены — чиним на Axis.
             if (enemyTeam == Team.Allies)
             {
                 enemyTeam = Team.Axis;
@@ -281,7 +284,6 @@ namespace FlameOfHistory.AI
             _homePosition = transform.position;
             _searchCenter = _homePosition;
 
-            // ChangeState(Patrol) ничего не сделает — State уже Patrol, настраиваем мотор напрямую.
             _motor.SetSpeed(patrolSpeed);
             _motor.SetAutoRotation(true);
         }
@@ -311,7 +313,6 @@ namespace FlameOfHistory.AI
             if (route != null) patrolRoute = route;
         }
 
-        /// <summary>Задать маршрут патрулирования (используется мастером на экземплярах сцены).</summary>
         public void SetPatrolRoute(PatrolRoute route) => patrolRoute = route;
         public void SetWeapon(HitscanWeapon newWeapon)
         {
@@ -341,7 +342,6 @@ namespace FlameOfHistory.AI
         {
             if (target == null) return;
 
-            // Порядок Awake не гарантирован — сначала отписываемся, иначе двойные триггеры.
             target.Fired -= OnWeaponFired;
             target.ReloadStarted -= OnWeaponReloadStarted;
 
@@ -381,7 +381,14 @@ namespace FlameOfHistory.AI
                 UpdatePerception();
             }
 
-            if (_awareness < 1f || _target == null)
+            // БАГФИКС: раньше awareness гас каждый кадр, даже пока цель была
+            // прямо перед глазами. На дальней дистанции набор
+            // (0.4..1.4)/timeToDetect в секунду почти полностью съедался
+            // затуханием — враг мог смотреть на игрока 5+ секунд и не замечать.
+            // Теперь гаснем только когда цель реально не видна.
+            bool recentlySeen = Time.time - _lastPerceptionVisibleTime
+                <= perceptionInterval * 2f + 0.05f;
+            if (!recentlySeen && (_awareness < 1f || _target == null))
                 _awareness = Mathf.Max(0f, _awareness - awarenessDecay * dt);
 
             if (ShouldRetreat() && State != EnemyState.Retreat && State != EnemyState.Dead)
@@ -409,16 +416,23 @@ namespace FlameOfHistory.AI
 
         private void UpdatePerception()
         {
+            float tickDt = _lastPerceptionTime < 0f
+                ? perceptionInterval
+                : Mathf.Clamp(Time.time - _lastPerceptionTime, 0.02f, 1f);
+            _lastPerceptionTime = Time.time;
+
             Transform visible = FindBestVisibleTarget(out float visDistance);
 
             if (visible != null)
             {
+                _lastPerceptionVisibleTime = Time.time;
+
                 float distanceFactor = Mathf.Clamp01(1f - visDistance / viewDistance);
                 float gain = (0.4f + distanceFactor) / Mathf.Max(0.05f, timeToDetect);
-                _awareness = Mathf.Min(1f, _awareness + gain * perceptionInterval);
+                _awareness = Mathf.Min(1f, _awareness + gain * tickDt);
 
                 SetTarget(visible);
-                TrackTargetKinematics(visible.position);
+                TrackTargetKinematics(visible.position, tickDt);
                 _lastKnownTargetPosition = visible.position;
                 _lastTargetSeenTime = Time.time;
 
@@ -436,16 +450,27 @@ namespace FlameOfHistory.AI
                                 $"(дистанция {visDistance:F1} м)", this);
                     }
 
+                    // БАГФИКС: не срывать отступление ради погони — иначе при
+                    // низком HP состояния Retreat↔Combat мигают каждый тик
+                    // восприятия и враг топчется на месте.
+                    if (State == EnemyState.Retreat && ShouldRetreat())
+                        return;
+
                     ChangeState(visDistance <= maximumCombatDistance
                         ? EnemyState.Combat
                         : EnemyState.Chase);
                 }
-                else if (State == EnemyState.Patrol)
+                else if (State is EnemyState.Patrol or EnemyState.Alert or EnemyState.Search)
                 {
+                    // БАГФИКС: раньше подозрительная точка обновлялась только
+                    // из Patrol. Движущийся на краю зрения игрок терялся:
+                    // Alert шёл в устаревшую точку. Теперь точка живёт,
+                    // пока цель частично видна.
                     _suspicionPoint = visible.position;
                     _searchCenter = visible.position;
                     _hasSuspicion = true;
-                    ChangeState(EnemyState.Alert);
+                    if (State == EnemyState.Patrol || State == EnemyState.Search)
+                        ChangeState(EnemyState.Alert);
                 }
                 return;
             }
@@ -528,11 +553,12 @@ namespace FlameOfHistory.AI
             return false;
         }
 
-        private void TrackTargetKinematics(Vector3 pos)
+        private void TrackTargetKinematics(Vector3 pos, float dt = -1f)
         {
+            if (dt <= 0f) dt = Mathf.Max(0.02f, perceptionInterval);
             if (_prevTargetPosition != Vector3.zero)
             {
-                Vector3 delta = (pos - _prevTargetPosition) / Mathf.Max(0.0001f, perceptionInterval);
+                Vector3 delta = (pos - _prevTargetPosition) / Mathf.Max(0.0001f, dt);
                 _targetVelocity = Vector3.Lerp(_targetVelocity, delta, 0.5f);
             }
             _prevTargetPosition = pos;
@@ -568,7 +594,6 @@ namespace FlameOfHistory.AI
                 EvaluateCandidate(cand, ref best, ref bestScore, ref bestDistance);
             }
 
-            // Добираем цели без Collider и с одними триггерами — OverlapSphere их не видит.
             foreach (CharacterHealth cand in s_characters)
             {
                 if (cand == null) continue;
@@ -578,18 +603,15 @@ namespace FlameOfHistory.AI
             return best;
         }
 
-        // _candidateSet отсекает повторы от нескольких коллайдеров одного тела.
         private void EvaluateCandidate(CharacterHealth cand, ref Transform best,
             ref float bestScore, ref float bestDistance)
         {
             if (!_candidateSet.Add(cand)) return;
             _diagConsidered++;
-            // Труп — не цель.
             if (!cand.IsAlive) { _diagRejectedDead++; return; }
             if (cand.Team == enemyTeam) { _diagRejectedTeam++; return; }
             if (cand.gameObject == gameObject) return;
 
-            // Маска OverlapSphere уже применена запросом, для реестра проверяем слой явно.
             if ((targetMask.value & (1 << cand.gameObject.layer)) == 0)
             {
                 _diagRejectedLayer++;
@@ -608,14 +630,26 @@ namespace FlameOfHistory.AI
                 return;
             }
 
-            Vector3 flatFwd = eyePoint.forward; flatFwd.y = 0f;
-            Vector3 flatDir = toTarget; flatDir.y = 0f;
-            if (flatDir.sqrMagnitude < 0.0001f) { _diagRejectedFov++; return; }
+            // БАГФИКС: в упор (closeDetectDistance) зрение круговое — раньше
+            // игрок в 2 метрах сбоку/сзади был невидим, т.к. угол > FOV/2.
+            bool isClose = distance <= closeDetectDistance;
+            float angle = 0f;
+            if (!isClose)
+            {
+                Vector3 flatFwd = eyePoint.forward; flatFwd.y = 0f;
+                Vector3 flatDir = toTarget; flatDir.y = 0f;
+                if (flatDir.sqrMagnitude < 0.0001f) { _diagRejectedFov++; return; }
+                if (flatFwd.sqrMagnitude < 0.0001f)
+                {
+                    flatFwd = transform.forward; flatFwd.y = 0f;
+                    if (flatFwd.sqrMagnitude < 0.0001f) flatFwd = Vector3.forward;
+                }
 
-            float angle = Vector3.Angle(flatFwd, flatDir);
-            if (angle > fieldOfView * 0.5f) { _diagRejectedFov++; return; }
+                angle = Vector3.Angle(flatFwd, flatDir);
+                if (angle > fieldOfView * 0.5f) { _diagRejectedFov++; return; }
+            }
 
-            if (!HasLineOfSight(cand.transform, aimPoint)) { _diagRejectedLos++; return; }
+            if (!HasLineOfSight(cand, aimPoint)) { _diagRejectedLos++; return; }
 
             float score = distance + angle * 0.1f;
             if (score < bestScore)
@@ -626,7 +660,7 @@ namespace FlameOfHistory.AI
             }
         }
 
-        private bool HasLineOfSight(Transform target, Vector3 targetPoint)
+        private bool HasLineOfSight(CharacterHealth targetHealth, Vector3 targetPoint)
         {
             Vector3 origin = eyePoint.position;
             Vector3 dir = targetPoint - origin;
@@ -634,15 +668,12 @@ namespace FlameOfHistory.AI
             if (dist <= 0.001f) return true;
             dir /= dist;
 
-            // Глаз внутри капсулы бил в себя — пропускаем своё тело.
             int count = Physics.RaycastNonAlloc(origin, dir, _losBuffer,
                 dist + 0.2f, visibilityMask, QueryTriggerInteraction.Ignore);
 
-            // Стена, в которой сидит глаз, обзор не закрывает.
             int eyeCount = Physics.OverlapSphereNonAlloc(origin, 0.25f, _eyeBuffer,
                 visibilityMask, QueryTriggerInteraction.Ignore);
 
-            // Сортировка вставками — буфер маленький, аллокаций нет.
             for (int i = 1; i < count; i++)
             {
                 RaycastHit key = _losBuffer[i];
@@ -661,11 +692,37 @@ namespace FlameOfHistory.AI
                 Transform hitTransform = hit.transform;
                 if (hitTransform == null) continue;
 
-                // Своё тело и оружие обзор не закрывают.
                 if (hitTransform.root == transform.root) continue;
                 if (hit.distance < 0.5f && IsEnclosingEyeCollider(hit.collider, eyeCount))
                     continue;
-                if (hitTransform == target || hitTransform.IsChildOf(target))
+
+                // БАГФИКС 1: попадание в любое место тела цели (даже если
+                // CharacterHealth висит не на том объекте, что коллайдер) —
+                // раньше сравнивались Transform'ы и луч по своему же телу
+                // считался стеной.
+                if (targetHealth != null)
+                {
+                    CharacterHealth hitHealth =
+                        hit.collider.GetComponentInParent<CharacterHealth>();
+                    if (hitHealth == targetHealth)
+                    {
+                        _lastLosBlocker = null;
+                        return true;
+                    }
+                }
+                else if (hitTransform == targetHealth?.transform ||
+                         (targetHealth != null && hitTransform.IsChildOf(targetHealth.transform)))
+                {
+                    _lastLosBlocker = null;
+                    return true;
+                }
+
+                // БАГФИКС 2: стена ЗА спиной игрока (игрок без обычного
+                // коллайдера — только CharacterController, который луч
+                // игнорирует) давала ложное «не видно»: луч долетал до стены
+                // в dist+0.1 и она считалась препятствием. Всё, что на уровне
+                // цели или дальше неё — не препятствие.
+                if (hit.distance >= dist - 0.35f)
                 {
                     _lastLosBlocker = null;
                     return true;
@@ -677,6 +734,14 @@ namespace FlameOfHistory.AI
 
             _lastLosBlocker = null;
             return true;
+        }
+
+        private bool HasLineOfSight(Transform target, Vector3 targetPoint)
+        {
+            CharacterHealth health = null;
+            if (target != null) health = target.GetComponentInParent<CharacterHealth>();
+            if (health == null && _targetHealth != null && target == _target) health = _targetHealth;
+            return HasLineOfSight(health, targetPoint);
         }
 
         private bool IsEnclosingEyeCollider(Collider collider, int eyeCount)
@@ -755,7 +820,6 @@ namespace FlameOfHistory.AI
 
             _nextWanderAttemptTime = Time.time + wanderRetryDelay;
 
-            // Одна выборка часто попадает в стену — пробуем несколько раз.
             for (int attempt = 0; attempt < 6; attempt++)
             {
                 Vector2 circle = Random.insideUnitCircle * wanderRadius;
@@ -802,7 +866,6 @@ namespace FlameOfHistory.AI
             _motor.SetSpeed(patrolSpeed);
             _motor.Stop();
 
-            // Сначала смотрим в точку шума, иначе не замечаем стоящего там игрока.
             if (Time.time < _searchFaceUntil)
             {
                 _motor.FaceTowardsAtSpeed(_searchCenter, combatTurnSpeed * 1.5f);
@@ -823,7 +886,11 @@ namespace FlameOfHistory.AI
                     transform.rotation, targetRot, searchSweepSpeed * Time.deltaTime);
             }
 
-            if (_awareness <= 0.02f)
+            // БАГФИКС: раньше поиск длился ~1 сек (0.4→0.02 при decay 0.35),
+            // враг «забывал» игрока почти сразу и выглядел слепым.
+            // Теперь держим поиск минимум до конца памяти о цели.
+            if (_awareness <= 0.02f && Time.time >= _searchUntil &&
+                Time.time - _lastTargetSeenTime > targetMemoryDuration)
                 ChangeState(EnemyState.Patrol);
         }
 
@@ -843,7 +910,6 @@ namespace FlameOfHistory.AI
             _motor.SetSpeed(chaseSpeed);
             RefreshDestination(_lastKnownTargetPosition);
 
-            // Уткнулся дольше 2.5 сек — идём проверять последнюю точку.
             if (_motor.HasArrived())
             {
                 if (_chaseStuckTime < 0f) _chaseStuckTime = Time.time;
@@ -878,7 +944,6 @@ namespace FlameOfHistory.AI
             bool visible = CanSeeCurrentTarget();
             if (visible) _lastVisibleTime = Time.time;
 
-            // Рывки луча из-за углов держим grace, а не срываемся в погоню.
             bool holdingThroughFlicker = !visible &&
                 Time.time - _lastVisibleTime <= combatLoseSightGrace;
 
@@ -956,7 +1021,6 @@ namespace FlameOfHistory.AI
             return true;
         }
 
-        // Отходим вбок, а не пятимся в стену за спиной.
         private bool TryPickRepositionPoint(out Vector3 result)
         {
             Vector3 away = transform.position - _target.position;
@@ -1073,7 +1137,6 @@ namespace FlameOfHistory.AI
                 return;
             }
 
-            // Бежать спринт и попадать одновременно нельзя — огонь только медленным шагом.
             bool firingOnRetreat = _target != null && CanSeeCurrentTarget() &&
                 Time.time >= _canFireAfter && weapon != null &&
                 Vector3.Distance(transform.position, _target.position) <= weapon.Range;
@@ -1182,7 +1245,6 @@ namespace FlameOfHistory.AI
             Vector3 toTarget = chest - eyePoint.position;
             if (toTarget.sqrMagnitude > viewDistance * viewDistance) return false;
 
-            // Грудь за укрытием, а голова торчит — цель всё равно видна.
             bool visible = HasLineOfSight(_target, chest);
             if (!visible)
                 visible = HasLineOfSight(_target, chest + Vector3.up * 0.55f);
@@ -1209,7 +1271,6 @@ namespace FlameOfHistory.AI
 
         private void RefreshDestination(Vector3 destination)
         {
-            // Без цели ставим немедленно, иначе HasArrived сразу true и движение не начнётся.
             if (!_motor.HasDestination)
             {
                 _nextPathRefreshTime = Time.time + pathRefreshInterval;
@@ -1223,16 +1284,6 @@ namespace FlameOfHistory.AI
         }
 
         private void MoveTo(Vector3 destination) => _motor.MoveTo(destination);
-
-        private bool TryMoveToNearbyPoint(Vector3 position)
-        {
-            if (!_motor.SampleReachablePoint(position, 6f, out Vector3 point))
-                return false;
-
-            MoveTo(point);
-            return true;
-        }
-
         private static float FlatDistance(Vector3 a, Vector3 b)
         {
             a.y = 0f;
@@ -1250,7 +1301,6 @@ namespace FlameOfHistory.AI
             State = newState;
             if (newState != EnemyState.Combat)
                 _hasRepositionPoint = false;
-            // Новая схватка только при смене цели или паузе дольше 10с.
             if (newState == EnemyState.Combat && previous != EnemyState.Combat)
             {
                 if (_target == null || _target != _engageTarget ||
@@ -1271,7 +1321,6 @@ namespace FlameOfHistory.AI
 
             bool aiming = newState is EnemyState.Combat or EnemyState.Retreat;
             if (animator != null) animator.SetBool(IsAimingHash, aiming);
-            // В бою разворотом управляем сами, вне боя — мотор.
             _motor.SetAutoRotation(!aiming);
 
             switch (newState)
@@ -1293,6 +1342,7 @@ namespace FlameOfHistory.AI
                     _motor.SetSpeed(patrolSpeed);
                     _searchFaceUntil = Time.time + 1.2f;
                     _searchBaseCaptured = false;
+                    _searchUntil = Time.time + Mathf.Max(4f, targetMemoryDuration);
                     break;
 
                 case EnemyState.Chase:
@@ -1365,7 +1415,6 @@ namespace FlameOfHistory.AI
             if (damage.Attacker != null)
             {
                 var attackerHealth = damage.Attacker.GetComponentInParent<CharacterHealth>();
-                // Попадания от мёртвого дёргают ИИ — труп в цель не берём.
                 if (attackerHealth != null && attackerHealth.IsAlive && attackerHealth.Team != enemyTeam)
                 {
                     SetTarget(attackerHealth.transform);
@@ -1495,3 +1544,4 @@ namespace FlameOfHistory.AI
 #endif
     }
 }
+

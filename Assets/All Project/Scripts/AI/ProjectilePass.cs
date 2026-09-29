@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace FlameOfHistory.AI
 {
-/// <summary>Пролет пули по отрезку start→end. Эмитят и промахи, и попадания.</summary>
 public static class ProjectilePass
 {
     public readonly struct Shot

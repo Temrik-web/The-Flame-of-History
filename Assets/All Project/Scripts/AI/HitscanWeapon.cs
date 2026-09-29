@@ -27,8 +27,8 @@ public sealed class HitscanWeapon : MonoBehaviour
         QueryTriggerInteraction.Ignore;
 
     [Header("Magazine")]
-    [SerializeField, Min(1)] private int magazineCapacity = 30;
-    [SerializeField, Min(0)] private int startingReserve = 120;
+    [SerializeField, Min(1)] private int magazineCapacity = 32;
+    [SerializeField, Min(0)] private int startingReserve = 128;
     [SerializeField, Min(0.05f)] private float reloadDuration = 2.4f;
 
     [Header("Fire")]
@@ -38,22 +38,25 @@ public sealed class HitscanWeapon : MonoBehaviour
     [Header("Audible noise")]
     [SerializeField, Min(0f)] private float shotNoiseRadius = 35f;
 
+    [Header("Tracer")]
+    [SerializeField] private bool showTracer = true;
+    [SerializeField] private Color tracerColor = new(1f, 0.8f, 0.25f);
+    [SerializeField, Min(0.005f)] private float tracerWidth = 0.025f;
+    [SerializeField, Min(0.01f)] private float tracerLifetime = 0.06f;
+
     public int AmmunitionInMagazine { get; private set; }
     public int ReserveAmmunition => _reserve;
     public bool IsReloading { get; private set; }
     public bool HasAmmunition => AmmunitionInMagazine > 0 || _reserve > 0;
     public bool NeedsReload => AmmunitionInMagazine <= 0 && _reserve > 0;
 
-    /// <summary>Есть дуло — проверяет EnemyLoadout, чтобы не затереть ручную настройку.</summary>
     public bool HasMuzzle => muzzle != null;
     public bool HasAudioSource => audioSource != null;
     public Vector3 MuzzlePosition => muzzle != null ? muzzle.position : transform.position;
     public Vector3 MuzzleForward => muzzle != null ? muzzle.forward : transform.forward;
     public float Range => range;
-    /// <summary>Множитель урона от EnemyAI: первые попадания — царапины, последние — добивающие.</summary>
     public float DamageScale { get; set; } = 1f;
     public event System.Action<Vector3> Fired;
-    /// <summary>Старт перезарядки — ИИ по нему кричит «Перезаряжаюсь!».</summary>
     public event System.Action ReloadStarted;
     public event System.Action ReloadFinished;
 
@@ -62,11 +65,11 @@ public sealed class HitscanWeapon : MonoBehaviour
     private Coroutine _reloadRoutine;
     private GameObject _ownerRoot;
     private Team _ownerTeam = Team.Axis;
+    private static Material _tracerMaterial;
 
     private float ShotInterval => 60f / roundsPerMinute;
 
     private void Awake()  => ResetAmmo();
-    // OnEnable НЕ дозаправляет spent-оружие: иначе подбор/переключение давало бы бесконечные патроны.
 
     public void SetMuzzle(Transform muzzleTransform)
     {
@@ -114,14 +117,12 @@ public sealed class HitscanWeapon : MonoBehaviour
 
         AmmunitionInMagazine--;
         _nextShotTime = Time.time + ShotInterval;
-        // Без дула стреляем от центра оружия, чтобы не ловить NullReference.
         Vector3 origin = MuzzlePosition;
         Vector3 toTarget = targetPoint - origin;
         Vector3 direction = toTarget.sqrMagnitude > 0.0001f
             ? ApplySpread(toTarget.normalized)
             : ApplySpread(MuzzleForward);
         origin += direction * 0.35f;
-        // TODO: вернуть muzzleFlash, сейчас роняет проект.
         if (audioSource != null && shotSound != null)
             audioSource.PlayOneShot(shotSound);
 
@@ -149,6 +150,7 @@ public sealed class HitscanWeapon : MonoBehaviour
 
             break;
         }
+        if (showTracer) SpawnTracer(origin, endPoint);
         ProjectilePass.Emit(new ProjectilePass.Shot(
             origin, endPoint, owner, _ownerTeam, hitSomething));
         Fired?.Invoke(endPoint);
@@ -162,6 +164,26 @@ public sealed class HitscanWeapon : MonoBehaviour
         if (impactEffect == null) return;
         GameObject fx = Instantiate(impactEffect, point, Quaternion.LookRotation(normal));
         Destroy(fx, impactEffectLifetime);
+    }
+
+    private void SpawnTracer(Vector3 from, Vector3 to)
+    {
+        if (_tracerMaterial == null)
+        {
+            Shader shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color");
+            if (shader == null) return;
+            _tracerMaterial = new Material(shader) { color = tracerColor, hideFlags = HideFlags.HideAndDontSave };
+        }
+        var go = new GameObject("Tracer");
+        var line = go.AddComponent<LineRenderer>();
+        line.useWorldSpace = true;
+        line.positionCount = 2;
+        line.SetPosition(0, from);
+        line.SetPosition(1, to);
+        line.startWidth = tracerWidth;
+        line.endWidth = tracerWidth;
+        line.material = _tracerMaterial;
+        Destroy(go, tracerLifetime);
     }
 
     public bool BeginReload()

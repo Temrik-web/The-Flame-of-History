@@ -2,21 +2,6 @@ using UnityEngine;
 
 namespace FlameOfHistory.AI
 {
-    /// <summary>
-    /// Оружие в руках врага.
-    ///
-    /// Что решает: раньше HitscanWeapon приходилось вешать вручную на дочерний
-    /// объект и вручную выставлять muzzle/audio. Теперь достаточно указать префаб
-    /// оружия — компонент сам поставит его в руку (кость Right Hand у Animator
-    /// или заданный сокет), найдёт дуло, подцепит звук и отдаст ссылку EnemyAI.
-    ///
-    /// Поддерживает:
-    ///   • префаб оружия либо уже вручную поставленное оружие-ребёнок;
-    ///   • автопоиск кости руки у humanoid-аниматора;
-    ///   • автопоиск дула по имени (Muzzle / MuzzlePoint / FirePoint / Barrel);
-    ///   • выброс оружия из рук при смерти с физикой;
-    ///   • смену оружия в рантайме через EquipWeapon().
-    /// </summary>
     [DisallowMultipleComponent]
     public sealed class EnemyLoadout : MonoBehaviour
     {
@@ -59,8 +44,13 @@ namespace FlameOfHistory.AI
 
         [Header("Выброс при смерти")]
         [SerializeField] private bool dropWeaponOnDeath = true;
-        [Tooltip("Сила подброса при выбросе.")]
-        [SerializeField, Min(0f)] private float dropImpulse = 1.6f;
+        [Tooltip("Сколько скорости шага забрать в падение (м/с). Стоит — просто роняет.")]
+        [SerializeField, Min(0f)] private float dropMoveInherit = 1.5f;
+        [Tooltip("Легкий дрейф от тела при выбросе, мин/макс (м/с) — падает рядом и чуть скользит.")]
+        [SerializeField] private Vector2 dropShove = new(0.1f, 0.25f);
+        [Tooltip("Скорость доворота на бок в полете (рад/с): ствол ровно кренится " +
+                 "вокруг длинной оси и ложится боком, а не плюхается на дуло.")]
+        [SerializeField, Range(0f, 8f)] private float dropRollRate = 0.8f;
         [Tooltip("Через сколько секунд убрать выброшенное оружие. 0 — не убирать.")]
         [SerializeField, Min(0f)] private float dropLifetime = 30f;
         [Tooltip("Масса выброшенного оружия.")]
@@ -77,6 +67,11 @@ namespace FlameOfHistory.AI
         [Tooltip("Объект, который выпадает при смерти (например, DropMp40 с правильным " +
                  "коллайдером). Если задан — роняется он, а не оружие из рук.")]
         [SerializeField] private GameObject dropObject;
+        [Tooltip("Случайный разброс точки дропа по Y и Z (X не трогаем) — ложится около врага.")]
+        [SerializeField, Min(0f)] private float dropScatter = 0.4f;
+        [Tooltip("Поправка разворота дропа (градусы): если модель Drop Object смотрит " +
+                 "не туда же, куда ручное оружие (напр. длинная ось по X, а не по Z).")]
+        [SerializeField] private Vector3 dropRotationOffset;
 
         [Header("Коллайдер выпавшего оружия")]
         [Tooltip("Центр BoxCollider у выпавшего оружия (в локальных координатах объекта).")]
@@ -87,21 +82,63 @@ namespace FlameOfHistory.AI
         [Header("Звук экипировки")]
         [SerializeField] private AudioClip equipSound;
 
-        /// <summary>Текущее оружие в руках (может быть null).</summary>
         public HitscanWeapon Weapon { get; private set; }
 
-        /// <summary>Сокет, в котором сидит оружие.</summary>
         public Transform Socket => handSocket;
 
         private EnemyVoice _voice;
+        private EnemyMotor _motor;
         private GameObject _spawnedWeaponRoot;
         private bool _weaponDropped;
+        private Transform _adoptedVisual;
 
         private void Awake()
         {
             _voice = GetComponent<EnemyVoice>();
+            _motor = GetComponent<EnemyMotor>();
             ResolveSocket();
             EquipInitialWeapon();
+        }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            if (dropShove.magnitude < 0.1f) dropShove = new Vector2(0.1f, 0.25f);
+        }
+#endif
+
+        private Vector3 DropLaunchVelocity(Vector3 fromPos)
+        {
+            Vector3 inherit = Vector3.zero;
+            float up = 0.15f;
+            if (_motor != null)
+            {
+                Vector3 flat = _motor.Velocity;
+                flat.y = 0f;
+                if (flat.magnitude > 0.3f)
+                {
+                    inherit = Vector3.ClampMagnitude(flat, dropMoveInherit);
+                    up = 0.6f;
+                }
+            }
+            Vector3 outward = fromPos - transform.position;
+            outward.y = 0f;
+            if (outward.sqrMagnitude < 0.01f) outward = transform.forward;
+            outward.y = 0f;
+            if (outward.sqrMagnitude < 0.01f) outward = Vector3.forward;
+            float shove = Random.Range(Mathf.Min(dropShove.x, dropShove.y),
+                                       Mathf.Max(dropShove.x, dropShove.y));
+            return inherit + outward.normalized * shove + Vector3.up * up;
+        }
+
+        private Vector3 DropRollSpin(BoxCollider box, Quaternion spawnRot)
+        {
+            if (box == null || dropRollRate <= 0f) return Vector3.zero;
+            Vector3 s = box.size;
+            Vector3 local = (s.x >= s.y && s.x >= s.z) ? Vector3.right
+                : (s.y >= s.z ? Vector3.up : Vector3.forward);
+            float side = Random.value < 0.5f ? 1f : -1f;
+            return (spawnRot * local).normalized * (dropRollRate * side);
         }
 
         private void ResolveSocket()
@@ -118,7 +155,6 @@ namespace FlameOfHistory.AI
 
                     if (bone != null)
                     {
-                        // Сокет отдельно от кости: кость крутит анимация.
                         handSocket = CreateSocket(bone, "WeaponSocket", Vector3.zero);
                         return;
                     }
@@ -212,6 +248,7 @@ namespace FlameOfHistory.AI
             weapon.gameObject.SetActive(true);
             weapon.enabled = true;
 
+            TryAdoptVisual(weapon);
             PrepareMuzzle(weapon);
             PrepareAudio(weapon);
             PrepareCollidersAndLayer(weapon);
@@ -236,7 +273,43 @@ namespace FlameOfHistory.AI
                 _spawnedWeaponRoot = null;
             }
 
+            _adoptedVisual = null;
             Weapon = null;
+        }
+
+        private void TryAdoptVisual(HitscanWeapon weapon)
+        {
+            if (weapon == null) return;
+            foreach (Renderer r in weapon.GetComponentsInChildren<Renderer>(true))
+                if (r != null) return;
+            Transform weaponRoot = weapon.transform;
+            foreach (Transform child in transform)
+            {
+                if (child == null || child == handSocket || child == weaponRoot) continue;
+                string n = child.name.ToLowerInvariant();
+                if (n == "eyepoint" || n == "weapon" || n == "muzzle" ||
+                    n == "weaponsocket" || n == "voicesource" || n == "bodysource") continue;
+                if (!(n.StartsWith("mp") || n.StartsWith("pp") || n.StartsWith("gun") ||
+                      n.StartsWith("kar") || n.StartsWith("stg") || n.StartsWith("mg") ||
+                      n.Contains("ppsh") || n.Contains("rifle") || n.Contains("weapon") ||
+                      n.Contains("automat") || n.Contains("автомат") || n.Contains("винтовк") ||
+                      n.Contains("оружие"))) continue;
+                bool hasRenderer = false;
+                foreach (Renderer r in child.GetComponentsInChildren<Renderer>(true))
+                    if (r != null) { hasRenderer = true; break; }
+                if (!hasRenderer) continue;
+                if (child.GetComponentInChildren<HitscanWeapon>(true) != null) continue;
+                if (child.GetComponent<Animator>() != null) continue;
+                child.SetParent(weaponRoot, true);
+                if (matchOwnerLayer)
+                    foreach (Transform t in child.GetComponentsInChildren<Transform>(true))
+                        t.gameObject.layer = gameObject.layer;
+                if (disableWeaponColliders)
+                    foreach (Collider c in child.GetComponentsInChildren<Collider>(true))
+                        c.enabled = false;
+                _adoptedVisual = child;
+                return;
+            }
         }
 
         private void PrepareMuzzle(HitscanWeapon weapon)
@@ -247,7 +320,6 @@ namespace FlameOfHistory.AI
 
             if (muzzle == null && createMuzzleIfMissing)
             {
-                // Дуло в передний край меша, иначе трассы пойдут из центра модели.
                 float forwardExtent = 0.5f;
                 var renderers = weapon.GetComponentsInChildren<Renderer>();
 
@@ -317,7 +389,6 @@ namespace FlameOfHistory.AI
                 collider.enabled = false;
         }
 
-        /// <summary>Выпадение при смерти: гравитация с задержкой, иначе оружие вытолкнет сквозь пол.</summary>
         public void HandleOwnerDeath()
         {
             HitscanWeapon weapon = Weapon;
@@ -330,6 +401,11 @@ namespace FlameOfHistory.AI
 
             Transform weaponRoot = weapon.transform;
 
+            if (_adoptedVisual == null && !HasRenderers(weaponRoot))
+                Debug.LogWarning($"[EnemyLoadout] {name}: ручное оружие без модели и визуал " +
+                                 "не найден — в бою стреляет невидимка, дроп вылетит из тела. " +
+                                 "Прицепи модель (напр. Mp401) прямым ребенком врага.", this);
+
             if (dropObject != null)
             {
                 SpawnDropObject(weaponRoot);
@@ -340,12 +416,13 @@ namespace FlameOfHistory.AI
             }
 
             weaponRoot.SetParent(null, true);
-            // В руках коллайдеры выключены — без включения провалится сквозь пол.
+            ComputeDropPose(weaponRoot, out _, out Quaternion dropRot);
+            if (_adoptedVisual == null) weaponRoot.rotation = dropRot;
             bool hasCollider = false;
             foreach (Collider collider in weaponRoot.GetComponentsInChildren<Collider>(true))
             {
                 collider.enabled = true;
-                collider.isTrigger = false; // Триггер не держит физику.
+                collider.isTrigger = false;
                 hasCollider = true;
             }
 
@@ -358,7 +435,6 @@ namespace FlameOfHistory.AI
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.interpolation = RigidbodyInterpolation.Interpolate;
 
-            // Оружие возвращаем на Default, иначе не столкнётся с полом.
             if (matchOwnerLayer)
                 foreach (Transform child in weaponRoot.GetComponentsInChildren<Transform>(true))
                     child.gameObject.layer = 0;
@@ -370,11 +446,13 @@ namespace FlameOfHistory.AI
                                  this);
             }
 
+            BoxCollider fitBox = weaponRoot.GetComponent<BoxCollider>()
+                ?? weaponRoot.GetComponentInChildren<BoxCollider>();
             var dropper = weaponRoot.gameObject.AddComponent<DroppedWeapon>();
             dropper.Initialize(
                 gravityDelay: dropGravityDelay,
-                launchVelocity: (transform.forward * 0.4f + Vector3.up) * dropImpulse,
-                spin: Random.insideUnitSphere * 3f,
+                launchVelocity: DropLaunchVelocity(weaponRoot.position),
+                spin: DropRollSpin(fitBox, weaponRoot.rotation),
                 groundMask: dropGroundMask,
                 lifetime: dropLifetime);
 
@@ -383,7 +461,36 @@ namespace FlameOfHistory.AI
             _weaponDropped = true;
         }
 
-        /// <summary>Страховка без HandleOwnerDeath: SetParent в OnDestroy не спасёт — Unity уже помечает детей на удаление.</summary>
+        private static bool HasRenderers(Transform root)
+        {
+            if (root == null) return false;
+            foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
+                if (r != null) return true;
+            return false;
+        }
+
+        private void ComputeDropPose(Transform weaponRoot, out Vector3 position, out Quaternion rotation)
+        {
+            position = weaponRoot != null ? weaponRoot.position : transform.position;
+            rotation = weaponRoot != null ? weaponRoot.rotation : transform.rotation;
+            if (_adoptedVisual != null)
+            {
+                position = _adoptedVisual.position;
+                rotation = _adoptedVisual.rotation;
+            }
+            rotation *= Quaternion.Euler(dropRotationOffset);
+            position = ScatterDrop(position);
+            return;
+        }
+
+        private Vector3 ScatterDrop(Vector3 position)
+        {
+            if (dropScatter <= 0f) return position;
+            position.y += Random.Range(-dropScatter, dropScatter) * 0.3f;
+            position.z += Random.Range(-dropScatter, dropScatter);
+            return position;
+        }
+
         private void OnDestroy()
         {
             if (_weaponDropped || !dropWeaponOnDeath) return;
@@ -405,7 +512,6 @@ namespace FlameOfHistory.AI
             _spawnedWeaponRoot = null;
         }
 
-        /// <summary>Аварийный выброс: Update у мёртвого не работает, физика включается сразу.</summary>
         public void DropWeaponImmediate()
         {
             HitscanWeapon weapon = Weapon;
@@ -443,8 +549,7 @@ namespace FlameOfHistory.AI
             body.mass = dropMass;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
-            body.AddForce((transform.forward * 0.4f + Vector3.up) * dropImpulse, ForceMode.Impulse);
-            body.AddTorque(Random.insideUnitSphere * dropImpulse, ForceMode.Impulse);
+            body.AddForce(DropLaunchVelocity(weaponRoot.position) * body.mass, ForceMode.Impulse);
             var dropper = weaponRoot.gameObject.AddComponent<DroppedWeapon>();
             dropper.Initialize(
                 gravityDelay: 0f,
@@ -459,9 +564,17 @@ namespace FlameOfHistory.AI
 
         private void SpawnDropObject(Transform weaponRoot)
         {
-            Vector3 spawnPosition = weaponRoot.position;
-            Quaternion spawnRotation = weaponRoot.rotation;
-            weaponRoot.gameObject.SetActive(false);
+            ComputeDropPose(weaponRoot, out Vector3 spawnPosition, out Quaternion spawnRotation);
+            if (_adoptedVisual != null)
+            {
+                SpawnVisualDrop();
+                _adoptedVisual = null;
+                if (weaponRoot != null && weaponRoot != transform)
+                    Destroy(weaponRoot.gameObject);
+                return;
+            }
+            if (weaponRoot != null && weaponRoot != transform)
+                Destroy(weaponRoot.gameObject);
 
             GameObject instance = Instantiate(dropObject, spawnPosition, spawnRotation);
             instance.name = dropObject.name;
@@ -479,7 +592,6 @@ namespace FlameOfHistory.AI
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             body.interpolation = RigidbodyInterpolation.Interpolate;
 
-            // DroppedWeapon временно глушит коллайдеры сам.
             foreach (Collider c in instance.GetComponentsInChildren<Collider>(true))
                 c.enabled = true;
             ApplyDropCollider(instance);
@@ -489,8 +601,58 @@ namespace FlameOfHistory.AI
 
             dropper.Initialize(
                 gravityDelay: dropGravityDelay,
-                launchVelocity: (transform.forward * 0.4f + Vector3.up) * dropImpulse,
-                spin: Random.insideUnitSphere * 3f,
+                launchVelocity: DropLaunchVelocity(spawnPosition),
+                spin: DropRollSpin(instance.GetComponent<BoxCollider>(), instance.transform.rotation),
+                groundMask: dropGroundMask,
+                lifetime: dropLifetime);
+        }
+
+        private void SpawnVisualDrop()
+        {
+            Transform visual = _adoptedVisual;
+            GameObject instance = Instantiate(visual.gameObject,
+                ScatterDrop(visual.position), visual.rotation);
+            instance.name = visual.name;
+            instance.transform.SetParent(null);
+            instance.SetActive(true);
+            foreach (HitscanWeapon gun in instance.GetComponentsInChildren<HitscanWeapon>(true))
+            {
+                gun.enabled = false;
+                Destroy(gun);
+            }
+            foreach (Transform child in instance.GetComponentsInChildren<Transform>(true))
+                child.gameObject.layer = 0;
+
+            var body = instance.GetComponent<Rigidbody>();
+            if (body == null) body = instance.AddComponent<Rigidbody>();
+
+            body.mass = dropMass;
+            body.isKinematic = true;
+            body.useGravity = false;
+            body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+            body.interpolation = RigidbodyInterpolation.Interpolate;
+
+            BoxCollider box = instance.GetComponent<BoxCollider>();
+            if (box == null) box = instance.AddComponent<BoxCollider>();
+            if (!FitColliderToModel(box))
+            {
+                box.center = droppedColliderCenter;
+                box.size = droppedColliderSize;
+            }
+            box.isTrigger = false;
+            foreach (Collider c in instance.GetComponentsInChildren<Collider>(true))
+            {
+                if (c == box) continue;
+                c.enabled = false;
+            }
+
+            var dropper = instance.GetComponent<DroppedWeapon>();
+            if (dropper == null) dropper = instance.AddComponent<DroppedWeapon>();
+
+            dropper.Initialize(
+                gravityDelay: dropGravityDelay,
+                launchVelocity: DropLaunchVelocity(instance.transform.position),
+                spin: DropRollSpin(box, instance.transform.rotation),
                 groundMask: dropGroundMask,
                 lifetime: dropLifetime);
         }
@@ -498,10 +660,21 @@ namespace FlameOfHistory.AI
         private void ApplyDropCollider(GameObject instance)
         {
             BoxCollider box = instance.GetComponent<BoxCollider>();
-            if (box == null) box = instance.AddComponent<BoxCollider>();
-            box.center = droppedColliderCenter;
-            box.size = droppedColliderSize;
-            box.isTrigger = false;
+            if (box != null && box.size.sqrMagnitude > 0.0001f)
+            {
+                box.isTrigger = false;
+                box.enabled = true;
+            }
+            else
+            {
+                if (box == null) box = instance.AddComponent<BoxCollider>();
+                if (!FitColliderToModel(box))
+                {
+                    box.center = droppedColliderCenter;
+                    box.size = droppedColliderSize;
+                }
+                box.isTrigger = false;
+            }
             foreach (Collider c in instance.GetComponentsInChildren<Collider>(true))
             {
                 if (c == box) continue;
@@ -509,32 +682,46 @@ namespace FlameOfHistory.AI
             }
         }
 
-        /// <summary>Коллайдер по габаритам модели, иначе оружие провалится под пол.</summary>
+        private static bool FitColliderToModel(BoxCollider box)
+        {
+            Transform t = box.transform;
+            Matrix4x4 toLocal = t.worldToLocalMatrix;
+            Vector3 min = new(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
+            Vector3 max = new(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
+            bool hasBounds = false;
+            foreach (MeshFilter mf in t.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf == null || mf.sharedMesh == null) continue;
+                Bounds lb = mf.sharedMesh.bounds;
+                Matrix4x4 m = toLocal * mf.transform.localToWorldMatrix;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 corner = new(
+                        (i & 1) == 0 ? lb.min.x : lb.max.x,
+                        (i & 2) == 0 ? lb.min.y : lb.max.y,
+                        (i & 4) == 0 ? lb.min.z : lb.max.z);
+                    Vector3 p = m.MultiplyPoint3x4(corner);
+                    min = Vector3.Min(min, p);
+                    max = Vector3.Max(max, p);
+                    hasBounds = true;
+                }
+            }
+            if (!hasBounds) return false;
+            box.center = (min + max) * 0.5f;
+            Vector3 size = max - min;
+            box.size = new Vector3(
+                Mathf.Max(0.02f, size.x),
+                Mathf.Max(0.02f, size.y),
+                Mathf.Max(0.02f, size.z));
+            return true;
+        }
+
         private static bool AddFallbackCollider(GameObject target)
         {
-            Bounds bounds = default;
-            bool hasBounds = false;
-
-            foreach (Renderer r in target.GetComponentsInChildren<Renderer>(true))
-            {
-                if (r == null) continue;
-                if (!hasBounds) { bounds = r.bounds; hasBounds = true; }
-                else bounds.Encapsulate(r.bounds);
-            }
-
-            if (!hasBounds) return false;
-
             var box = target.AddComponent<BoxCollider>();
-            box.center = target.transform.InverseTransformPoint(bounds.center);
-            box.size = target.transform.InverseTransformVector(bounds.size);
-
-            // Отрицательный размер от инверсии масштаба ломает коллайдер.
-            box.size = new Vector3(
-                Mathf.Max(0.02f, Mathf.Abs(box.size.x)),
-                Mathf.Max(0.02f, Mathf.Abs(box.size.y)),
-                Mathf.Max(0.02f, Mathf.Abs(box.size.z)));
-
-            return true;
+            if (FitColliderToModel(box)) return true;
+            Object.Destroy(box);
+            return false;
         }
 
 #if UNITY_EDITOR

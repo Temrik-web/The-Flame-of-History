@@ -1364,6 +1364,14 @@ public class Wep : MonoBehaviour
 
         hitMask &= ~excluded;
 
+        int charLayer = LayerMask.NameToLayer("Characters");
+        if (charLayer >= 0 && (hitMask & (1 << charLayer)) == 0)
+        {
+            hitMask |= 1 << charLayer;
+            Debug.LogWarning("[Gun] Слой Characters отсутствовал в Hit Mask — добавлен " +
+                             "автоматически, иначе пули пролетали бы сквозь врагов.", this);
+        }
+
         if (hitMask == 0)
         {
             Debug.LogWarning("[Gun] Hit Mask оказалась пустой после исключения своих слоёв — " +

@@ -27,6 +27,10 @@ public class DialogueHistory : MonoBehaviour
     const int SaveEntries = 100;  // в PlayerPrefs
     const string Prefix = "flame_hist_";
 
+    /// <summary>False — Record() пишет только в память (Set без PlayerPrefs.Save).
+    /// На диск сбрасывает SaveManager.Checkpoint(). Управляется SaveManager.</summary>
+    public static bool EnableDiskWrite = true;
+
     private readonly List<Entry> entries = new List<Entry>();
     private readonly HashSet<string> touchedKeys = new HashSet<string>();
     private string loadedKey = "";
@@ -192,7 +196,7 @@ public class DialogueHistory : MonoBehaviour
         }
         PlayerPrefs.SetString(Prefix + dialogueKey, sb.ToString());
         touchedKeys.Add(dialogueKey);
-        PlayerPrefs.Save();
+        if (EnableDiskWrite) PlayerPrefs.Save();
     }
 
     /// <summary>Стереть историю всех диалогов (для новой игры).</summary>

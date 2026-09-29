@@ -20,7 +20,6 @@ public sealed class CharacterHealth : MonoBehaviour, IDamageable
     public float LastDamageTime { get; private set; } = float.NegativeInfinity;
 
     private void Awake()  => ResetHealth();
-    // Реестр для EnemyAI: без Collider цель невидима для OverlapSphere.
     private void OnEnable() => EnemyAI.RegisterCharacter(this);
     private void OnDisable() => EnemyAI.UnregisterCharacter(this);
 
@@ -37,7 +36,6 @@ public sealed class CharacterHealth : MonoBehaviour, IDamageable
 
         CurrentHealth = Mathf.Max(0f, CurrentHealth - damage.Amount);
         LastDamageTime = Time.time;
-        // Флаг смерти выставляется до событий, чтобы избежать рекурсии.
         bool died = CurrentHealth <= 0f;
         IsAlive = !died;
         Damaged?.Invoke(damage);

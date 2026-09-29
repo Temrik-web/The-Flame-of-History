@@ -1,7 +1,6 @@
 using UnityEngine;
 using System.Collections;
 
-/// <summary>Тряска камеры от близких пролётов пуль.</summary>
 public class CameraShake : MonoBehaviour
 {
     [Header("Настройки тряски")]
@@ -17,7 +16,6 @@ public class CameraShake : MonoBehaviour
     public void Shake(float duration, float magnitude)
     {
         if (duration <= 0f || magnitude <= 0f) return;
-        // Захватываем актуальную позицию: камера могла переехать после Awake.
         _originalLocalPosition = transform.localPosition;
         if (_shakeRoutine != null) StopCoroutine(_shakeRoutine);
         _shakeRoutine = StartCoroutine(ShakeRoutine(duration, magnitude));
@@ -42,6 +40,7 @@ public class CameraShake : MonoBehaviour
         }
         while (Vector3.Distance(transform.localPosition, _originalLocalPosition) > 0.001f)
         {
+            if (dampingSpeed <= 0f) break;
             transform.localPosition = Vector3.Lerp(
                 transform.localPosition, _originalLocalPosition, dampingSpeed * Time.deltaTime);
             yield return null;

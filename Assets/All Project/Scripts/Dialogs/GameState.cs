@@ -14,6 +14,10 @@ public static class GameState
 
     private const string Prefix = "flame_gs_";
 
+    /// <summary>False — промежуточные Save() пишут только в память (Set без PlayerPrefs.Save).
+    /// На диск сбрасывает SaveManager.Checkpoint() и OnApplicationQuit. Управляется SaveManager.</summary>
+    public static bool EnableDiskWrite = true;
+
     public static void SetFlag(string flag, bool value)
     {
         if (string.IsNullOrEmpty(flag)) return;
@@ -126,7 +130,7 @@ public static class GameState
         PlayerPrefs.SetString(Prefix + "flags", fb.ToString());
         PlayerPrefs.SetString(Prefix + "ints", ib.ToString());
         PlayerPrefs.SetString(Prefix + "strings", sb.ToString());
-        PlayerPrefs.Save();
+        if (EnableDiskWrite) PlayerPrefs.Save();
     }
 
     static string[] Split(string s)

@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace FlameOfHistory.AI
 {
-    /// <summary>Голос врага: крики, боль, смерть, шаги. Реплики идут через отдельный сорс, шаги — через свой.</summary>
     [DisallowMultipleComponent]
     public sealed class EnemyVoice : MonoBehaviour
     {
@@ -81,7 +80,6 @@ namespace FlameOfHistory.AI
                 return existing;
             }
 
-            // Отдельный объект, чтобы не конфликтовать с сорсом оружия.
             Transform child = transform.Find(childName);
             GameObject host;
 
@@ -141,7 +139,6 @@ namespace FlameOfHistory.AI
                 EmitShoutNoise(0.7f);
         }
 
-        /// <summary>Смерть проигрывается на отдельном объекте — труп сразу глушится и оборвал бы звук.</summary>
         public void PlayDeath()
         {
             AudioClip clip = PickClip(deathLines);
@@ -152,7 +149,6 @@ namespace FlameOfHistory.AI
             if (shoutsMakeNoise) EmitShoutNoise(0.9f);
         }
 
-        /// <summary>Дёргать каждый кадр: скорость в м/с + стоит ли на земле.</summary>
         public void UpdateFootsteps(float speed, bool grounded)
         {
             if (footstepClips == null || footstepClips.Length == 0) return;
@@ -200,7 +196,6 @@ namespace FlameOfHistory.AI
         private static AudioClip PickClip(AudioClip[] clips)
         {
             if (clips == null || clips.Length == 0) return null;
-            // В инспекторе часто бывают пустые слоты — пропускаем их.
             for (int attempt = 0; attempt < 4; attempt++)
             {
                 AudioClip candidate = clips[Random.Range(0, clips.Length)];
@@ -213,7 +208,6 @@ namespace FlameOfHistory.AI
             return null;
         }
 
-        /// <summary>Звук доигрывает даже после выключения врага.</summary>
         private void PlayDetached(AudioClip clip, float volume)
         {
             var host = new GameObject($"Voice_{clip.name}");

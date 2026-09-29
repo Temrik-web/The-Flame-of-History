@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace FlameOfHistory.AI
 {
-/// <summary>Реакция на пролёт пуль: игроку — свист, врагу — подавление. Без тряски камеры.</summary>
 [DisallowMultipleComponent]
 public sealed class SuppressionReceiver : MonoBehaviour
 {
@@ -42,7 +41,6 @@ public sealed class SuppressionReceiver : MonoBehaviour
             shot.Shooter.GetComponentInParent<CharacterHealth>() == _health) return;
         float distance = shot.DistanceToPoint(transform.position);
         if (distance > nearMissRadius) return;
-        // 1 у уха → 0 на краю радиуса.
         float closeness = 1f - Mathf.Clamp01(distance / nearMissRadius);
 
         if (isPlayer)

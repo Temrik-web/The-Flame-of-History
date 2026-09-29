@@ -1,6 +1,5 @@
 using UnityEngine;
 
-/// <summary>Тестовый куб: подходишь, жмёшь E — включаются лежащие на сцене немцы.</summary>
 public class EnemySpawnCube : MonoBehaviour
 {
     [Header("Немцы (выключенные объекты на сцене)")]
@@ -21,6 +20,7 @@ public class EnemySpawnCube : MonoBehaviour
     private bool hasSpawned;
     private float doneUntil;
     private float nextPlayerWarnTime;
+    private GUIStyle _hintStyle;
 
     private void Start()
     {
@@ -54,7 +54,6 @@ public class EnemySpawnCube : MonoBehaviour
 
         playerInRange = Vector3.Distance(transform.position, cachedPlayer.transform.position) <= interactDistance;
         if (!playerInRange) return;
-        // E во время диалога занята диалогом.
         if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive) return;
 
         if (spawnOnce && hasSpawned) return;
@@ -97,7 +96,6 @@ public class EnemySpawnCube : MonoBehaviour
 
     private void AutoFindEnemies()
     {
-        // Ищем и выключенные объекты по точным именам, запасной вариант — по подстроке.
         Transform[] all = FindObjectsOfType<Transform>(true);
         System.Collections.Generic.List<GameObject> found =
             new System.Collections.Generic.List<GameObject>();
@@ -142,9 +140,14 @@ public class EnemySpawnCube : MonoBehaviour
         if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
             return;
 
-        GUIStyle style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 20;
-        style.alignment = TextAnchor.MiddleCenter;
+        GUIStyle style = _hintStyle;
+        if (style == null)
+        {
+            style = new GUIStyle(GUI.skin.label);
+            style.fontSize = 20;
+            style.alignment = TextAnchor.MiddleCenter;
+            _hintStyle = style;
+        }
 
         if (playerInRange && (!spawnOnce || !hasSpawned))
         {

@@ -151,6 +151,10 @@ public class DialogueManager : MonoBehaviour
     /// <summary>Перешли к новому узлу.</summary>
     public event System.Action<DialogueNode> OnNodeChanged;
 
+    /// <summary>False — промежуточные сейвы прогресса/выборов пишут только в память
+    /// (Set без PlayerPrefs.Save). На диск сбрасывает SaveManager.Checkpoint(). Управляется SaveManager.</summary>
+    public static bool EnableDiskWrite = true;
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -291,7 +295,7 @@ public class DialogueManager : MonoBehaviour
         PlayerPrefs.SetString(ProgressPrefix + "node_" + key, "");
         PlayerPrefs.SetInt(ProgressPrefix + "done_" + key, 1);
         ClearUsedChoices(dialogue);
-        PlayerPrefs.Save();
+        if (EnableDiskWrite) PlayerPrefs.Save();
     }
 
     static void SaveDialogueProgress(DialogueData dialogue, string nodeID)
@@ -299,7 +303,7 @@ public class DialogueManager : MonoBehaviour
         string key = DialogueKey(dialogue);
         if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(nodeID)) return;
         PlayerPrefs.SetString(ProgressPrefix + "node_" + key, nodeID);
-        PlayerPrefs.Save();
+        if (EnableDiskWrite) PlayerPrefs.Save();
     }
 
     static void ClearDialogueProgress(DialogueData dialogue)
@@ -307,7 +311,7 @@ public class DialogueManager : MonoBehaviour
         string key = DialogueKey(dialogue);
         if (string.IsNullOrEmpty(key)) return;
         PlayerPrefs.SetString(ProgressPrefix + "node_" + key, "");
-        PlayerPrefs.Save();
+        if (EnableDiskWrite) PlayerPrefs.Save();
     }
 
     /// <summary>Сбросить прогресс и прохождение одного диалога (для тестов/новой игры).</summary>
@@ -318,6 +322,7 @@ public class DialogueManager : MonoBehaviour
         PlayerPrefs.DeleteKey(ProgressPrefix + "node_" + key);
         PlayerPrefs.DeleteKey(ProgressPrefix + "done_" + key);
         ClearUsedChoices(dialogue);
+        // Сброс — явное действие (новая игра/тесты), пишем на диск всегда.
         PlayerPrefs.Save();
     }
 
@@ -347,7 +352,7 @@ public class DialogueManager : MonoBehaviour
         if (string.IsNullOrEmpty(key)) return;
         PlayerPrefs.SetString(UsedPrefix + key,
             string.Join("\u001f", new System.Collections.Generic.List<string>(set).ToArray()));
-        PlayerPrefs.Save();
+        if (EnableDiskWrite) PlayerPrefs.Save();
     }
 
     /// <summary>Пометить выбор использованным (кнопка гаснет навсегда).</summary>

@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace FlameOfHistory.AI
 {
-    /// <summary>Выпавшее оружие: падает с физикой и замирает, когда успокоилось. Без принудительной укладки.</summary>
     [DisallowMultipleComponent]
     public sealed class DroppedWeapon : MonoBehaviour
     {
@@ -30,6 +29,9 @@ namespace FlameOfHistory.AI
         [SerializeField, Min(0f)] private float calmSpeedThreshold = 0.2f;
         [SerializeField, Min(0f)] private float calmAngularThreshold = 0.2f;
         [SerializeField, Min(1f)] private float forceFreezeAfter = 10f;
+        [Tooltip("Скорость опрокидывания воткнутого ствола (рад/с): успокоился стоя " +
+                 "на дуле — получил толчок вбок, а не заморозку вертикально.")]
+        [SerializeField, Min(0f)] private float uprightTipRate = 1.5f;
 
         [Header("Страховка от провала")]
         [Tooltip("Возвращать оружие наверх, если оно ушло под пол. " +
@@ -49,6 +51,7 @@ namespace FlameOfHistory.AI
         private bool gravityEnabled;
         private bool hasTouchedGround;
         private float calmTimer;
+        private float uprightTimer;
         private float aliveSinceGravity;
         private bool isFrozen;
         private Collider[] ownColliders;
@@ -77,7 +80,6 @@ namespace FlameOfHistory.AI
 
         private void Awake() => PrepareBody();
 
-        /// <summary>Без Initialize оружие зависло бы в воздухе (kinematic + глухие коллайдеры).</summary>
         private void Start()
         {
             if (initialized) return;
@@ -176,16 +178,12 @@ namespace FlameOfHistory.AI
             }
 
             aliveSinceGravity += Time.deltaTime;
-            // Проверка провала идёт по низу коллайдера.
             if (guardAgainstFallThrough && watchTimer < watchDuration)
             {
                 watchTimer += Time.deltaTime;
                 GuardAgainstFallThrough();
             }
 
-            // Никакой принудительной укладки/доводки трансформа: только чистая
-            // физика + заморозка, когда успокоилось. Иначе kinematic-движки
-            // везут всё, что стоит на оружии.
             UpdateFreeze();
         }
 
@@ -201,13 +199,8 @@ namespace FlameOfHistory.AI
 
             Vector3 vel = initialVelocity + Random.insideUnitSphere * velocityRandomness;
             body.AddForce(vel * body.mass, ForceMode.Impulse);
-            // Вращение выброшенного игроком отключено полностью (applySpin: false) —
-            // иначе даже малая случайная добавка крутила модель «вертолётом».
             if (applySpin)
-            {
-                Vector3 spin = initialSpin + Random.insideUnitSphere * spinRandomness;
-                body.AddTorque(spin * body.mass * 0.5f, ForceMode.Impulse);
-            }
+                body.angularVelocity = initialSpin + Random.insideUnitSphere * spinRandomness;
         }
 
         private void ResolveInitialOverlap()
@@ -271,7 +264,6 @@ namespace FlameOfHistory.AI
                 if (Physics.Raycast(worldPoint + Vector3.up * 0.1f, Vector3.down, out RaycastHit hit,
                                     0.25f, groundMask, QueryTriggerInteraction.Ignore))
                 {
-                    // Свой коллайдер — не пол, иначе заморозка сработает в воздухе.
                     if (hit.collider.transform.IsChildOf(transform)) continue;
                     return true;
                 }
@@ -322,8 +314,6 @@ namespace FlameOfHistory.AI
                 Vector3 normal;
                 if (IsNearGround(out groundPoint, out normal))
                 {
-                    // Низом коллайдера, а не центром. Только вниз: вверх
-                    // не тянем никогда, иначе стоящий на оружии игрок взлетит.
                     float bottomOffset = transform.position.y - GetBottomY();
                     Vector3 targetPos = new Vector3(transform.position.x,
                                                     groundPoint.y + bottomOffset + 0.02f,
@@ -334,8 +324,8 @@ namespace FlameOfHistory.AI
                 }
             }
 
-            bool isLaying = Vector3.Angle(transform.up, Vector3.up) > 45f;
-            // Ждём freezeAfterCalm, иначе замрёт не докатившись.
+            Vector3 barrel = LongAxisWorldFull();
+            bool isLaying = Mathf.Abs(barrel.y) < 0.7f;
             bool calmLongEnough;
             if (grounded && calmLinear && calmAngular && isLaying)
             {
@@ -348,16 +338,56 @@ namespace FlameOfHistory.AI
                 calmLongEnough = false;
             }
 
-            // Аварийный таймаут — только на земле. Иначе подброшенное
-            // или недолетевшее замирает прямо в воздухе.
-            bool timedOut = aliveSinceGravity >= forceFreezeAfter && grounded;
+            if (grounded && calmLinear && calmAngular && !isLaying)
+            {
+                uprightTimer += Time.deltaTime;
+                if (uprightTimer >= 1f)
+                {
+                    uprightTimer = 0f;
+                    TipUpright(barrel);
+                }
+            }
+            else uprightTimer = 0f;
 
-            if (!calmLongEnough && !timedOut) return;
+            bool timedOut = aliveSinceGravity >= forceFreezeAfter && grounded && isLaying;
+            bool expired = aliveSinceGravity >= forceFreezeAfter + 10f;
+
+            if (!calmLongEnough && !timedOut && !expired) return;
 
             body.velocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
             body.Sleep();
             isFrozen = true;
+        }
+
+        private Vector3 LongAxisWorldFull()
+        {
+            Bounds bounds = default;
+            bool hasBounds = false;
+            if (ownColliders != null)
+                foreach (Collider col in ownColliders)
+                {
+                    if (col == null || !col.enabled) continue;
+                    if (!hasBounds) { bounds = col.bounds; hasBounds = true; }
+                    else bounds.Encapsulate(col.bounds);
+                }
+            if (!hasBounds) return transform.forward;
+            Vector3 size = bounds.size;
+            if (size.magnitude < 0.05f) return transform.forward;
+            return (size.x >= size.y && size.x >= size.z) ? Vector3.right
+                : (size.y >= size.z ? Vector3.up : Vector3.forward);
+        }
+
+        private void TipUpright(Vector3 barrel)
+        {
+            if (body == null || body.isKinematic || uprightTipRate <= 0f) return;
+            Vector3 axis = Vector3.Cross(barrel, Vector3.up);
+            if (axis.sqrMagnitude < 0.01f) axis = transform.right;
+            axis.y = 0f;
+            if (axis.sqrMagnitude < 0.01f) axis = Vector3.right;
+            body.WakeUp();
+            body.angularVelocity = axis.normalized * uprightTipRate *
+                (Random.value < 0.5f ? 1f : -1f);
         }
 
         private void GuardAgainstFallThrough()
@@ -366,7 +396,6 @@ namespace FlameOfHistory.AI
             if (rescueAttempts >= 3) return;
 
             if (!TryGetGroundY(out float groundY)) return;
-            // Меряем по низу коллайдера: центр у автомата висит высоко и врёт.
             float bottomY = GetBottomY();
             if (bottomY >= groundY - fallThroughTolerance)
             {
@@ -394,7 +423,6 @@ namespace FlameOfHistory.AI
             }
         }
 
-        /// <summary>Застряло в геометрии: висит без движения далеко от пола — толкаем вниз.</summary>
         private void CheckStuckInAir(float groundY)
         {
             if (hasTouchedGround) return;
@@ -424,7 +452,6 @@ namespace FlameOfHistory.AI
             return lowest < float.MaxValue ? lowest : transform.position.y;
         }
 
-        /// <summary>Пол под оружием. False — пола нет, трогать нельзя (может падать в пропасть).</summary>
         private bool TryGetGroundY(out float groundY)
         {
             groundY = 0f;

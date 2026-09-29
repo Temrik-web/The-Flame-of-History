@@ -58,6 +58,10 @@ public static class QuestSystem
 
     private const string Prefix = "flame_q_";
 
+    /// <summary>False — промежуточные Save() пишут только в память (Set без PlayerPrefs.Save).
+    /// На диск сбрасывает SaveManager.Checkpoint() и OnApplicationQuit. Управляется SaveManager.</summary>
+    public static bool EnableDiskWrite = true;
+
     /// <summary>Новое задание / журнал.</summary>
     public static event Action<string> OnQuestStarted;
     public static event Action<string> OnQuestCompleted;
@@ -176,7 +180,7 @@ public static class QuestSystem
             sb.Append(k).Append('=').Append(s).Append(':').Append(GetCounter(k));
         }
         PlayerPrefs.SetString(Prefix + "states", sb.ToString());
-        PlayerPrefs.Save();
+        if (EnableDiskWrite) PlayerPrefs.Save();
     }
 
     public static void ResetAll(bool deleteSave = true)

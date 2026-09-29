@@ -104,7 +104,7 @@ public class DialogueRaidHook : MonoBehaviour
 
         int talks = PlayerPrefs.GetInt(countKey, 0) + 1;
         PlayerPrefs.SetInt(countKey, talks);
-        PlayerPrefs.Save();
+        if (DialogueManager.EnableDiskWrite) PlayerPrefs.Save();
         Debug.Log($"[RaidHook] {KeyBase}: беседа №{talks} (нужно {talksBeforeEvent}).", this);
 
         if (talks < talksBeforeEvent) return;
@@ -117,7 +117,7 @@ public class DialogueRaidHook : MonoBehaviour
         if (fireOnce)
         {
             PlayerPrefs.SetInt(firedKey, 1);
-            PlayerPrefs.Save();
+            if (DialogueManager.EnableDiskWrite) PlayerPrefs.Save();
         }
 
         DialogueEventBus.Raise(eventId);
