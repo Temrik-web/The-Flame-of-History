@@ -1,3 +1,489 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:61f180e455c44cf12a4d2f4a43b5a7b3aa9650fb0bbbf4d661fe79ea3bb3a263
-size 13526
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b10eef72775f734787ca02c4ae93b61, type: 3}
+  m_Name: D5_Voyna
+  m_EditorClassIdentifier: 
+  dialogueName: "\u0414\u0438\u0430\u043b\u043e\u0433 5 \u2014 \u0412\u043e\u0439\u043d\u0430"
+  description: "Требует: met_stepan. Алесь не понимает зачем Степан остался. Ветки: логика / война / страх."
+  nodes:
+  - nodeID: N1
+    nextNodeID: N2
+    speakerName: "\u0410\u043b\u0435\u0441\u044c"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "А вы почему не ушли? Из деревни-то."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N2
+    nextNodeID: N3
+    speakerName: "\u0421\u0442\u0435\u043f\u0430\u043d"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "А куда?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N3
+    nextNodeID: N4
+    speakerName: "\u0410\u043b\u0435\u0441\u044c"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Так везде же война."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4
+    nextNodeID: 
+    speakerName: "\u0421\u0442\u0435\u043f\u0430\u043d"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Везде. Вот и сижу тут."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "Там-то безопаснее было бы."
+      condition: {fileID: 0}
+      nextNodeID: N5_logika
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "\u0412\u044b \u0432\u043e\u0435\u0432\u0430\u043b\u0438? \u0420\u0430\u043d\u044c\u0448\u0435?"
+      condition: {fileID: 0}
+      nextNodeID: N5_pervaya
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "Я вот сам боюсь."
+      condition: {fileID: 0}
+      nextNodeID: N5_boyus
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N5_logika
+    nextNodeID: N6_logika
+    speakerName: "\u0421\u0442\u0435\u043f\u0430\u043d"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Всегда там опаснее, где ты сам."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N6_logika
+    nextNodeID: 
+    speakerName: "\u0410\u043b\u0435\u0441\u044c"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Не понимаю я."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "\u041e\u0431\u044a\u044f\u0441\u043d\u0438\u0442\u0435."
+      condition: {fileID: 0}
+      nextNodeID: N7_logika_a
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "(\u043e\u0442\u0432\u0435\u0440\u043d\u0443\u0442\u044c\u0441\u044f)"
+      condition: {fileID: 0}
+      nextNodeID: N_end
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N7_logika_a
+    nextNodeID: N_end
+    speakerName: "\u0421\u0442\u0435\u043f\u0430\u043d"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Да не надо."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 1.5
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N5_pervaya
+    nextNodeID: N6_pervaya
+    speakerName: "\u0421\u0442\u0435\u043f\u0430\u043d"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Воевал. Двенадцать месяцев под Танненбергом."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N6_pervaya
+    nextNodeID: 
+    speakerName: "\u0410\u043b\u0435\u0441\u044c"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Та война и эта... разные?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "И какая хуже?"
+      condition: {fileID: 0}
+      nextNodeID: N7_pervaya_a
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "(\u043c\u043e\u043b\u0447\u0430\u0442\u044c)"
+      condition: {fileID: 0}
+      nextNodeID: N_end
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N7_pervaya_a
+    nextNodeID: N_end
+    speakerName: "\u0421\u0442\u0435\u043f\u0430\u043d"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Та хоть понятно было, за что. А эта — нет."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "А здесь-то за что?"
+      condition: {fileID: 0}
+      nextNodeID: N7_zdes
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "Понятно."
+      condition: {fileID: 0}
+      nextNodeID: N_end
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N5_boyus
+    nextNodeID: N6_boyus
+    speakerName: "\u0421\u0442\u0435\u043f\u0430\u043d"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Страшно всегда. Просто привыкаешь."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 14
+      stringParam: stepan_trust
+      boolParam: 0
+      intParam: 1
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N6_boyus
+    nextNodeID: 
+    speakerName: "\u0410\u043b\u0435\u0441\u044c"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "К чему привыкаешь-то?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "\u0427\u0442\u043e \u0443\u0442\u0440\u043e\u043c \u043c\u043e\u0436\u0435\u0442 \u043d\u0435 \u0431\u044b\u0442\u044c \u0441\u0442\u0440\u0435\u043b\u044c\u0431\u044b."
+      condition: {fileID: 0}
+      nextNodeID: N7_boyus_a
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "\u0422\u0438\u0448\u0438\u043d\u044b."
+      condition: {fileID: 0}
+      nextNodeID: N7_boyus_b
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N7_boyus_a
+    nextNodeID: N_end
+    speakerName: "\u0421\u0442\u0435\u043f\u0430\u043d"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Вот и разберёшься сам."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N7_boyus_b
+    nextNodeID: N_end
+    speakerName: "\u0421\u0442\u0435\u043f\u0430\u043d"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Тишина — она хуже. Она думать заставляет."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N_end
+    nextNodeID: 
+    speakerName: "\u0421\u0442\u0435\u043f\u0430\u043d"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Ладно. Иди отдыхай давай. И вот ещё что: будет случай — загляни к Василию, вознице. У него для тебя, может, дело найдётся. Только сразу не хватайся — сперва послушай, что скажет."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 11
+      stringParam: q_grenade
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N7_zdes
+    nextNodeID: N_end
+    speakerName: "\u0421\u0442\u0435\u043f\u0430\u043d"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "А здесь... здесь за то, чтоб люди людьми остались. Больше не спрашивай, ладно?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []

@@ -1,3 +1,266 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:f87c71d1ee00a4e3096bc9505fce2a41376a95c6a0abe7f2f40f85817686423c
-size 8553
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b10eef72775f734787ca02c4ae93b61, type: 3}
+  m_Name: D11_Dozor
+  m_EditorClassIdentifier: 
+  dialogueName: "Диалог 11 — Дозор"
+  description: "D11. Василий на шухере: дозор (q_raid_watch), второй разговор поднимает событие raid_germans через DialogueRaidHook. «Подменю» прячется после взятия дозора (Cond_NotOnWatch), сигнал серый без дозора (требует активный q_raid_watch). Ветка «Слышишь?» видна при активном q_raid."
+  nodes:
+  - nodeID: N1
+    nextNodeID: N2
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Стой, не шуми... Свои? А, это ты, Алесь. Давай сюда, пригнись. Степан сказывал — подменишь меня?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N2
+    nextNodeID: N3
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Место тут такое: дорога как на ладони. Если кто чужой пойдёт — только отсюда его и увидишь. Ты смотри в оба, а я пока вздремну часок... Шучу, шучу. (усмехается) Ну что, как?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N3
+    nextNodeID: 
+    speakerName: "Алесь"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "(вглядывается в дорогу) Пока тихо. Что делаем?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "Подменю тебя. Что смотреть?"
+      condition: {fileID: 11400000, guid: bdb916aebaa840beaeedd6b60c9967a8, type: 2}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: 
+      requiredQuestState: 1
+      nextNodeID: N4_watch
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "Тихо... Слышишь?"
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: q_raid
+      requiredQuestState: 1
+      nextNodeID: N4_listen
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "Вижу их! Давай сигнал!"
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: q_raid_watch
+      requiredQuestState: 1
+      nextNodeID: N4_signal
+      showWhenLocked: 1
+      endDialogue: 0
+      onSelectCommands:
+      - type: 10
+        stringParam: raid_germans
+        boolParam: 0
+        intParam: 0
+        floatParam: 0
+        gameObjectParam: {fileID: 0}
+        clipParam: {fileID: 0}
+        spriteParam: {fileID: 0}
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "(Уйти)"
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: 
+      requiredQuestState: 1
+      nextNodeID: 
+      endDialogue: 1
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_watch
+    nextNodeID: N3
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Смотришь за дорогой и слушаешь собак. Увидишь пыль или каски — свистишь два раза, как я учил, и бежишь к Степану, а не геройствуешь в одиночку. Понял? Вот и ладно. Посиди тут, осмотрись — а как насмотришься, поговорим ещё. Чует моё сердце, неспроста они дорогу держат..."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 11
+      stringParam: q_raid_watch
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 0
+      stringParam: on_watch
+      boolParam: 1
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 14
+      stringParam: talk_dozor
+      boolParam: 0
+      intParam: 1
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_listen
+    nextNodeID: N3
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Слышу... Собака в той стороне второй раз подаёт. И вроде как мотор... или телега? Эх, Алесь, к добру ли... Держи винтовку наготове, а я за Степаном сбегаю, если что. Только тихо."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_signal
+    nextNodeID: N_end
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Ну, с богом, Алесь! К оружию! Держимся за плетнём, бьём наверняка — ты солдат, тебе и карты в руки!"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 11
+      stringParam: q_raid
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 12
+      stringParam: q_raid_watch
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N_end
+    nextNodeID: 
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Эх, неспокойно мне... Ты заходи ещё, ладно? Второй глаз тут лишним не будет."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: met_vasiliy_watch
+      boolParam: 1
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []

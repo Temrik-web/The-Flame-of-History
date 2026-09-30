@@ -92,7 +92,6 @@ Packages/packages-lock.json linguist-generated
 *.aiff                  lfs
 *.it                    lfs
 *.mod                   lfs
-*.mp3                   lfs
 *.ogg                   lfs
 *.s3m                   lfs
 *.wav                   lfs
@@ -109,11 +108,9 @@ Packages/packages-lock.json linguist-generated
 *.wmv                   lfs
 # Images
 *.bmp                   lfs
-*.exr                   lfs
 *.gif                   lfs
 *.hdr                   lfs
 *.iff                   lfs
-*.jpeg                  lfs
 *.jpg                   lfs
 *.pict                  lfs
 *.png                   lfs
@@ -134,8 +131,6 @@ Packages/packages-lock.json linguist-generated
 *.pdb                   lfs
 *.so                    lfs
 # Fonts
-*.otf                   lfs
-*.ttf                   lfs
 # Executable/Installer
 *.apk                   lfs
 *.exe                   lfs
@@ -147,9 +142,13 @@ Packages/packages-lock.json linguist-generated
 *.rns                   lfs
 # Spine export file for Unity
 *.skel.bytes            lfs
-# Exceptions for .asset files such as lightning pre-baking
+# Most Unity .asset files are small YAML files and belong in regular Git.
+# Keep only terrain data and generated font atlases in LFS.
 LightingData.asset     binary
-*.asset filter=lfs diff=lfs merge=lfs -text
+*SDF.asset             lfs
+"Assets/All Project/Terrains/*.asset" lfs
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/TerrainData/*.asset" lfs
+"Assets/All Project/From AssetStore/TerrainDemoScene_URP/Terrain/DetailMaps/*.asset" lfs
 
 # These two new models are below GitHub's regular Git file limit.
 # Keep them out of LFS so this commit needs no new LFS storage.

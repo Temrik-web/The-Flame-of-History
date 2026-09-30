@@ -1,3 +1,513 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:e09c66e6ed3752817b9abbb7fc317f180385a8b407a7569090cdbd27cb46f9fb
-size 13357
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b10eef72775f734787ca02c4ae93b61, type: 3}
+  m_Name: D4_Synovya
+  m_EditorClassIdentifier: 
+  dialogueName: "Диалог 4 — Сыновья"
+  description: "D4. Требует met_stepan. Ветки: где они / про деда / молчит. SetFlag(knows_sons)."
+  nodes:
+  - nodeID: N1
+    nextNodeID: N2
+    speakerName: "Алесь"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Слушайте... Это фотография. Тут два мальчика."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N2
+    nextNodeID: N3
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "..."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 1.5
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N3
+    nextNodeID: 
+    speakerName: "Алесь"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Это... ваши?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "Где они?"
+      condition: {fileID: 0}
+      nextNodeID: N4_gde
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "Я тоже потерял деда."
+      condition: {fileID: 0}
+      nextNodeID: N4_ded
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "(молчать)"
+      condition: {fileID: 0}
+      nextNodeID: N4_molch
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_gde
+    nextNodeID: N5_gde
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Под Оршей остались. Оба."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N5_gde
+    nextNodeID: 
+    speakerName: "Алесь"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Как — оба?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "Враги?"
+      condition: {fileID: 0}
+      nextNodeID: N6_gde_a
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "(молчать)"
+      condition: {fileID: 0}
+      nextNodeID: N6_gde_b
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N6_gde_a
+    nextNodeID: N_end
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Нет. Своих хоронил."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N6_gde_b
+    nextNodeID: N7_gde_b
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Оба. Младший и старший. Оба погибли там."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N7_gde_b
+    nextNodeID: N_end
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Михалыч их похоронил. А я не успел."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_ded
+    nextNodeID: N5_ded
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Понимаю тебя. Михалыч рассказывал."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N5_ded
+    nextNodeID: N6_ded
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Он мне рассказывал. Про своих, про то, как всё было."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N6_ded
+    nextNodeID: N_end
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Сыновья мои похожи были. Оба за страну хотели. Оба погибли."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "А дед мой их знал?"
+      condition: {fileID: 0}
+      nextNodeID: N7_ded2
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "(молчать)"
+      condition: {fileID: 0}
+      nextNodeID: N_end
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_molch
+    nextNodeID: N5_molch
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Старшему восемнадцать было. Младшему — шестнадцать."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N5_molch
+    nextNodeID: N6_molch
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Как немцы пришли — ушли в лес. Вместе ушли."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N6_molch
+    nextNodeID: 
+    speakerName: "Алесь"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Я... не знаю, что сказать."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "Мне очень жаль."
+      condition: {fileID: 0}
+      nextNodeID: N7_molch_a
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "(молчать)"
+      condition: {fileID: 0}
+      nextNodeID: N_end
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N7_molch_a
+    nextNodeID: N_end
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Спасибо, сынок."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N_end
+    nextNodeID: 
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Ты это... заходи ещё, ладно? Да, вот — возьми. Нож мой запасной, окопный. В лесу без ножа никак, а ты теперь вроде как свой."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: knows_sons
+      boolParam: 1
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 3
+      stringParam: knife
+      boolParam: 0
+      intParam: 1
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 12
+      stringParam: q_knife
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N7_ded2
+    nextNodeID: N_end
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Знал. Михалыч обоих на руках держал, когда маленькие были, — сосед же. Потому и хоронил сам, а мне даже не дал. Сказал: ты, Степан, живой нужен."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []

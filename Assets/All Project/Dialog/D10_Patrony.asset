@@ -1,3 +1,405 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:62693315a6c7cf232bb8941d0bd8065ecdc4f12b049a55ea94727df8873b5982
-size 12701
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b10eef72775f734787ca02c4ae93b61, type: 3}
+  m_Name: D10_Patrony
+  m_EditorClassIdentifier: 
+  dialogueName: "Диалог 10 — Мне бы патронов"
+  description: "D10. Степан: «Мне бы патронов» — разовая выдача диска (q_ammo стартует с первой реплики, кнопка пропадает после выдачи). Дальше N5-хаб: бинты разово (q_stepan_aid) и «Расскажи про деда» — серая без доверия (Cond_Trust2: stepan_trust>=2)."
+  nodes:
+  - nodeID: N1
+    nextNodeID: N2
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "О, Алесь. Слышал — от части своей отбился, да? Ничего, бывает. Дед твой, Михалыч, тоже разок с германской блуждал — вышел к своим через три дня. Ты чего хотел-то?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 11
+      stringParam: q_ammo
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N2
+    nextNodeID: N3
+    speakerName: "Алесь"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "ППШ при мне, а толку — один магазин остался. А одному теперь неспокойно, сам понимаешь."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N3
+    nextNodeID: 
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Говори, чего надо. Чем смогу — помогу. Только учти: у нас тут всё по счёту, война."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "Мне бы патронов..."
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: q_ammo
+      requiredQuestState: 1
+      nextNodeID: N4_give
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "Спасибо за патроны."
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: q_ammo
+      requiredQuestState: 2
+      nextNodeID: N4_thanks
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "Что слышно про немцев?"
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: 
+      requiredQuestState: 1
+      nextNodeID: N4_rumors
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "(Уйти)"
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: 
+      requiredQuestState: 1
+      nextNodeID: 
+      endDialogue: 1
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_give
+    nextNodeID: N5_give
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Всем бы патронов, Алесь. На, держи — один есть лишний, снаряжённый. Но больше не проси: самим впритык. Дед твой так же говорил: обещал — выполнял, а чего нет — того нет."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 3
+      stringParam: ammo_762
+      boolParam: 0
+      intParam: 1
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 12
+      stringParam: q_ammo
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 11
+      stringParam: q_stepan_aid
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 14
+      stringParam: stepan_trust
+      boolParam: 0
+      intParam: 1
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 0
+      stringParam: got_stepan_ammo
+      boolParam: 1
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_thanks
+    nextNodeID: N3
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Береги их, больше не дам — самому считать приходится. А ППШ твой в деле ещё послужит, вот увидишь."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N5_give
+    nextNodeID: 
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "И послушай ещё: Василий у околицы на шухере мается, глаз да глаз нужен. Подменил бы ты его, а? Он тебе и про подвал расскажет — там у нас общий припас. Заодно поглядишь, тихо ли в округе... Немцы что-то зачастили."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 11
+      stringParam: q_raid_watch
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "Не найдётся ли чем перевязаться?"
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: q_stepan_aid
+      requiredQuestState: 1
+      nextNodeID: N4_aid
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "Расскажи про деда, а?"
+      condition: {fileID: 11400000, guid: d484c5e77e1e4d409bb1869c2242faa5, type: 2}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: 
+      requiredQuestState: 1
+      nextNodeID: N4_ded
+      showWhenLocked: 1
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "(Пойду)"
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: 
+      requiredQuestState: 1
+      nextNodeID: N_end
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_aid
+    nextNodeID: N5_give
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Держи. Вижу — парень ты справный, дед бы за тебя порадовался. Только больше нету: это последнее, что урвал. Не транжирь."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 3
+      stringParam: bandage
+      boolParam: 0
+      intParam: 2
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 12
+      stringParam: q_stepan_aid
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 14
+      stringParam: stepan_trust
+      boolParam: 0
+      intParam: 1
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_ded
+    nextNodeID: N5_give
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Михалыч-то? Правильный был мужик. Дом своими руками ставил, никому не кланялся. В германскую санитаром был — людей из-под огня таскал. Ты на него похож, кстати. Глаза такие же упрямые."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 14
+      stringParam: stepan_trust
+      boolParam: 0
+      intParam: 1
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_rumors
+    nextNodeID: N3
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Дорогу держат, по двое ходят, с собакой. Вчера телегу с сеном шмонали — вилами всё истыкали, Василию еле уехать дали. А ночью вроде моторы гудели... Не нравится мне это. Держи ухо востро, а ППШ — заряженным."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 14
+      stringParam: rumor_talks
+      boolParam: 0
+      intParam: 1
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 0
+      stringParam: heard_rumors
+      boolParam: 1
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N_end
+    nextNodeID: 
+    speakerName: "Степан"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Заходи, Алесь. Дед твой мне другом был — стало быть, и ты не чужой."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: met_stepan_ammo
+      boolParam: 1
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []

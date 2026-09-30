@@ -1,3 +1,322 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:9702a313f8414d2776ab899d02a6320e07f16961600edd8287dd2d626b04a512
-size 11468
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b10eef72775f734787ca02c4ae93b61, type: 3}
+  m_Name: D9_Vasiliy
+  m_EditorClassIdentifier: 
+  dialogueName: "Диалог 9 — Василий"
+  description: "D9. Василий-возница: ключ в сене (q_cart_key), награда РГД-33 (q_grenade), подвал (q_cellar_door). Выбор 'Вот ключ' заблокирован (UI5) без key_cellar в сумке. Ветка сундука (q_forest_chest)."
+  nodes:
+  - nodeID: N1
+    nextNodeID: N2
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "О, новый человек! (встаёт, вытирает руки о штаны) Ты, что ли, Михалычев внук? Мне Степан сказывал, что приехал. Слушай, такое дело... выручишь, а? Беда у меня с ключом вышла — да не с простым ключом."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N2
+    nextNodeID: N3
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Ездил я в город за солью — всей деревне собирали. Назад еду, а у околицы патруль телеги шмонает, всё сено вилами тычут. Ну я с перепугу ключ от подвала в сено и сунул, поглубже. Думал — пронесёт. Пронесло, да. Только теперь сам туда ни ногой: рожа моя у них, поди, в памяти. А ключ-то в повозке так и лежит, в сене."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N3
+    nextNodeID: 
+    speakerName: "Алесь"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Рассказывай толком. Что за ключ и где искать?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices:
+    - choiceText: "Что за ключ-то? От чего он?"
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: 
+      requiredQuestState: 1
+      nextNodeID: N4_key
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "Где повозка стоит? Давай схожу."
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: 
+      requiredQuestState: 1
+      nextNodeID: N4_cart
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "Вот ключ, держи."
+      condition: {fileID: 0}
+      requiredItemId: key_cellar
+      requiredItemCount: 1
+      requiredQuestId: 
+      requiredQuestState: 1
+      nextNodeID: N4_give
+      showWhenLocked: 1
+      endDialogue: 0
+      onSelectCommands:
+      - type: 4
+        stringParam: key_cellar
+        boolParam: 0
+        intParam: 1
+        floatParam: 0
+        gameObjectParam: {fileID: 0}
+        clipParam: {fileID: 0}
+        spriteParam: {fileID: 0}
+      - type: 12
+        stringParam: q_cart_key
+        boolParam: 0
+        intParam: 0
+        floatParam: 0
+        gameObjectParam: {fileID: 0}
+        clipParam: {fileID: 0}
+        spriteParam: {fileID: 0}
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    - choiceText: "Я нашёл сундук в лесу."
+      condition: {fileID: 0}
+      requiredItemId: 
+      requiredItemCount: 1
+      requiredQuestId: q_forest_chest
+      requiredQuestState: 2
+      nextNodeID: N4_chest
+      endDialogue: 0
+      onSelectCommands: []
+      onSelected:
+        m_PersistentCalls:
+          m_Calls: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_key
+    nextNodeID: N3
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "От подвала Михалыча. Там у нас общий припас: зерно, сало, крупа — Степан туда всё снёс, чтоб немцам в глаза не бросалось. Ключ я при себе держал, как Михалыча хоронили, — боялись, при обыске дома найдут. А теперь вон оно как... Так что выручай, а? Только тихо всё, без шума."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: 
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_cart
+    nextNodeID: N3
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "За плетнём стоит, с сеном которая. Сено свежее пахнет — учуешь. Колесо у неё скрипит, оглобли набок завалены. Ты прямо не иди: обойди задами, послушай, нет ли кого рядом. Сено вороши аккуратно, ключ на дне где-то, я поглубже пихал. И патрулю на глаза не попадайся."
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 11
+      stringParam: q_cart_key
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_give
+    nextNodeID: N5_give
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Вот это да!.. (вертит ключ, смеётся) Выручил, брат, спасибо! Я уж думал — всё, пропал припас. Слушай, подвал-то за домом Михалыча, дверь низкая, сзади. Откроешь — там и зерно, и что Степан для людей держит. Только немцам ни полслова, понял?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 11
+      stringParam: q_cellar_door
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 3
+      stringParam: rgd33
+      boolParam: 0
+      intParam: 1
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 12
+      stringParam: q_grenade
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N5_give
+    nextNodeID: N_end
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "И вот ещё — держи. (достаёт гранату) РГД-шка, пригодится в лесу. Обращаться-то умеешь? Чека, замах, бросок — и за дерево. Степан мне сказывал, что ты парень толковый, — ну вот, дождался. Только зря не свети её, береги. Кстати, Степан сказывал — у вишен в лесу сундук остался, там письмо лежит. Глянешь, как будешь мимо проходить?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 11
+      stringParam: q_forest_chest
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N4_chest
+    nextNodeID: N3
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Письмо? Давай сюда... (читает, хмурится) Понятно. Значит, Степан всё же решился. Спасибо, что донёс, — это дорогого стоит. Держи бинты, перевяжись, если что. И молчок про сундук, договорились?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 12
+      stringParam: q_forest_chest
+      boolParam: 0
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    - type: 3
+      stringParam: bandage
+      boolParam: 0
+      intParam: 2
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []
+  - nodeID: N_end
+    nextNodeID: 
+    speakerName: "Василий"
+    speakerPortrait: {fileID: 0}
+    dialogueText: "Заглядывай, если что. А про ключ с подвалом — молчок, договорились?"
+    voiceClip: {fileID: 0}
+    textSpeed: 0
+    autoAdvanceDelay: 0
+    onEnterCommands:
+    - type: 0
+      stringParam: met_vasiliy
+      boolParam: 1
+      intParam: 0
+      floatParam: 0
+      gameObjectParam: {fileID: 0}
+      clipParam: {fileID: 0}
+      spriteParam: {fileID: 0}
+    choices: []
+    onNodeEnter:
+      m_PersistentCalls:
+        m_Calls: []
+    onNodeExit:
+      m_PersistentCalls:
+        m_Calls: []

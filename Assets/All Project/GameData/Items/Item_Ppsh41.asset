@@ -1,3 +1,34 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:fcd45af3b8d3ec2fba4c3cda1267a9dec1475f768839cf835865f2347d741dc9
-size 1113
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 95d316cc8d11f4e49a5bf10eb00b2fa1, type: 3}
+  m_Name: Item_Ppsh41
+  m_EditorClassIdentifier: 
+  itemId: ppsh41
+  itemName: "\u041F\u041F\u0428-41"
+  description: "\u041F\u0438\u0441\u0442\u043E\u043B\u0435\u0442-\u043F\u0443\u043B\u0435\u043C\u0451\u0442
+    \u0428\u043F\u0430\u0433\u0438\u043D\u0430. \u0414\u0438\u0441\u043A\u043E\u0432\u044B\u0439
+    \u043C\u0430\u0433\u0430\u0437\u0438\u043D, \u0432\u044B\u0441\u043E\u043A\u0438\u0439
+    \u0442\u0435\u043C\u043F \u043E\u0433\u043D\u044F."
+  icon: {fileID: 2108884697, guid: 55148d49f3b3a0349996765e297c6701, type: 3}
+  stackable: 0
+  maxStack: 1
+  itemType: 1
+  rarity: 2
+  sortOrder: 0
+  useValue: 0
+  consumeOnUse: 0
+  keyId: 
+  equipWeaponId: ppsh41
+  hotbarSlot: 1
+  worldPrefab: {fileID: 0}
+  pickupSound: {fileID: 0}
+  useSound: {fileID: 0}
