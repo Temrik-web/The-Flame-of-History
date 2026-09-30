@@ -150,3 +150,8 @@ Packages/packages-lock.json linguist-generated
 # Exceptions for .asset files such as lightning pre-baking
 LightingData.asset     binary
 *.asset filter=lfs diff=lfs merge=lfs -text
+
+# These two new models are below GitHub's regular Git file limit.
+# Keep them out of LFS so this commit needs no new LFS storage.
+"Assets/All Project/Prefabs/Idle.fbx" -filter -diff -merge -text
+"Assets/Rifle Run - run in place.fbx" -filter -diff -merge -text
