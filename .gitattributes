@@ -154,3 +154,322 @@ LightingData.asset     binary
 # Keep them out of LFS so this commit needs no new LFS storage.
 "Assets/All Project/Prefabs/Idle.fbx" -filter -diff -merge -text
 "Assets/Rifle Run - run in place.fbx" -filter -diff -merge -text
+
+# Current small binary assets stay in regular Git (all below 1 MiB).
+# Git attributes cannot select files by size, so these paths are explicit.
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoContent/JumpRamp.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-0_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-1_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-10_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-11_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-12_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-13_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-14_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-15_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-16_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-17_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-2_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-3_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-4_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-5_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-6_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-7_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-8_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/FPS Control/DemoScene/DemoScene/Lightmap-9_comp_dir.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Ground/Realistic Terrain Textures Lite/Textures/GroundPatchCracked01_H.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Bullet Holes/WFX_T_BulletHoles Concrete.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Bullet Holes/WFX_T_BulletHoles Generic.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Bullet Holes/WFX_T_BulletHoles Metal.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Bullet Holes/WFX_T_BulletHoles Wood.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Flames/WFX_T_DoubleFlames A8.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Flames/WFX_T_FlameMine A8.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Flames/WFX_T_FlamesBig A8.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Flames/WFX_T_FlamesBig.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Flames/WFX_T_FlamesSmall 4frm.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Flames/WFX_T_FlamesSmallLoopAlpha.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Flames/WFX_T_FlameThrower Stream.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Flames/WFX_T_NukeFlames.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Flames/WFX_T_StarFlames A8.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Misc/WFX_T_Debris Generic.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Misc/WFX_T_Debris Wood.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Misc/WFX_T_GlowCircle A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Misc/WFX_T_GlowPalet A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Misc/WFX_T_GroundGlow A8.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Misc/WFX_T_SmallDots A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Misc/WFX_T_SmallDots Inversed A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Misc/WFX_T_Sparks Metal A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Misc/WFX_T_StretchPalet A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/MuzzleFlashes/WFX_T_MF FrontRear RIFLE1 A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/MuzzleFlashes/WFX_T_MF FrontRear RIFLE2 A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/MuzzleFlashes/WFX_T_MF FrontRear RIFLE3 A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/MuzzleFlashes/WFX_T_MF Side RIFLE1 A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/MuzzleFlashes/WFX_T_MF Side RIFLE2 A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/MuzzleFlashes/WFX_T_MF Side RIFLE3 A8.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/MuzzleFlashes/WFX_T_MF Sparks RIFLE1 A8.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/MuzzleFlashes/WFX_T_MF Sparks RIFLE2 A8.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/MuzzleFlashes/WFX_T_MF Sparks RIFLE3 A8.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Smoke/WFX_T_SmokeLoopAlpha Average.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Smoke/WFX_T_SmokeLoopAlpha.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Smoke/WFX_T_SmokeNoise.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Desktop/Textures/Smoke/WFX_T_SmokeSpikeStretched A8.tga" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Mesh/CirclePlane12v.FBX" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Mesh/icosphere.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/JMO Assets/WarFX/Mesh/Plane1x1.FBX" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/Debris.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/ExplosionEmission.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/FireBallEmission.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/Flame04.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/Lightning.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/LightningTrail.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/MediumFlame01Emission.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/ramp01.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/Ramp02.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/Ramp03.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/RoundSoftParticle.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/shockwave.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/SmokePuff02.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/SphereNormal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Fire & Explosion Effects/Textures/TinyStones.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Misc Effects/Models/Candle.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Misc Effects/Textures/Clouds.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Misc Effects/Textures/DissolveChunks.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Misc Effects/Textures/DustMote.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Misc Effects/Textures/DustPuffSmall.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Misc Effects/Textures/FireFlyAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Misc Effects/Textures/FireFlyWings.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Misc Effects/Textures/noise.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Misc Effects/Textures/Ramp01.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Misc Effects/Textures/SparkParticle.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Possible deletion/Textures/GoopDropAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Possible deletion/Textures/GoopDropNormals.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Possible deletion/Textures/GoopPoolAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Possible deletion/Textures/GoopPoolNormals.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Possible deletion/Textures/GoopSprayAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Possible deletion/Textures/GoopSprayNormals.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Possible deletion/Textures/GoopStreamAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Possible deletion/Textures/SplatAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/BulletHoleMetalThroughAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/BulletHoleMetalThroughNormal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/BulletHoleRockAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/BulletHoleRockHeight.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/BulletHoleRockNormal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/DustPuffSmallParticleSheet.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/FleshBulletHoleAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/FleshBulletHoleHeight.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/FleshBulletHoleNormal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/FleshNormals.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/GoopSprayAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/GoopSprayNormal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/GoopStreakAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/GoopStreakNormal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/SparkParticle.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/StoneAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/StreamNormal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/TinyStones.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/TinyStonesNormals.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/WoodBulletHoleAlbedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/WoodBulletHoleDepth.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/WoodBulletHoleNormal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/WoodNormals.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/EffectExamples/Weapon Effects/Textures/woodSplintersNormal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/AreaLine.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/CornerWall.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/EndWall.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/FloorLong.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/FloorMiddle.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/FloorShort.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/FloorTiny.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/LongOverhangWall.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/Railing.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/SideWall.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/SmallLight.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/Stairs.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Models/Step.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Textures/ConcreteWall_AmbientOcclusion.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Textures/MetalTrim_Albedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Textures/MetalTrim_MetallicSmooth.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Textures/MetalTrim_Normal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Textures/PaintLines_Albedo.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Environment/Textures/PaintLines_normal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Sprites/Info.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Sprites/TitleBorder.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Sprites/Unity Logo New.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ParticlePack/Shared/Sprites/UnityLogo.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/Textures/Gravel_020_Albedo.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/Textures/Gravel_020_Normals.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/Textures/Ground_008_Albedo.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/Textures/Ground_008_Normals.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/Textures/Ground_037_Albedo.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/Textures/Ground_037_Normals.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/Textures/Rock_003_Albedo.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/Textures/Sand_034_Albedo.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/Textures/Sand_034_Normals.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/Textures/Snow_006_Albedo.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/ProceduralTerrainPainter/_Demo/Textures/Snow_006_Normals.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Materials/URP/Falling Leaves/Ash_Single.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Materials/URP/Falling Leaves/Birch_Single.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Materials/URP/Falling Leaves/Birch1_Single.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Materials/URP/Falling Leaves/Chestnut_Single.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Materials/URP/Falling Leaves/Weeping_Single.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Models/Birch/Birch_1.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Models/Birch/Birch_8.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Models/Birch/Birch_9.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Textures/Ash/Leaf_1.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Textures/Ash/Leaf_2.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Textures/Birch/Leaf_1.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Textures/Birch/Leaf_2.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Textures/Spruce/Leaf_1.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Textures/Spruce/Leaf_2.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Realistic Tree/Source/Textures/Weeping Willow/Leaf_1.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Skyboxes/Day/Cold Sunset__Cam_5_Down-Y.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Skyboxes/Night/Night Moon Burst_Cam_5_Down-Y.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Skyboxes/Sunset/Epic_GloriousPink_Cam_2_Left+X.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Skyboxes/Sunset/Epic_GloriousPink_Cam_3_Right-X.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Skyboxes/Sunset/Epic_GloriousPink_Cam_5_Down-Y.png" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Stones/Mesh/Stone_1.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Stones/Mesh/Stone_2.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Stones/Mesh/Stone_3.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Stones/Mesh/Stone_4.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/Stones/Mesh/Stone_5.fbx" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Details/BushDry_Thickness.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Details/Fern_MaskMap.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Details/Fern_Thickness.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Details/Grass_A_Thickness.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Details/Grass_C_Thickness.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Details/GrassDry_MaskMap.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Details/GrassDry_Normal.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Details/GrassDry_Thickness.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Heightmaps/Canyon01_Heightmap.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Heightmaps/Clouds_Heightmap.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Heightmaps/Cracked_Earth01_Heightmap.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Heightmaps/Cracked_Earth02_Heightmap.tif" -filter -diff -merge -text
+"Assets/All Project/From AssetStore/TerrainSampleAssets/Textures/Heightmaps/Default_White.tif" -filter -diff -merge -text
+"Assets/All Project/GameDataUI/UI/DialogueSprites/MenuBackground.png" -filter -diff -merge -text
+"Assets/All Project/GameDataUI/UI/DialogueSprites/RoundedButton.png" -filter -diff -merge -text
+"Assets/All Project/GameDataUI/UI/DialogueSprites/RoundedButtonHover.png" -filter -diff -merge -text
+"Assets/All Project/GameDataUI/UI/DialogueSprites/RoundedButtonPressed.png" -filter -diff -merge -text
+"Assets/All Project/GameDataUI/UI/DialogueSprites/RoundedRing.png" -filter -diff -merge -text
+"Assets/All Project/GameDataUI/UI/DialogueSprites/Solid.png" -filter -diff -merge -text
+"Assets/All Project/MAIN MENU/For Intro/Backgrounds/Phon2.png" -filter -diff -merge -text
+"Assets/All Project/MAIN MENU/For Intro/Backgrounds/Text.png" -filter -diff -merge -text
+"Assets/All Project/MAIN MENU/For Intro/For Video/OIP-3601843760.jpg" -filter -diff -merge -text
+"Assets/All Project/MAIN MENU/For Intro/photo1.jpg" -filter -diff -merge -text
+"Assets/All Project/MAIN MENU/images/Slider/CircleSlider.png" -filter -diff -merge -text
+"Assets/All Project/MAIN MENU/images/Slider/Slider.png" -filter -diff -merge -text
+"Assets/All Project/MAIN MENU/images/Srosshair.png" -filter -diff -merge -text
+"Assets/All Project/Prefabs/БЕЛОМОР!(GR).fbx" -filter -diff -merge -text
+"Assets/All Project/Prefabs/Apple.fbx" -filter -diff -merge -text
+"Assets/All Project/Prefabs/Dialog/key.png" -filter -diff -merge -text
+"Assets/All Project/Prefabs/Haystack(GR).fbx" -filter -diff -merge -text
+"Assets/All Project/Prefabs/Lisichki.fbx" -filter -diff -merge -text
+"Assets/All Project/Prefabs/Match.fbx" -filter -diff -merge -text
+"Assets/All Project/Prefabs/Pumpkin(GR).fbx" -filter -diff -merge -text
+"Assets/All Project/Prefabs/Small log(GR).fbx" -filter -diff -merge -text
+"Assets/All Project/Prefabs/Wheelbarrow(GR).fbx" -filter -diff -merge -text
+"Assets/All Project/Prefabs/Wood_House_UnityReady.fbx" -filter -diff -merge -text
+"Assets/All Project/Textures/БЕЛОМОР!/Albedo.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Anvil/main_baseColor.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Apple/Apple_normal.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Axe/LumberJackAxe_Material_BaseColor.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Axe/LumberJackAxe_Material_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Axe/LumberJackAxe_Material_Normal.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Axe/LumberJackAxe_Material_Roughness.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Background house1/Dom_03_low__metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/BackgroundKnife/Wood_metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Bags/Old_Burlap_Bags_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Barell/Bochka_Metallic.tga.png" -filter -diff -merge -text
+"Assets/All Project/Textures/bench/bench_low_poly_default_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Boat/DefaultMaterial_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Bucket/Bucket_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Carrot/Object_Opacity.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Carrot/Object_Roughness.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Chair/OldWoodChair_Emission.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Chair/OldWoodChair_Metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Chair/OldWoodChair_Roughness.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Chest/Treasure Chest_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Chest/Treasure Chest_Roughness.png" -filter -diff -merge -text
+"Assets/All Project/Textures/DestroyedHouse/XI_BL_H_Church_Glass_Mat_Opc.1001.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Fence/DefaultMaterial_albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Fence/DefaultMaterial_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Fence/DefaultMaterial_roughness.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Garlic/Albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Garlic/Normal.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Hammer/Iron_HammerTexture_MetallicSmoothness.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Haystacks/134.png" -filter -diff -merge -text
+"Assets/All Project/Textures/House/T_WoodHouse_Logs_BaseColor.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/House/T_WoodHouse_Roof_BaseColor.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/House/T_WoodHouse_Roof_Normal.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/House/T_WoodHouse_Walls_Occlusion.png" -filter -diff -merge -text
+"Assets/All Project/Textures/House/T_WoodHouse_WoodDetails_BaseColor.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/House/T_WoodHouse_WoodDetails_Occlusion.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Lisichki/normal.png" -filter -diff -merge -text
+"Assets/All Project/Textures/M_Material_BaseColor.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Match/Albedo.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Nail/Nail_lp_albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Nail/Nail_lp_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Nail/Nail_lp_normal.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Nail/Nail_lp_roughness.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Nails/Normal.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Nails/Opacity.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Dom_albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Dom_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Dwer1_albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Dwer1_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Kozirek_albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Kozirek_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Okno1_albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Okno1_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Okno1_normal.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Okno1_roughness.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Pol_albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Pol_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Pol_normal.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Shifer2_albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Shifer2_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Shifer2_normal.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Stena_albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Stena_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Truba_albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Truba_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Vhod_albedo.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Vhod_metallic.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Vhod_normal.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/NeighborHouse/Vhod_roughness.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Old chest/images (9).jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Old chest/istockphoto-172485003-612x612.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Old chest/istockphoto-840279136-612x612.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Pear/albedo.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Pechka/Pechka_low__pechka_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Penek/Penek_Stvol_SpecularSmoothness.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Products/dasuan-N.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Products/Ropes_Ropes_Normal-OGL.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Products/Sausage-D.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Pumpkin/Albedo.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Pumpkin/Normal.png" -filter -diff -merge -text
+"Assets/All Project/Textures/RGD-33/RGD-33_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/RollingPin/RollingPin_low_DefaultMaterial_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Syringe/Glass_Normal_DirectX.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Tank bullet/tankshell_Roughness.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Tank/Panzer_3_final3_Tracks_BaseColor.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Tank/tracks_alpha.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Tank/tracks_normal.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Tins/Meat_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Toilet/Outhouse3_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Toilet/Outhouse3_Roughness.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Unfinished house/House_old_house_1_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Unfinished house/House_old_house_2_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Village equipment/Agricultural_equipment_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Well/Bucket_Metalness.tga.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Well/Bucket_Roughness.tga.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Well/Rope_albedo.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Well/Rope_normal.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Well/Well_Metalness.tga.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Wood house/Corpus Base Color.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Wood house/Input Base Color.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Wood house/Internal Ground AO.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Wood house/Other Base Color.jpg" -filter -diff -merge -text
+"Assets/All Project/Textures/Wooden axe/axe_wood_Metallic.1001.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Wooden-cart/Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Wooden-cart1/Cart_Metallic.png" -filter -diff -merge -text
+"Assets/All Project/Textures/Wooden-cart1/Cart_Roughness.png" -filter -diff -merge -text
+"web-ui/src/assets/hero.png" -filter -diff -merge -text
