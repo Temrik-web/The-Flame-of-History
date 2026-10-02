@@ -17,6 +17,9 @@ namespace FlameOfHistory.AI
         [SerializeField] private EnemyVoice voice;
         [Tooltip("Выдача оружия. Пусто — будет найдена на этом объекте автоматически.")]
         [SerializeField] private EnemyLoadout loadout;
+        [Tooltip("Проигрыватель анимаций из клипов инспектора. Пусто — найдётся сам. " +
+                 "Если его нет и Animator пуст — враг работает как капсула без анимаций.")]
+        [SerializeField] private EnemyAnimator enemyAnimator;
 
         [Header("Target")]
         [SerializeField] private Team enemyTeam = Team.Axis;
@@ -139,6 +142,13 @@ namespace FlameOfHistory.AI
         public float Suppression => _suppression;
 
         public HitscanWeapon Weapon => weapon;
+        public EnemyAnimator EnemyAnimator => enemyAnimator;
+
+        // ДЫРА: Shoot-триггер дёргался на КАЖДЫЙ выстрел (~8/сек при 500 RPM) и забивал
+        // Reload/Hit. Теперь legacy-триггеры тоже троттлятся, а основной путь — EnemyAnimator.
+        private float _nextLegacyShootAnimTime;
+        private float _nextLegacyHitAnimTime;
+        private readonly System.Collections.Generic.HashSet<int> _animParams = new();
 
         private EnemyMotor _motor;
         private CharacterHealth _health;
@@ -248,7 +258,13 @@ namespace FlameOfHistory.AI
             if (eyePoint == null) eyePoint = transform;
             if (voice == null) voice = GetComponent<EnemyVoice>();
             if (loadout == null) loadout = GetComponent<EnemyLoadout>();
-            if (animator == null) animator = GetComponentInChildren<Animator>();
+            if (enemyAnimator == null) enemyAnimator = GetComponent<EnemyAnimator>();
+            ResolveAnimator();
+            CacheAnimatorParams();
+
+            // ДЫРА: включённый Root Motion у модели дрался бы с NavMeshAgent/EnemyMotor
+            // (двойное движение). Движением владеет мотор — гасим принудительно.
+            if (animator != null) animator.applyRootMotion = false;
 
             if (targetMask == 0)
             {
@@ -302,7 +318,8 @@ namespace FlameOfHistory.AI
             LayerMask targets,
             LayerMask visibility,
             Animator animatorRef = null,
-            PatrolRoute route = null)
+            PatrolRoute route = null,
+            EnemyAnimator enemyAnimatorRef = null)
         {
             eyePoint = eye;
             weapon = weaponRef;
@@ -311,6 +328,55 @@ namespace FlameOfHistory.AI
             visibilityMask = visibility;
             if (animatorRef != null) animator = animatorRef;
             if (route != null) patrolRoute = route;
+            if (enemyAnimatorRef != null) enemyAnimator = enemyAnimatorRef;
+            CacheAnimatorParams();
+        }
+
+        /// <summary>
+        /// ДЫРА: старый код брал ПЕРВЫЙ Animator в детях — им мог оказаться Animator
+        /// оружия. Теперь сначала свой компонент, потом дети вне поддерева оружия.
+        /// </summary>
+        private void ResolveAnimator()
+        {
+            if (animator != null) return;
+            animator = GetComponent<Animator>();
+            if (animator != null) return;
+
+            Transform weaponRoot = weapon != null ? weapon.transform : null;
+            foreach (Animator cand in GetComponentsInChildren<Animator>(true))
+            {
+                if (cand == null) continue;
+                if (weaponRoot != null &&
+                    (cand.transform == weaponRoot || cand.transform.IsChildOf(weaponRoot)))
+                    continue;
+                animator = cand;
+                return;
+            }
+        }
+
+        private void CacheAnimatorParams()
+        {
+            _animParams.Clear();
+            if (animator == null) return;
+            foreach (AnimatorControllerParameter p in animator.parameters)
+                _animParams.Add(p.nameHash);
+        }
+
+        private bool HasAnimParam(int hash) => animator != null && _animParams.Contains(hash);
+
+        private void SafeSetBool(int hash, bool value)
+        {
+            if (HasAnimParam(hash)) animator.SetBool(hash, value);
+        }
+
+        private void SafeSetFloat(int hash, float value, float damp, float dt)
+        {
+            if (HasAnimParam(hash)) animator.SetFloat(hash, value, damp, dt);
+        }
+
+        private void SafeSetTrigger(int hash)
+        {
+            if (HasAnimParam(hash)) animator.SetTrigger(hash);
         }
 
         public void SetPatrolRoute(PatrolRoute route) => patrolRoute = route;
@@ -358,13 +424,20 @@ namespace FlameOfHistory.AI
 
         private void OnWeaponFired(Vector3 impactPoint)
         {
-            if (animator != null) animator.SetTrigger(ShootHash);
+            if (enemyAnimator != null) enemyAnimator.PlayShoot();
+            // ДЫРА: триггер на каждый выстрел вешал Animator. Legacy-путь троттлим.
+            else if (Time.time >= _nextLegacyShootAnimTime)
+            {
+                _nextLegacyShootAnimTime = Time.time + 0.3f;
+                SafeSetTrigger(ShootHash);
+            }
             if (voice != null) voice.PlayCombatChatter();
         }
 
         private void OnWeaponReloadStarted()
         {
-            if (animator != null) animator.SetTrigger(ReloadHash);
+            if (enemyAnimator != null) enemyAnimator.PlayReload();
+            else SafeSetTrigger(ReloadHash);
             if (voice != null) voice.PlayReload();
         }
 
@@ -1320,7 +1393,8 @@ namespace FlameOfHistory.AI
                     $"(awareness={_awareness:F2}, target={(_target != null ? _target.name : "—")})", this);
 
             bool aiming = newState is EnemyState.Combat or EnemyState.Retreat;
-            if (animator != null) animator.SetBool(IsAimingHash, aiming);
+            if (enemyAnimator != null) enemyAnimator.SetAiming(aiming);
+            SafeSetBool(IsAimingHash, aiming);
             _motor.SetAutoRotation(!aiming);
 
             switch (newState)
@@ -1409,7 +1483,14 @@ namespace FlameOfHistory.AI
             if (!damage.IsSuppression)
             {
                 if (voice != null) voice.PlayPain();
-                if (animator != null) animator.SetTrigger(HitHash);
+                // ДЫРА: Hit-триггер на КАЖДЫЙ урон спамил и рвал стрельбу.
+                // Основной путь — EnemyAnimator со своим кулдауном, legacy троттлим тут.
+                if (enemyAnimator != null) enemyAnimator.PlayHit();
+                else if (Time.time >= _nextLegacyHitAnimTime)
+                {
+                    _nextLegacyHitAnimTime = Time.time + 0.45f;
+                    SafeSetTrigger(HitHash);
+                }
             }
 
             if (damage.Attacker != null)
@@ -1450,12 +1531,13 @@ namespace FlameOfHistory.AI
 
             UnsubscribeWeapon(weapon);
 
-            if (animator != null)
+            if (enemyAnimator != null) enemyAnimator.PlayDeath();
+            else if (animator != null)
             {
-                animator.SetBool(IsAimingHash, false);
-                animator.SetBool(IsMovingHash, false);
-                animator.SetFloat(SpeedHash, 0f);
-                animator.SetTrigger(DieHash);
+                SafeSetBool(IsAimingHash, false);
+                SafeSetBool(IsMovingHash, false);
+                SafeSetFloat(SpeedHash, 0f, 0.15f, Time.deltaTime);
+                SafeSetTrigger(DieHash);
             }
 
             _motor.Disable();
@@ -1470,11 +1552,19 @@ namespace FlameOfHistory.AI
 
         private void UpdateAnimator()
         {
+            float speed = _motor.CurrentSpeed;
+            // ДЫРА: скорость слалась в м/с напрямую — Blend Tree под 0..1 улетал в потолок.
+            // EnemyAnimator сам раскладывает м/с по якорям; legacy-путь шлём как есть,
+            // но только если параметры реально существуют (иначе был спам ошибок).
+            if (enemyAnimator != null)
+            {
+                enemyAnimator.SetLocomotion(speed);
+                return;
+            }
             if (animator == null) return;
 
-            float speed = _motor.CurrentSpeed;
-            animator.SetFloat(SpeedHash, speed, 0.15f, Time.deltaTime);
-            animator.SetBool(IsMovingHash, speed > 0.2f);
+            SafeSetFloat(SpeedHash, speed, 0.15f, Time.deltaTime);
+            if (HasAnimParam(IsMovingHash)) animator.SetBool(IsMovingHash, speed > 0.2f);
         }
 
         private void UpdateVoiceFootsteps()

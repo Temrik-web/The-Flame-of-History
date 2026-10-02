@@ -130,7 +130,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   arriveRadius: 1.2
-  turnSpeed: 540
+  turnSpeed: 180
   allowFallbackMovement: 1
   navMeshRecheckInterval: 1
   navMeshSnapRadius: 3
@@ -227,7 +227,7 @@ MonoBehaviour:
   animator: {fileID: 0}
   voice: {fileID: 4879436882058691249}
   loadout: {fileID: 0}
-  enemyTeam: 0
+  enemyTeam: 1
   targetMask:
     serializedVersion: 2
     m_Bits: 247
@@ -403,7 +403,7 @@ Transform:
   m_GameObject: {fileID: 3398647734589750169}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.7, z: 0}
+  m_LocalPosition: {x: 0, y: 1.55, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
