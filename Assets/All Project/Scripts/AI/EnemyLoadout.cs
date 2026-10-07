@@ -684,7 +684,19 @@ namespace FlameOfHistory.AI
 
         private static bool FitColliderToModel(BoxCollider box)
         {
-            Transform t = box.transform;
+            if (box == null) return false;
+            if (!TryComputeModelBounds(box.transform, out Vector3 center, out Vector3 size))
+                return false;
+            box.center = center;
+            box.size = size;
+            return true;
+        }
+
+        private static bool TryComputeModelBounds(Transform t, out Vector3 center, out Vector3 size)
+        {
+            center = default;
+            size = default;
+            if (t == null) return false;
             Matrix4x4 toLocal = t.worldToLocalMatrix;
             Vector3 min = new(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
             Vector3 max = new(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
@@ -707,21 +719,29 @@ namespace FlameOfHistory.AI
                 }
             }
             if (!hasBounds) return false;
-            box.center = (min + max) * 0.5f;
-            Vector3 size = max - min;
-            box.size = new Vector3(
-                Mathf.Max(0.02f, size.x),
-                Mathf.Max(0.02f, size.y),
-                Mathf.Max(0.02f, size.z));
+            center = (min + max) * 0.5f;
+            Vector3 s = max - min;
+            size = new Vector3(
+                Mathf.Max(0.02f, s.x),
+                Mathf.Max(0.02f, s.y),
+                Mathf.Max(0.02f, s.z));
             return true;
         }
 
         private static bool AddFallbackCollider(GameObject target)
         {
+            if (target == null) return false;
+            // БАГФИКС: раньше коллайдер создавался, а при неудаче подгонки тут же
+            // сносился через Destroy(). До конца кадра он висел «зомби» и мог
+            // попасть в кэш коллайдеров DroppedWeapon — следующий доступ
+            // к col.bounds бросал MissingReferenceException при убийстве врага.
+            // Теперь габариты считаем ДО создания компонента.
+            if (!TryComputeModelBounds(target.transform, out Vector3 center, out Vector3 size))
+                return false;
             var box = target.AddComponent<BoxCollider>();
-            if (FitColliderToModel(box)) return true;
-            Object.Destroy(box);
-            return false;
+            box.center = center;
+            box.size = size;
+            return true;
         }
 
 #if UNITY_EDITOR

@@ -1542,8 +1542,8 @@ namespace FlameOfHistory.AI
 
             _motor.Disable();
 
-            foreach (Collider c in GetComponentsInChildren<Collider>())
-                c.enabled = false;
+            foreach (Collider c in GetComponentsInChildren<Collider>(true))
+                if (c != null) c.enabled = false;
 
             if (corpseLifetime > 0f) Destroy(gameObject, corpseLifetime);
 

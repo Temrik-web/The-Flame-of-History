@@ -2737,7 +2737,7 @@ GameObject:
   - component: {fileID: 99324899}
   - component: {fileID: 99324901}
   - component: {fileID: 99324900}
-  m_Layer: 1
+  m_Layer: 0
   m_Name: Terrain
   m_TagString: Grass
   m_Icon: {fileID: 0}
@@ -3079,7 +3079,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: d2f6ec87121f4fe4d8b758ceb502584f, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 6.008
+      value: 6.045
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: d2f6ec87121f4fe4d8b758ceb502584f, type: 3}
       propertyPath: m_LocalPosition.z
@@ -6145,6 +6145,69 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 7a38a34ccd1721e47acaf621e1188390, type: 3}
   m_PrefabInstance: {fileID: 1349084917}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &233682219
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 233682220}
+  - component: {fileID: 233682221}
+  m_Layer: 0
+  m_Name: NavMesh
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &233682220
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 233682219}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -652.1, y: -171.429, z: -334.02}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1068627623}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &233682221
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 233682219}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a5ac11cc976e418e8d13136b07e1f52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_AgentTypeID: -334000983
+  m_CollectObjects: 0
+  m_Size: {x: 10, y: 10, z: 10}
+  m_Center: {x: 0, y: 2, z: 0}
+  m_LayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_UseGeometry: 1
+  m_DefaultArea: 0
+  m_GenerateLinks: 0
+  m_IgnoreNavMeshAgent: 1
+  m_IgnoreNavMeshObstacle: 1
+  m_OverrideTileSize: 0
+  m_TileSize: 256
+  m_OverrideVoxelSize: 0
+  m_VoxelSize: 0.16666667
+  m_MinRegionArea: 2
+  m_NavMeshData: {fileID: 23800000, guid: 6e5bae606f247b448b8b945d326117aa, type: 2}
+  m_BuildHeightMesh: 0
 --- !u!1001 &233771962
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -18840,6 +18903,10 @@ MonoBehaviour:
   maximumStepDown: 1.5
   gravity: 22
   groundOffset: 1
+  stickToGround: 1
+  navMeshGroundProbe: 4
+  snapToGroundOnStart: 1
+  snapDestinationToGround: 1
   fallbackAcceleration: 6
   fallbackDeceleration: 12
   fallbackTurnRate: 270
@@ -20668,6 +20735,10 @@ MonoBehaviour:
   maximumStepDown: 1.5
   gravity: 22
   groundOffset: 1
+  stickToGround: 1
+  navMeshGroundProbe: 4
+  snapToGroundOnStart: 1
+  snapDestinationToGround: 1
   fallbackAcceleration: 6
   fallbackDeceleration: 12
   fallbackTurnRate: 270
@@ -26013,7 +26084,7 @@ GameObject:
   - component: {fileID: 893684140}
   - component: {fileID: 893684142}
   - component: {fileID: 893684141}
-  m_Layer: 1
+  m_Layer: 0
   m_Name: Terrain_(150.00, 0.00, 150.00)
   m_TagString: Grass
   m_Icon: {fileID: 0}
@@ -28685,7 +28756,7 @@ GameObject:
   - component: {fileID: 951190344}
   - component: {fileID: 951190346}
   - component: {fileID: 951190345}
-  m_Layer: 1
+  m_Layer: 0
   m_Name: Terrain_(150.00, 0.00, 0.00)
   m_TagString: Grass
   m_Icon: {fileID: 0}
@@ -33539,7 +33610,7 @@ Transform:
   - {fileID: 1456847903}
   - {fileID: 31254237}
   - {fileID: 2027426573}
-  - {fileID: 1074187490}
+  - {fileID: 233682220}
   m_Father: {fileID: 702163324}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1070304389
@@ -33658,69 +33729,6 @@ Transform:
   - {fileID: 439583062}
   m_Father: {fileID: 1366986185}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1074187489
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1074187490}
-  - component: {fileID: 1074187491}
-  m_Layer: 1
-  m_Name: Navmesh
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1074187490
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1074187489}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1068627623}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1074187491
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1074187489}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7a5ac11cc976e418e8d13136b07e1f52, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_AgentTypeID: 0
-  m_CollectObjects: 0
-  m_Size: {x: 10, y: 10, z: 10}
-  m_Center: {x: 0, y: 2, z: 0}
-  m_LayerMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_UseGeometry: 0
-  m_DefaultArea: 0
-  m_GenerateLinks: 0
-  m_IgnoreNavMeshAgent: 1
-  m_IgnoreNavMeshObstacle: 1
-  m_OverrideTileSize: 0
-  m_TileSize: 256
-  m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
-  m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: 9423e2cdc9bb2da47946cf2a69bd7f23, type: 2}
-  m_BuildHeightMesh: 0
 --- !u!1001 &1076841173
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -37560,6 +37568,10 @@ MonoBehaviour:
   maximumStepDown: 1.5
   gravity: 22
   groundOffset: 1
+  stickToGround: 1
+  navMeshGroundProbe: 4
+  snapToGroundOnStart: 1
+  snapDestinationToGround: 1
   fallbackAcceleration: 6
   fallbackDeceleration: 12
   fallbackTurnRate: 270
@@ -37762,7 +37774,7 @@ AudioSource:
   SpatializePostEffects: 0
   Priority: 128
   DopplerLevel: 1
-  MinDistance: 1
+  MinDistance: 0.81163883
   MaxDistance: 500
   Pan2D: 0
   rolloffMode: 0
@@ -41826,6 +41838,10 @@ MonoBehaviour:
   maximumStepDown: 1.5
   gravity: 22
   groundOffset: 1
+  stickToGround: 1
+  navMeshGroundProbe: 4
+  snapToGroundOnStart: 1
+  snapDestinationToGround: 1
   fallbackAcceleration: 6
   fallbackDeceleration: 12
   fallbackTurnRate: 270
@@ -52792,6 +52808,7 @@ GameObject:
   - component: {fileID: 1743753202}
   - component: {fileID: 1743753206}
   - component: {fileID: 1743753210}
+  - component: {fileID: 1743753211}
   m_Layer: 6
   m_Name: FPS
   m_TagString: Player
@@ -52829,7 +52846,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 80c11472a59dfb941bb0a8f380163bb7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  autoRespawnDelay: 3
+  autoRespawnDelay: 0.1
 --- !u!114 &1743753190
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -53014,7 +53031,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   team: 0
-  maximumHealth: 100
+  maximumHealth: 1000000
 --- !u!114 &1743753206
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -53195,6 +53212,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c4e7111079484c2890a74c83073eae8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1743753211
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1743753184}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8f27b0c702d4384da473d6187c9c9a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &1750569848
@@ -54229,7 +54258,7 @@ Transform:
   m_GameObject: {fileID: 1784201891}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.55, z: 0}
+  m_LocalPosition: {x: 0.0948, y: 1.5084, z: 0.2758}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -56206,8 +56235,8 @@ Animator:
   m_GameObject: {fileID: 1841569292}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: 483c89fdf8fb9554297e388faee435c4, type: 2}
-  m_CullingMode: 0
+  m_Controller: {fileID: 0}
+  m_CullingMode: 1
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
@@ -56281,12 +56310,12 @@ MonoBehaviour:
   wanderWhenNoRoute: 1
   wanderRadius: 14
   wanderRetryDelay: 1.5
-  chaseSpeed: 3.8
+  chaseSpeed: 10
   preferredCombatDistance: 20
   maximumCombatDistance: 38
   combatRepositionDistance: 5
   repositionSpeed: 1.4
-  combatAdvanceSpeed: 1.9
+  combatAdvanceSpeed: 3
   openingDuration: 4
   openingSpread: 0.55
   midFightSpread: 1.25
@@ -56466,7 +56495,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   arriveRadius: 1.2
-  turnSpeed: 180
+  turnSpeed: 100
   allowFallbackMovement: 1
   navMeshRecheckInterval: 1
   navMeshSnapRadius: 3
@@ -56478,7 +56507,11 @@ MonoBehaviour:
   maximumSlope: 50
   maximumStepDown: 1.5
   gravity: 22
-  groundOffset: 1
+  groundOffset: 0.05
+  stickToGround: 1
+  navMeshGroundProbe: 4
+  snapToGroundOnStart: 1
+  snapDestinationToGround: 1
   fallbackAcceleration: 6
   fallbackDeceleration: 12
   fallbackTurnRate: 270
@@ -56514,7 +56547,7 @@ CharacterController:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Height: 2
+  m_Height: 1.7
   m_Radius: 0.4
   m_SlopeLimit: 45
   m_StepOffset: 0.45
@@ -56540,7 +56573,7 @@ NavMeshAgent:
   m_AutoBraking: 1
   m_AutoRepath: 1
   m_Height: 1.7
-  m_BaseOffset: -0.01
+  m_BaseOffset: 0
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
 --- !u!4 &1841662470 stripped
@@ -61853,7 +61886,7 @@ Transform:
   m_GameObject: {fileID: 2054629824}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0.5}
+  m_LocalPosition: {x: -0.1709, y: 0.39, z: 0.8317}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -63227,7 +63260,7 @@ GameObject:
   - component: {fileID: 2115337699}
   - component: {fileID: 2115337701}
   - component: {fileID: 2115337700}
-  m_Layer: 1
+  m_Layer: 0
   m_Name: Terrain_(0.00, 0.00, 150.00)
   m_TagString: Grass
   m_Icon: {fileID: 0}

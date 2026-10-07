@@ -42,6 +42,19 @@ namespace FlameOfHistory.AI
         [Tooltip("Отступ центра капсулы от земли. Обычно половина высоты врага.")]
         [SerializeField, Min(0f)] private float groundOffset = 0f;
 
+        [Header("Притяжение к земле (чтобы не летал)")]
+        [Tooltip("Притягивать к земле и в режиме NavMesh. Если точка маршрута " +
+                 "висит чуть выше территории — враг будет бежать по земле, а не лететь. " +
+                 "Выключи только если враг должен летать.")]
+        [SerializeField] private bool stickToGround = true;
+        [Tooltip("Насколько далеко вниз искать землю в режиме NavMesh.")]
+        [SerializeField, Min(0.5f)] private float navMeshGroundProbe = 4f;
+        [Tooltip("Мгновенно ставить на землю при старте, если она рядом.")]
+        [SerializeField] private bool snapToGroundOnStart = true;
+        [Tooltip("Притягивать точку назначения к земле/NavMesh по Y, чтобы точки " +
+                 "маршрута в воздухе не поднимали врага.")]
+        [SerializeField] private bool snapDestinationToGround = true;
+
         [Header("Humanity (плавность без NavMesh)")]
         [Tooltip("Разгон в режиме Fallback, м/с². Без него враг стартует и " +
                  "меняет направление мгновенно, как робот.")]
@@ -82,7 +95,7 @@ namespace FlameOfHistory.AI
 
         public Vector3 Velocity => _measuredVelocity;
 
-        public bool IsGrounded => Mode == MotorMode.NavMesh || _isGrounded;
+        public bool IsGrounded => _isGrounded;
 
         public bool CanMove =>
             (Mode == MotorMode.NavMesh && AgentUsable) ||
@@ -142,7 +155,11 @@ namespace FlameOfHistory.AI
             return best > 0.01f ? best : 1f;
         }
 
-        private void Start() => EvaluateMode(true);
+        private void Start()
+        {
+            EvaluateMode(true);
+            if (snapToGroundOnStart) SnapToGroundImmediate();
+        }
 
         private void OnEnable()
         {
@@ -160,6 +177,7 @@ namespace FlameOfHistory.AI
 
         public bool MoveTo(Vector3 target)
         {
+            if (snapDestinationToGround) target = SnapDestinationY(target);
             _destination = target;
             HasDestination = true;
             _blockedCompletely = false;
@@ -318,6 +336,144 @@ namespace FlameOfHistory.AI
             _previousPosition = position;
         }
 
+        // NavMesh-агент сам двигает тело в своём внутреннем обновлении и гравитации
+        // у него нет: если заспавнить чуть выше меша — будет лететь вечно.
+        // Поэтому прилипание делаем в LateUpdate — после того, как агент уже
+        // подвинул тело в этом кадре. Иначе агент перезапишет нашу коррекцию.
+        private void LateUpdate()
+        {
+            if (!stickToGround || Mode != MotorMode.NavMesh) return;
+            float dt = Time.deltaTime;
+            if (dt <= 0f) return;
+            UpdateNavMeshGroundStick(dt);
+        }
+
+        /// <summary>
+        /// Небольшая физика для режима NavMesh: если под ногами земля ниже —
+        /// тянем врага вниз с гравитацией, если рядом — прилипаем.
+        /// Без земли в зонде (напр. неверный groundMask) — доверяемся NavMesh,
+        /// чтобы враг не провалился в бесконечность.
+        /// </summary>
+        private void UpdateNavMeshGroundStick(float dt)
+        {
+            if (!AgentUsable) return;
+
+            Vector3 pos = transform.position;
+            Vector3 probeStart = new(pos.x, pos.y + 1f, pos.z);
+            float probeDist = 1f + navMeshGroundProbe + groundOffset;
+
+            Vector3 from = probeStart;
+            bool found = false;
+            Vector3 ground = pos;
+            float rayDist = probeDist;
+            if (Physics.Raycast(from, Vector3.down, out RaycastHit hit, rayDist,
+                    groundMask, QueryTriggerInteraction.Ignore) &&
+                hit.collider.transform.root != transform.root &&
+                Vector3.Angle(hit.normal, Vector3.up) <= maximumSlope)
+            {
+                ground = hit.point;
+                found = true;
+            }
+            else if (TryFindGround(from, out Vector3 altGround))
+            {
+                ground = altGround;
+                found = true;
+            }
+
+            if (!found)
+            {
+                _isGrounded = true;
+                _verticalVelocity = 0f;
+                return;
+            }
+
+            float targetY = ground.y + groundOffset;
+            float diff = pos.y - targetY;
+
+            if (diff <= stepHeight + 0.05f && diff >= -stepHeight)
+            {
+                // Земля рядом — прилипаем (ступеньки, мелкие неровности).
+                _isGrounded = true;
+                _verticalVelocity = 0f;
+                if (Mathf.Abs(diff) > 0.005f) ShiftVertically(targetY - pos.y);
+                return;
+            }
+
+            if (diff > 0f)
+            {
+                // Висим в воздухе — падаем с гравитацией.
+                _isGrounded = false;
+                _verticalVelocity -= gravity * dt;
+                float fall = Mathf.Max(_verticalVelocity * dt, -diff);
+                ShiftVertically(fall);
+                if (Mathf.Abs(pos.y + fall - targetY) < 0.01f)
+                {
+                    _isGrounded = true;
+                    _verticalVelocity = 0f;
+                }
+                return;
+            }
+
+            // Оказались под землёй (точка в склоне) — выталкиваем наверх.
+            _isGrounded = true;
+            _verticalVelocity = 0f;
+            ShiftVertically(targetY - pos.y);
+        }
+
+        /// <summary>Сдвинуть по Y и трансформ, и внутреннюю позицию агента,
+        /// чтобы NavMesh не возвращал тело обратно вверх.</summary>
+        private void ShiftVertically(float deltaY)
+        {
+            if (Mathf.Abs(deltaY) < 0.0001f) return;
+            Vector3 pos = transform.position;
+            pos.y += deltaY;
+            transform.position = pos;
+            if (AgentUsable)
+            {
+                Vector3 np = _agent.nextPosition;
+                np.y += deltaY;
+                _agent.nextPosition = np;
+            }
+        }
+
+        private void SnapToGroundImmediate()
+        {
+            Vector3 pos = transform.position;
+            Vector3 probeStart = new(pos.x, pos.y + 1f, pos.z);
+            if (!TryFindGround(probeStart, out Vector3 ground)) return;
+            float targetY = ground.y + groundOffset;
+            if (Mathf.Abs(pos.y - targetY) > navMeshGroundProbe + 1f) return;
+            float delta = targetY - pos.y;
+            pos.y = targetY;
+            transform.position = pos;
+            if (AgentUsable)
+            {
+                Vector3 np = _agent.nextPosition;
+                np.y += delta;
+                _agent.nextPosition = np;
+            }
+            _verticalVelocity = 0f;
+            _isGrounded = true;
+        }
+
+        /// <summary>Притянуть Y точки назначения к NavMesh/земле,
+        /// чтобы точки маршрута в воздухе не поднимали врага.</summary>
+        private Vector3 SnapDestinationY(Vector3 target)
+        {
+            if (_agent != null && Mode == MotorMode.NavMesh)
+            {
+                if (NavMesh.SamplePosition(target, out NavMeshHit navHit, 3f, NavMesh.AllAreas))
+                {
+                    target.y = navHit.position.y + groundOffset - _agent.baseOffset;
+                    return target;
+                }
+            }
+            Vector3 probe = new(target.x, target.y + 1.5f, target.z);
+            if (TryFindGround(probe, out Vector3 grounded))
+                target.y = grounded.y + groundOffset;
+            return target;
+        }
+
         private void EvaluateMode(bool initial)
         {
             if (_agent == null) return;
@@ -328,6 +484,7 @@ namespace FlameOfHistory.AI
                 {
                     Mode = MotorMode.NavMesh;
                     _verticalVelocity = 0f;
+                    _isGrounded = true;
 
                     if (_controller != null && _controller.enabled)
                         _controller.enabled = false;
@@ -340,6 +497,8 @@ namespace FlameOfHistory.AI
             if (TryReturnToNavMesh())
             {
                 Mode = MotorMode.NavMesh;
+                _verticalVelocity = 0f;
+                _isGrounded = true;
                 if (_controller != null && _controller.enabled)
                     _controller.enabled = false;
                 if (HasDestination) MoveTo(_destination);
@@ -380,9 +539,15 @@ namespace FlameOfHistory.AI
                     navMeshSnapRadius, NavMesh.AllAreas))
                 return false;
 
-            Vector3 from = transform.position + Vector3.up * 1f;
-            Vector3 to = hit.position + Vector3.up * 1f;
-            if (Physics.Linecast(from, to, obstacleMask, QueryTriggerInteraction.Ignore))
+            // Не варпать сквозь стены: проверяем прямую на высоте груди.
+            // Но если меш почти строго под ногами (заспавнили чуть выше склона) —
+            // варпаем в любом случае, иначе луч чиркнет по склону, агент останется
+            // выключенным навсегда, а враг будет ходить в тупом Fallback.
+            float flatDist = FlatDistance(transform.position, hit.position);
+            Vector3 from = transform.position + Vector3.up * 1.5f;
+            Vector3 to = hit.position + Vector3.up * 1.5f;
+            if (flatDist > 1.5f && Physics.Linecast(from, to, obstacleMask,
+                    QueryTriggerInteraction.Ignore))
                 return false;
 
             bool wasEnabled = _agent.enabled;

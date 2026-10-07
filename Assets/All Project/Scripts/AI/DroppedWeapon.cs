@@ -101,7 +101,7 @@ namespace FlameOfHistory.AI
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             body.interpolation = RigidbodyInterpolation.Interpolate;
 
-            ownColliders = GetComponentsInChildren<Collider>();
+            RefreshColliders();
             if (ownColliders.Length == 0)
             {
                 BoxCollider box = gameObject.AddComponent<BoxCollider>();
@@ -133,19 +133,63 @@ namespace FlameOfHistory.AI
 
         private void SetCollidersEnabled(bool enabled)
         {
-            if (ownColliders == null) ownColliders = GetComponentsInChildren<Collider>();
-            foreach (var col in ownColliders) col.enabled = enabled;
+            RefreshColliders();
+            foreach (var col in ownColliders)
+            {
+                if (col == null) continue;
+                col.enabled = enabled;
+            }
+        }
+
+        /// <summary>
+        /// БАГФИКС: ownColliders кешируется в PrepareBody, а между кешированием
+        /// и использованием (пауза перед гравитацией ~0.5 c) любой коллайдер
+        /// могут уничтожить (префаб оружия, подгонка коллайдера, подбор).
+        /// Доступ к col.bounds у уничтоженного коллайдера бросает
+        /// MissingReferenceException при убийстве врага. Поэтому перед каждым
+        /// использованием выкидываем мёртвые ссылки и добираем новые.
+        /// GetComponentsInChildren вызываем с includeInactive=true: иначе
+        /// выключенные нами же коллайдеры терялись из кэша и PrepareBody
+        /// плодил лишний BoxCollider при повторном вызове из Initialize.
+        /// </summary>
+        private void RefreshColliders()
+        {
+            if (ownColliders != null && ownColliders.Length > 0)
+            {
+                bool hasDead = false;
+                foreach (var col in ownColliders)
+                {
+                    if (col == null) { hasDead = true; break; }
+                }
+
+                if (hasDead)
+                {
+                    var alive = new System.Collections.Generic.List<Collider>(ownColliders.Length);
+                    foreach (var col in ownColliders)
+                    {
+                        if (col != null) alive.Add(col);
+                    }
+                    ownColliders = alive.ToArray();
+                }
+            }
+
+            if (ownColliders == null || ownColliders.Length == 0)
+                ownColliders = GetComponentsInChildren<Collider>(true);
         }
 
         private void CacheGroundPoints()
         {
-            if (ownColliders == null) ownColliders = GetComponentsInChildren<Collider>();
+            RefreshColliders();
             if (ownColliders == null || ownColliders.Length == 0) return;
             Bounds bounds = new Bounds(transform.position, Vector3.zero);
+            bool hasAny = false;
             foreach (var col in ownColliders)
             {
+                if (col == null) continue;
                 bounds.Encapsulate(col.bounds);
+                hasAny = true;
             }
+            if (!hasAny) return;
 
             Vector3 center = bounds.center;
             Vector3 extents = bounds.extents;
@@ -193,6 +237,8 @@ namespace FlameOfHistory.AI
             ResolveInitialOverlap();
             SetCollidersEnabled(true);
 
+            if (body == null) body = GetComponent<Rigidbody>();
+            if (body == null) return;
             body.isKinematic = false;
             body.useGravity = true;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
@@ -205,48 +251,54 @@ namespace FlameOfHistory.AI
 
         private void ResolveInitialOverlap()
         {
-            if (ownColliders == null) ownColliders = GetComponentsInChildren<Collider>();
-            if (ownColliders.Length == 0) return;
+            RefreshColliders();
+            if (ownColliders == null || ownColliders.Length == 0) return;
 
             Bounds combinedBounds = new Bounds(transform.position, Vector3.zero);
+            bool hasAny = false;
             foreach (var col in ownColliders)
             {
+                if (col == null) continue;
                 combinedBounds.Encapsulate(col.bounds);
+                hasAny = true;
             }
+            if (!hasAny) return;
 
             int maxIterations = 20;
             float stepUp = 0.1f;
 
             for (int i = 0; i < maxIterations; i++)
             {
-                Collider[] overlaps = Physics.OverlapBox(combinedBounds.center, combinedBounds.extents,
-                                                         transform.rotation, groundMask, QueryTriggerInteraction.Ignore);
-                bool hasOverlap = false;
-                foreach (var other in overlaps)
-                {
-                    if (other.transform != transform && !other.transform.IsChildOf(transform))
-                    {
-                        hasOverlap = true;
-                        break;
-                    }
-                }
-
-                if (!hasOverlap) break;
+                if (!HasForeignOverlap(combinedBounds.center, combinedBounds.extents)) break;
 
                 transform.position += Vector3.up * stepUp;
                 foreach (var col in ownColliders)
                 {
+                    if (col == null) continue;
                     combinedBounds.Encapsulate(col.bounds);
                 }
             }
 
-            if (Physics.OverlapBox(combinedBounds.center, combinedBounds.extents,
-                                   transform.rotation, groundMask, QueryTriggerInteraction.Ignore).Length > 0)
+            if (HasForeignOverlap(combinedBounds.center, combinedBounds.extents))
             {
                 Vector3 randomDir = Random.onUnitSphere;
                 randomDir.y = Mathf.Abs(randomDir.y);
                 transform.position += randomDir * 0.3f;
             }
+        }
+
+        private bool HasForeignOverlap(Vector3 center, Vector3 extents)
+        {
+            if (extents.sqrMagnitude <= 0f) return false;
+            Collider[] overlaps = Physics.OverlapBox(center, extents,
+                transform.rotation, groundMask, QueryTriggerInteraction.Ignore);
+            foreach (var other in overlaps)
+            {
+                if (other == null) continue;
+                if (other.transform != transform && !other.transform.IsChildOf(transform))
+                    return true;
+            }
+            return false;
         }
 
         private void OnCollisionEnter(Collision collision)
