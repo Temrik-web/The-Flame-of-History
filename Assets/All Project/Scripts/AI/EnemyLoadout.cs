@@ -70,8 +70,21 @@ namespace FlameOfHistory.AI
         [Tooltip("Случайный разброс точки дропа по Y и Z (X не трогаем) — ложится около врага.")]
         [SerializeField, Min(0f)] private float dropScatter = 0.4f;
         [Tooltip("Поправка разворота дропа (градусы): если модель Drop Object смотрит " +
-                 "не туда же, куда ручное оружие (напр. длинная ось по X, а не по Z).")]
+                  "не туда же, куда ручное оружие (напр. длинная ось по X, а не по Z).")]
         [SerializeField] private Vector3 dropRotationOffset;
+
+        [Header("Старое оружие в руке (убирается только после смерти)")]
+        [Tooltip("Точные имена старых мешей MP40 в руке. При жизни оружие НЕ трогается. " +
+                 "После смерти эти объекты убираются из рук, вместо них выпадает Drop Object.")]
+        [SerializeField] private string[] legacyWeaponNames =
+        {
+            "MP40.001_VC_MP40.mo_VC_MP40.md.001",
+            "MP40.003_VC_MP40.mo_VC_MP40.md.003",
+            "MP40_VC_MP40.mo_VC_MP40.md.001"
+        };
+        [Tooltip("Убирать любых детей, чьё имя содержит эти подстроки " +
+                 "(ловит остальные куски MP40: .002, .013 и т.п.). Пусто — выключить.")]
+        [SerializeField] private string[] legacyWeaponContains = { "MP40" };
 
         [Header("Коллайдер выпавшего оружия")]
         [Tooltip("Центр BoxCollider у выпавшего оружия (в локальных координатах объекта).")]
@@ -98,6 +111,42 @@ namespace FlameOfHistory.AI
             _motor = GetComponent<EnemyMotor>();
             ResolveSocket();
             EquipInitialWeapon();
+        }
+
+        private bool IsLegacyWeaponName(string n)
+        {
+            if (string.IsNullOrEmpty(n)) return false;
+            if (legacyWeaponNames != null)
+                foreach (string exact in legacyWeaponNames)
+                {
+                    if (string.IsNullOrEmpty(exact)) continue;
+                    if (n == exact) return true;
+                }
+            if (legacyWeaponContains != null)
+                foreach (string part in legacyWeaponContains)
+                {
+                    if (string.IsNullOrEmpty(part)) continue;
+                    if (n.IndexOf(part, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                        return true;
+                }
+            return false;
+        }
+
+        /// <summary>
+        /// Убирает старое оружие из рук ТОЛЬКО после смерти: объекты с legacy-именами
+        /// сносятся, вместо них выпадает Drop Object. При жизни оружие не трогается.
+        /// keepRoot (ручное оружие без Drop Object) не трогаем — оно само и роняется.
+        /// </summary>
+        private void DestroyLegacyLeftovers(Transform keepRoot)
+        {
+            Transform[] all = GetComponentsInChildren<Transform>(true);
+            foreach (Transform t in all)
+            {
+                if (t == null || t == transform) continue;
+                if (keepRoot != null && (t == keepRoot || t.IsChildOf(keepRoot))) continue;
+                if (!IsLegacyWeaponName(t.name)) continue;
+                Destroy(t.gameObject);
+            }
         }
 
 #if UNITY_EDITOR
@@ -408,6 +457,9 @@ namespace FlameOfHistory.AI
 
             if (dropObject != null)
             {
+                // Старое оружие из рук убирается полностью — выпадает только dropped.
+                // weaponRoot исключаем: его поза нужна для спавна, его снесёт SpawnDropObject.
+                DestroyLegacyLeftovers(weaponRoot);
                 SpawnDropObject(weaponRoot);
                 _spawnedWeaponRoot = null;
                 Weapon = null;
@@ -524,6 +576,7 @@ namespace FlameOfHistory.AI
 
             if (dropObject != null)
             {
+                DestroyLegacyLeftovers(weaponRoot);
                 SpawnDropObject(weaponRoot);
                 _spawnedWeaponRoot = null;
                 Weapon = null;
