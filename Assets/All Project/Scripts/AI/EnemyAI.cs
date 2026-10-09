@@ -58,6 +58,17 @@ namespace FlameOfHistory.AI
         [SerializeField, Min(1f)] private float preferredCombatDistance = 7f;
         [SerializeField, Min(1f)] private float maximumCombatDistance = 38f;
 
+        [Header("Решительность в бою")]
+        [Tooltip("Как часто пересматривать решение подойти/стоять, сек. " +
+                 "Реже — спокойнее, без дёрганий туда-сюда.")]
+        [SerializeField, Min(0.1f)] private float combatDecisionInterval = 0.6f;
+        [Tooltip("Минимум стоять и вести огонь, прежде чем снова подойти, сек. " +
+                 "Враг «зажимает», а не семенит за каждым шагом игрока.")]
+        [SerializeField, Min(0f)] private float minStandFireTime = 2f;
+        [Tooltip("Минимум идти на сближение, прежде чем встать, сек. " +
+                 "Начал подходить — подходит.")]
+        [SerializeField, Min(0f)] private float minApproachTime = 1.5f;
+
         [Header("Fight pacing (темп схватки, как в топ-играх)")]
         [Tooltip("Первые секунды схватки враг бьёт кучнее (был наготове): " +
                  "первая кровь приходит быстро. Длительность, сек.")]
@@ -176,6 +187,10 @@ namespace FlameOfHistory.AI
         private float _nextBurstTime;
 
         private float _lastVisibleTime;
+        private bool _closingInCombat;
+        private float _nextCombatDecisionTime;
+        private float _standFireUntil;
+        private float _approachUntil;
         private float _nextDiagTime;
         private string _lastLosBlocker;
         private string _lastRejectNote;
@@ -346,7 +361,10 @@ namespace FlameOfHistory.AI
         private void CacheAnimatorParams()
         {
             _animParams.Clear();
-            if (animator == null) return;
+            // Контроллера нет (клипами рулит EnemyAnimator через граф) —
+            // parameters бросал бы "Animator is not playing an AnimatorController"
+            // и ронял остаток Awake. Legacy-путь просто молча не работает.
+            if (animator == null || animator.runtimeAnimatorController == null) return;
             foreach (AnimatorControllerParameter p in animator.parameters)
                 _animParams.Add(p.nameHash);
         }
@@ -508,7 +526,12 @@ namespace FlameOfHistory.AI
                                 $"(дистанция {visDistance:F1} м)", this);
                     }
 
-                    ChangeState(visDistance <= maximumCombatDistance
+                    // Гистерезис границы боя: уже в бою — держим его до +5 м,
+                    // иначе Chase↔Combat мигают каждый тик восприятия и дёргают анимацию.
+                    float enterCombatAt = State == EnemyState.Combat
+                        ? maximumCombatDistance + 5f
+                        : maximumCombatDistance;
+                    ChangeState(visDistance <= enterCombatAt
                         ? EnemyState.Combat
                         : EnemyState.Chase);
                 }
@@ -999,7 +1022,7 @@ namespace FlameOfHistory.AI
             bool holdingThroughFlicker = !visible &&
                 Time.time - _lastVisibleTime <= combatLoseSightGrace;
 
-            if ((!visible && !holdingThroughFlicker) || distance > maximumCombatDistance)
+            if ((!visible && !holdingThroughFlicker) || distance > maximumCombatDistance + 5f)
             {
                 ChangeState(EnemyState.Chase);
                 return;
@@ -1028,7 +1051,32 @@ namespace FlameOfHistory.AI
             // В бою только вперёд или стойка: дальше дистанции — подходит
             // на скорости погони, на дистанции — стоит и стреляет.
             // Назад/вбок (стрейфы, отход) не уходит.
-            if (distance > preferredCombatDistance + 1f)
+            // Реалистичность: решение подойти/стоять принимается не каждый кадр,
+            // а раз в combatDecisionInterval, и каждое решение держится минимум
+            // minStandFireTime / minApproachTime. Враг «зажимает» (стоит и ведёт
+            // огонь), а потом осознанно подходит — без семенящих переключений
+            // анимаций, когда игрок топчется у границы дистанции. Плюс гистерезис
+            // 2 м, чтобы на самой границе не дёргаться.
+            if (Time.time >= _nextCombatDecisionTime)
+            {
+                _nextCombatDecisionTime = Time.time + combatDecisionInterval;
+
+                if (_closingInCombat)
+                {
+                    if (distance <= preferredCombatDistance && Time.time >= _approachUntil)
+                    {
+                        _closingInCombat = false;
+                        _standFireUntil = Time.time + minStandFireTime;
+                    }
+                }
+                else if (distance > preferredCombatDistance + 2f && Time.time >= _standFireUntil)
+                {
+                    _closingInCombat = true;
+                    _approachUntil = Time.time + minApproachTime;
+                }
+            }
+
+            if (_closingInCombat)
             {
                 _motor.SetSpeed(chaseSpeed);
                 RefreshDestination(_target.position);
@@ -1211,6 +1259,13 @@ namespace FlameOfHistory.AI
             if (State == EnemyState.Dead || State == newState) return;
             EnemyState previous = State;
             State = newState;
+            if (newState != EnemyState.Combat)
+            {
+                _closingInCombat = false;
+                _nextCombatDecisionTime = 0f;
+                _standFireUntil = 0f;
+                _approachUntil = 0f;
+            }
             if (newState == EnemyState.Combat && previous != EnemyState.Combat)
             {
                 if (_target == null || _target != _engageTarget ||

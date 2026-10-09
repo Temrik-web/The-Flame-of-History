@@ -29,9 +29,6 @@ public class EnemySpawnCube : MonoBehaviour
         if (!HasAssignedEnemies())
             Debug.LogWarning($"[EnemySpawnCube] {name}: немцы не назначены и не найдены по имени " +
                              "\"Enemy Template\". Перетащи 3 шаблона в массив enemiesToEnable.", this);
-        else
-            Debug.Log($"[EnemySpawnCube] {name}: готово, немцев в списке: {CountAssigned()} " +
-                      "(выключенные включатся по E).", this);
     }
 
     private void Update()
@@ -61,20 +58,14 @@ public class EnemySpawnCube : MonoBehaviour
     }
     public void EnableEnemies()
     {
-        int enabled = 0;
         foreach (GameObject go in enemiesToEnable)
         {
-            if (go == null) continue;
-            if (!go.activeSelf)
-            {
-                go.SetActive(true);
-                enabled++;
-            }
+            if (go == null || go.activeSelf) continue;
+            go.SetActive(true);
         }
 
         hasSpawned = true;
         doneUntil = Time.time + doneMessageTime;
-        Debug.Log($"[EnemySpawnCube] {name}: включено немцев: {enabled} из {CountAssigned()}.", this);
     }
 
     private bool HasAssignedEnemies()

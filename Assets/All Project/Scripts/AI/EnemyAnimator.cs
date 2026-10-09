@@ -15,7 +15,10 @@ namespace FlameOfHistory.AI
     public sealed class EnemyAnimator : MonoBehaviour
     {
         [Header("Ссылки")]
-        [Tooltip("Animator модели врага. Пусто — найдётся сам (оружие исключается из поиска).")]
+        [Tooltip("Animator модели врага. Пусто — найдётся сам (оружие исключается из поиска). " +
+                 "ВАЖНО: поле Controller у этого Animator должно быть пустым (None) — " +
+                 "клипы задаются ниже в Локомоции. Контроллер + граф вместе крутят " +
+                 "одну и ту же анимацию дважды (рывки и перезапуск перехода).")]
         [SerializeField] private Animator animator;
         [Tooltip("Выключить Root Motion: движением владеет EnemyMotor/NavMeshAgent, " +
                  "иначе модель и навмеш тянут тело в разные стороны.")]
@@ -84,10 +87,14 @@ namespace FlameOfHistory.AI
         private bool _tippedOver;
         private bool _warnedNoAnimator;
         private bool _warnedNoClips;
+        private bool _warnedController;
+        private bool _warnedNoDeathClip;
+        private bool _warnedNoGraph;
 
         private void Awake()
         {
             ResolveAnimator();
+            WarnIfControllerConflicts();
             if (animator != null && disableRootMotion)
                 animator.applyRootMotion = false;
             if (runAnchorSpeed <= walkAnchorSpeed) runAnchorSpeed = walkAnchorSpeed + 0.5f;
@@ -103,6 +110,7 @@ namespace FlameOfHistory.AI
                 if (animator == null) return;
                 if (disableRootMotion) animator.applyRootMotion = false;
             }
+            WarnIfControllerConflicts();
             if (HasLocomotion || deathClip != null)
                 BuildGraph();
         }
@@ -174,9 +182,12 @@ namespace FlameOfHistory.AI
                 _tippedOver = true;
                 transform.Rotate(Vector3.right, -85f, Space.Self);
             }
-            if (verbose)
+            if (verbose && !_warnedNoDeathClip)
+            {
+                _warnedNoDeathClip = true;
                 Debug.Log($"[EnemyAnimator] {name}: Death-клип не задан — " +
                     "тело завалено на бок заглушкой. Подставь deathClip для нормальной смерти.", this);
+            }
         }
 
         private void LateUpdate()
@@ -250,9 +261,12 @@ namespace FlameOfHistory.AI
             if (clip == null) return;
             if (!_graphReady || !_graph.IsValid())
             {
-                if (verbose)
+                if (verbose && !_warnedNoGraph)
+                {
+                    _warnedNoGraph = true;
                     Debug.LogWarning($"[EnemyAnimator] {name}: нет графа (нет Animator/клипов) — " +
                         $"экшен «{clip.name}» пропущен.", this);
+                }
                 return;
             }
 
@@ -376,6 +390,22 @@ namespace FlameOfHistory.AI
             _actionPlayable = new AnimationClipPlayable();
             _actionWeight = 0f;
             _actionTargetWeight = 0f;
+        }
+
+        /// <summary>
+        /// БАГ: AnimatorController в поле Controller и PlayableGraph крутят кости
+        /// одновременно — переход дёргается и проигрывается дважды. Клипы должны
+        /// жить только в полях ниже (Локомоция/Экшен), Controller — пустой (None).
+        /// </summary>
+        private void WarnIfControllerConflicts()
+        {
+            if (_warnedController || animator == null) return;
+            if (animator.runtimeAnimatorController == null) return;
+            _warnedController = true;
+            Debug.LogWarning($"[EnemyAnimator] {name}: у Animator задан Controller " +
+                $"«{animator.runtimeAnimatorController.name}» — он и граф EnemyAnimator " +
+                "проигрывают анимацию одновременно (двойной переход с рывком). " +
+                "Убери Controller (поставь None), клипы уже заданы в полях ниже.", this);
         }
 
         private void ResolveAnimator()

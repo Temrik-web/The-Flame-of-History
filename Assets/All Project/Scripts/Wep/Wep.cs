@@ -20,11 +20,16 @@ public class Wep : MonoBehaviour
              "Убери отсюда слой BulletHole, чтобы пули не застревали в дырках от других пуль.")]
     public LayerMask hitMask = ~0;
 
-    [Tooltip("Множитель урона при попадании в голову. 1 — хедшоты не выделяются.")]
-    [Min(1f)] public float headshotMultiplier = 2.5f;
+    [Tooltip("Урон при попадании в голову. В остальное тело — обычный damage.")]
+    [Min(1f)] public float headshotDamage = 100f;
 
     [Tooltip("Имена коллайдеров, считающихся головой (регистр не важен).")]
     public string[] headColliderNames = { "head", "golova", "skull" };
+
+    [Tooltip("Высота макушки, считающаяся головой, м. Запасной вариант, когда у цели " +
+             "нет отдельного коллайдера головы (капсула CharacterController) — " +
+             "головой считается верхняя часть роста.")]
+    [Min(0.05f)] public float headZoneHeight = 0.3f;
 
     [Tooltip("Команда стрелка. Нужна, чтобы враги правильно реагировали на пролёт пули.")]
     public FlameOfHistory.AI.Team shooterTeam = FlameOfHistory.AI.Team.Allies;
@@ -1229,7 +1234,7 @@ public class Wep : MonoBehaviour
         if (col == null) return false;
 
         GameObject shooter = fpsController != null ? fpsController.gameObject : gameObject;
-        float finalDamage = damage * (IsHeadCollider(col) ? headshotMultiplier : 1f);
+        float finalDamage = IsHeadCollider(col, hit.point) ? headshotDamage : damage;
 
         var aiTarget = col.GetComponentInParent<FlameOfHistory.AI.IDamageable>();
         if (aiTarget != null)
@@ -1319,17 +1324,28 @@ public class Wep : MonoBehaviour
         }
     }
 
-    /// <summary>Считается ли коллайдер головой — по имени из headColliderNames.</summary>
-    bool IsHeadCollider(Collider col)
+    /// <summary>
+    /// Считается ли попадание головным. Сначала по имени коллайдера
+    /// (headColliderNames), затем — по высоте: у целей без отдельного коллайдера
+    /// головы (капсула CharacterController) головой считается верхняя часть роста.
+    /// </summary>
+    bool IsHeadCollider(Collider col, Vector3 hitPoint)
     {
-        if (headshotMultiplier <= 1f || headColliderNames == null) return false;
+        if (headshotDamage <= 0f || col == null) return false;
 
         string colName = col.name.ToLowerInvariant();
-        foreach (string candidate in headColliderNames)
+        if (headColliderNames != null)
         {
-            if (string.IsNullOrEmpty(candidate)) continue;
-            if (colName.Contains(candidate.ToLowerInvariant())) return true;
+            foreach (string candidate in headColliderNames)
+            {
+                if (string.IsNullOrEmpty(candidate)) continue;
+                if (colName.Contains(candidate.ToLowerInvariant())) return true;
+            }
         }
+
+        CharacterController body = col.GetComponentInParent<CharacterController>();
+        if (body != null && hitPoint.y >= body.bounds.max.y - headZoneHeight)
+            return true;
 
         return false;
     }

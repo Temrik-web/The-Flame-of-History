@@ -450,10 +450,12 @@ namespace FlameOfHistory.AI
 
             Transform weaponRoot = weapon.transform;
 
-            if (_adoptedVisual == null && !HasRenderers(weaponRoot))
-                Debug.LogWarning($"[EnemyLoadout] {name}: ручное оружие без модели и визуал " +
-                                 "не найден — в бою стреляет невидимка, дроп вылетит из тела. " +
-                                 "Прицепи модель (напр. Mp401) прямым ребенком врага.", this);
+            // Невидимое ручное оружие при заданном Drop Object — штатная схема,
+            // а не ошибка: предупреждаем только если и дропа нет (тогда после
+            // смерти вообще ничего не выпадет). Иначе варнинг спамил каждую смерть.
+            if (dropObject == null && _adoptedVisual == null && !HasRenderers(weaponRoot))
+                Debug.LogWarning($"[EnemyLoadout] {name}: ручное оружие без модели и Drop Object " +
+                                 "не задан — в бою стреляет невидимка, после смерти ничего не выпадет.", this);
 
             if (dropObject != null)
             {
@@ -543,8 +545,17 @@ namespace FlameOfHistory.AI
             return position;
         }
 
+        // Флаг выхода: при остановке Play / закрытии сцены OnDestroy тоже
+        // вызывается — без этой проверки страховка ниже создавала бы DropMp40
+        // из деструктора (отсюда "Some objects were not cleaned up... DropMp40").
+        private static bool s_quitting;
+        private void OnApplicationQuit() => s_quitting = true;
+
+        // Страховка: врага уничтожили без смерти (чистка сцены, рестарт) —
+        // роняем дроп, чтобы оружие не пропадало вместе с телом.
         private void OnDestroy()
         {
+            if (s_quitting) return;
             if (_weaponDropped || !dropWeaponOnDeath) return;
             if (Weapon == null) return;
             if (!Application.isPlaying) return;
