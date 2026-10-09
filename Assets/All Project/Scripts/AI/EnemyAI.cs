@@ -53,15 +53,10 @@ namespace FlameOfHistory.AI
 
         [Header("Combat")]
         [SerializeField, Min(0f)] private float chaseSpeed = 3.8f;
-        [SerializeField, Min(1f)] private float preferredCombatDistance = 20f;
+        [Tooltip("Дистанция боя, м: дальше — подходит на скорости погони, " +
+                 "на дистанции — стоит и стреляет. Назад/вбок в бою не уходит.")]
+        [SerializeField, Min(1f)] private float preferredCombatDistance = 7f;
         [SerializeField, Min(1f)] private float maximumCombatDistance = 38f;
-        [SerializeField, Min(0f)] private float combatRepositionDistance = 5f;
-        [Tooltip("Скорость отхода/стрейфа в бою с оружием, м/с. Человек с винтовкой " +
-                 "пятится медленно, а не спринтует спиной вперёд.")]
-        [SerializeField, Min(0.1f)] private float repositionSpeed = 1.4f;
-        [Tooltip("Скорость сближения в бою под огнём, м/с. Бежит только в погоне " +
-                 "вслепую (Chase) или драпая без выстрелов (Retreat).")]
-        [SerializeField, Min(0.1f)] private float combatAdvanceSpeed = 1.9f;
 
         [Header("Fight pacing (темп схватки, как в топ-играх)")]
         [Tooltip("Первые секунды схватки враг бьёт кучнее (был наготове): " +
@@ -117,11 +112,9 @@ namespace FlameOfHistory.AI
         [SerializeField, Min(1f)] private float suppressedSpreadMultiplier = 3f;
         [SerializeField, Range(0f, 1f)] private float leadAccuracy = 0.6f;
 
-        [Header("Retreat / Suppression")]
-        [SerializeField, Range(0f, 1f)] private float retreatHealthThreshold = 0.25f;
-        [SerializeField, Min(1f)] private float retreatDistance = 18f;
-        [SerializeField, Min(0f)] private float retreatSpeed = 4.2f;
-        [SerializeField, Min(0f)] private float retreatDuration = 6f;
+        [Header("Suppression")]
+        [Tooltip("Подавление теперь только мажет (разброс), двигаться врага " +
+                 "не заставляет: в бою он либо подходит, либо стоит.")]
         [SerializeField, Min(0.1f)] private float suppressionDecay = 0.6f;
 
         [Header("Navigation")]
@@ -175,7 +168,6 @@ namespace FlameOfHistory.AI
         private float _nextPathRefreshTime;
         private float _patrolWaitUntil;
         private bool _waitingAtPoint;
-        private float _retreatUntil;
         private float _nextWanderAttemptTime;
 
         private int _patrolIndex;
@@ -183,9 +175,6 @@ namespace FlameOfHistory.AI
         private int _shotsRemaining;
         private float _nextBurstTime;
 
-        private Vector3 _repositionPoint;
-        private bool _hasRepositionPoint;
-        private float _nextRepositionPickTime;
         private float _lastVisibleTime;
         private float _nextDiagTime;
         private string _lastLosBlocker;
@@ -464,9 +453,6 @@ namespace FlameOfHistory.AI
             if (!recentlySeen && (_awareness < 1f || _target == null))
                 _awareness = Mathf.Max(0f, _awareness - awarenessDecay * dt);
 
-            if (ShouldRetreat() && State != EnemyState.Retreat && State != EnemyState.Dead)
-                BeginRetreat();
-
             switch (State)
             {
                 case EnemyState.Patrol: UpdatePatrol(); break;
@@ -474,7 +460,6 @@ namespace FlameOfHistory.AI
                 case EnemyState.Search: UpdateSearch(); break;
                 case EnemyState.Chase: UpdateChase(); break;
                 case EnemyState.Combat: UpdateCombat(); break;
-                case EnemyState.Retreat: UpdateRetreat(); break;
             }
 
             UpdateAnimator();
@@ -523,12 +508,6 @@ namespace FlameOfHistory.AI
                                 $"(дистанция {visDistance:F1} м)", this);
                     }
 
-                    // БАГФИКС: не срывать отступление ради погони — иначе при
-                    // низком HP состояния Retreat↔Combat мигают каждый тик
-                    // восприятия и враг топчется на месте.
-                    if (State == EnemyState.Retreat && ShouldRetreat())
-                        return;
-
                     ChangeState(visDistance <= maximumCombatDistance
                         ? EnemyState.Combat
                         : EnemyState.Chase);
@@ -558,7 +537,7 @@ namespace FlameOfHistory.AI
             }
 
             if (_target == null && _hasSuspicion && _awareness > 0.15f &&
-                State != EnemyState.Retreat && State != EnemyState.Search)
+                State != EnemyState.Search)
             {
                 ChangeState(EnemyState.Alert);
             }
@@ -591,7 +570,7 @@ namespace FlameOfHistory.AI
                     gate = weapon.ReserveAmmunition > 0 ? "магазин пуст (перезаряжается)" : "НЕТ ПАТРОНОВ ВООБЩЕ";
                 else if (_target != null && targetDist > weapon.Range)
                     gate = $"далеко: {targetDist:F0}м > дальности {weapon.Range:F0}м";
-                else if (State != EnemyState.Combat && State != EnemyState.Retreat)
+                else if (State != EnemyState.Combat)
                     gate = $"не в бою ({State})";
                 else gate = "ДОЛЖЕН СТРЕЛЯТЬ";
                 weaponInfo = $"{weapon.name} {weapon.AmmunitionInMagazine}/{weapon.ReserveAmmunition} → {gate}";
@@ -1046,84 +1025,20 @@ namespace FlameOfHistory.AI
                 _lastTargetHp = _targetHealth.CurrentHealth;
             }
 
-            bool moving;
-            float selfSpeed = _motor.CurrentSpeed;
-            if (distance > preferredCombatDistance + combatRepositionDistance)
+            // В бою только вперёд или стойка: дальше дистанции — подходит
+            // на скорости погони, на дистанции — стоит и стреляет.
+            // Назад/вбок (стрейфы, отход) не уходит.
+            if (distance > preferredCombatDistance + 1f)
             {
-                _motor.SetSpeed(combatAdvanceSpeed);
+                _motor.SetSpeed(chaseSpeed);
                 RefreshDestination(_target.position);
-                moving = true;
-            }
-            else if (distance < preferredCombatDistance - combatRepositionDistance ||
-                     _suppression > 0.6f)
-            {
-                moving = UpdateCombatReposition();
+                UpdateFiring(distance, _motor.CurrentSpeed);
             }
             else
             {
                 _motor.Stop();
-                moving = false;
+                UpdateFiring(distance, 0f);
             }
-
-            UpdateFiring(distance, moving ? selfSpeed : 0f);
-        }
-
-        private bool UpdateCombatReposition()
-        {
-            if (!_hasRepositionPoint || _motor.HasArrived() ||
-                Time.time >= _nextRepositionPickTime)
-            {
-                if (TryPickRepositionPoint(out Vector3 point))
-                {
-                    _repositionPoint = point;
-                    _hasRepositionPoint = true;
-                    _nextRepositionPickTime = Time.time + 2f;
-                    _motor.SetSpeed(repositionSpeed);
-                    MoveTo(point);
-                    return true;
-                }
-
-                _hasRepositionPoint = false;
-                _motor.Stop();
-                return false;
-            }
-
-            if (!_motor.HasDestination)
-                MoveTo(_repositionPoint);
-
-            return true;
-        }
-
-        private bool TryPickRepositionPoint(out Vector3 result)
-        {
-            Vector3 away = transform.position - _target.position;
-            away.y = 0f;
-            if (away.sqrMagnitude < 0.01f) away = transform.forward;
-            away.Normalize();
-
-            Vector3[] directions =
-            {
-                Quaternion.Euler(0f, 70f, 0f) * away,
-                Quaternion.Euler(0f, -70f, 0f) * away,
-                Quaternion.Euler(0f, 120f, 0f) * away,
-                Quaternion.Euler(0f, -120f, 0f) * away,
-                away,
-            };
-
-            foreach (Vector3 dir in directions)
-            {
-                Vector3 desired = transform.position + dir * combatRepositionDistance;
-                if (!_motor.SampleReachablePoint(desired, 4f, out Vector3 point))
-                    continue;
-                if (FlatDistance(transform.position, point) < 1f)
-                    continue;
-
-                result = point;
-                return true;
-            }
-
-            result = transform.position;
-            return false;
         }
 
         private void UpdateFiring(float distance, float selfSpeed)
@@ -1192,79 +1107,6 @@ namespace FlameOfHistory.AI
             Vector3 up = Vector3.up;
 
             return basePoint + right * circle.x + up * circle.y;
-        }
-
-        private void BeginRetreat()
-        {
-            _retreatUntil = Time.time + retreatDuration;
-            ChangeState(EnemyState.Retreat);
-            SelectCoverOrRetreat();
-        }
-
-        private void UpdateRetreat()
-        {
-            if (Time.time >= _retreatUntil)
-            {
-                ChangeState(_target != null && CanSeeCurrentTarget()
-                    ? EnemyState.Combat : EnemyState.Search);
-                return;
-            }
-
-            bool firingOnRetreat = _target != null && CanSeeCurrentTarget() &&
-                Time.time >= _canFireAfter && weapon != null &&
-                Vector3.Distance(transform.position, _target.position) <= weapon.Range;
-
-            _motor.SetSpeed(firingOnRetreat ? repositionSpeed : retreatSpeed);
-
-            if (_motor.HasArrived())
-                SelectCoverOrRetreat();
-
-            if (firingOnRetreat)
-            {
-                _motor.FaceTowardsAtSpeed(_target.position, combatTurnSpeed);
-
-                float distance = Vector3.Distance(transform.position, _target.position);
-                weapon.TryFire(ComputeAimPoint(distance, _motor.CurrentSpeed), gameObject);
-            }
-        }
-
-        private void SelectCoverOrRetreat()
-        {
-            Vector3 threat = _target != null ? _target.position : _lastKnownTargetPosition;
-            Vector3 away = transform.position - threat;
-            if (away.sqrMagnitude < 0.01f) away = -transform.forward;
-            away.y = 0f;
-            away.Normalize();
-
-            Vector3 bestCover = Vector3.zero;
-            bool coverFound = false;
-
-            for (int i = 0; i < 10; i++)
-            {
-                Vector3 side = Vector3.Cross(Vector3.up, away) *
-                               Random.Range(-retreatDistance * 0.6f, retreatDistance * 0.6f);
-                Vector3 candidate = transform.position + away * retreatDistance + side;
-
-                if (!_motor.SampleReachablePoint(candidate, 6f, out Vector3 point))
-                    continue;
-
-                Vector3 threatEye = threat + Vector3.up * 1.5f;
-                Vector3 coverEye = point + Vector3.up * 1.5f;
-                bool blocked = Physics.Linecast(threatEye, coverEye, visibilityMask,
-                                                 QueryTriggerInteraction.Ignore);
-
-                if (blocked)
-                {
-                    bestCover = point;
-                    coverFound = true;
-                    break;
-                }
-
-                if (!coverFound) { bestCover = point; coverFound = true; }
-            }
-
-            if (coverFound) MoveTo(bestCover);
-            else _motor.Stop();
         }
 
         private void GoSearchLastKnown()
@@ -1364,16 +1206,11 @@ namespace FlameOfHistory.AI
             return Vector3.Distance(a, b);
         }
 
-        private bool ShouldRetreat() =>
-            _health.NormalizedHealth <= retreatHealthThreshold && _target != null;
-
         private void ChangeState(EnemyState newState)
         {
             if (State == EnemyState.Dead || State == newState) return;
             EnemyState previous = State;
             State = newState;
-            if (newState != EnemyState.Combat)
-                _hasRepositionPoint = false;
             if (newState == EnemyState.Combat && previous != EnemyState.Combat)
             {
                 if (_target == null || _target != _engageTarget ||
@@ -1392,7 +1229,7 @@ namespace FlameOfHistory.AI
                 Debug.Log($"[EnemyAI] {name}: {previous} → {newState} " +
                     $"(awareness={_awareness:F2}, target={(_target != null ? _target.name : "—")})", this);
 
-            bool aiming = newState is EnemyState.Combat or EnemyState.Retreat;
+            bool aiming = newState is EnemyState.Combat;
             if (enemyAnimator != null) enemyAnimator.SetAiming(aiming);
             SafeSetBool(IsAimingHash, aiming);
             _motor.SetAutoRotation(!aiming);
@@ -1430,11 +1267,6 @@ namespace FlameOfHistory.AI
                     _lastVisibleTime = Time.time;
                     if (previous is EnemyState.Patrol or EnemyState.Alert or EnemyState.Search)
                         if (voice != null) voice.PlaySpotted();
-                    break;
-
-                case EnemyState.Retreat:
-                    _motor.SetSpeed(retreatSpeed);
-                    if (voice != null) voice.PlayRetreat();
                     break;
             }
         }
@@ -1511,9 +1343,8 @@ namespace FlameOfHistory.AI
                 }
             }
 
-            if (ShouldRetreat()) BeginRetreat();
-            else if (_target != null &&
-                     State is not EnemyState.Combat and not EnemyState.Chase)
+            if (_target != null &&
+                State is not EnemyState.Combat and not EnemyState.Chase)
                 ChangeState(EnemyState.Chase);
         }
 

@@ -9,7 +9,6 @@ public enum EnemyState
     Search,
     Chase,
     Combat,
-    Retreat,
     Dead
 }
 
