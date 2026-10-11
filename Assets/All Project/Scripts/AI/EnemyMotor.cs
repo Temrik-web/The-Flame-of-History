@@ -101,6 +101,18 @@ namespace FlameOfHistory.AI
             (Mode == MotorMode.NavMesh && AgentUsable) ||
             (Mode == MotorMode.Fallback && allowFallbackMovement);
 
+        public float DesiredSpeed => _desiredSpeed;
+
+        /// <summary>
+        /// Есть ПРИКАЗ двигаться (точка задана, не дошли, мотор способен).
+        /// Используется аниматором как «движение = анимация»: даже если замеренная
+        /// скорость на этом кадре 0 (разгон, доворот, первый кадр приказа) —
+        /// играть locomotion, а не idle.
+        /// </summary>
+        public bool WantsToMove =>
+            HasDestination && _desiredSpeed > 0.01f && CanMove &&
+            !_blockedCompletely && !HasArrived();
+
         private NavMeshAgent _agent;
         private CharacterController _controller;
 

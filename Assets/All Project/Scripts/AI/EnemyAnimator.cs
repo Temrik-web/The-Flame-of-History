@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
@@ -15,10 +16,11 @@ namespace FlameOfHistory.AI
     public sealed class EnemyAnimator : MonoBehaviour
     {
         [Header("Ссылки")]
-        [Tooltip("Animator модели врага. Пусто — найдётся сам (оружие исключается из поиска). " +
+        [Tooltip("Animator модели врага. ТОЛЬКО ВРУЧНУЮ через инспектор — автопоиск ОТКЛЮЧЁН. " +
+                 "Перетащи сюда Animator именно модели. " +
                  "ВАЖНО: поле Controller у этого Animator должно быть пустым (None) — " +
-                 "клипы задаются ниже в Локомоции. Контроллер + граф вместе крутят " +
-                 "одну и ту же анимацию дважды (рывки и перезапуск перехода).")]
+                 "клипы задаются ниже в Локомоции. Если там висит контроллер — скрипт сам его " +
+                 "отключит в рантайме, иначе контроллер будет сам играть свои анимации.")]
         [SerializeField] private Animator animator;
         [Tooltip("Выключить Root Motion: движением владеет EnemyMotor/NavMeshAgent, " +
                  "иначе модель и навмеш тянут тело в разные стороны.")]
@@ -42,6 +44,16 @@ namespace FlameOfHistory.AI
         [SerializeField, Min(0f)] private float idleMaxSpeed = 0.25f;
         [Tooltip("Как быстро веса догоняют цель. Больше — резче переходы.")]
         [SerializeField, Min(1f)] private float blendResponsiveness = 8f;
+        [Tooltip("Если Idle-клипа нет — ставить самую медленную локомоцию на паузу при стоянке " +
+                 "(чтобы не было лунной походки на месте). Для теста «run везде» ВЫКЛЮЧИ — " +
+                 "тогда run будет играться даже стоя.")]
+        [SerializeField] private bool freezeInPlaceWithoutIdle = true;
+        [Tooltip("ЗАМОК МАСШТАБА. Принудительно включается в Awake/OnEnable и больше не " +
+                  "выключается кодом: Scale-кривые клипов (в .anim это m_ScaleCurves: 100 vs 1) при " +
+                  "бленде погони/боя сжимали модель — отсюда баг «враг уменьшается на бегу, а на " +
+                  "стрельбе нормальный». Источник уже вырезан из .anim, замок — страховка от " +
+                  "реимпорта и чужих клипов. Галку можно снять в рантайме только для диагностики.")]
+        [SerializeField] private bool lockScales = true;
 
         [Header("Экшен-клипы (необязательно — можно оставить пустыми)")]
         [SerializeField] private AnimationClip shootClip;
@@ -72,9 +84,13 @@ namespace FlameOfHistory.AI
         private readonly float[] _targets = new float[4];
 
         private float _speed;
+        private bool _moveIntent;
         private bool _aiming;
         private bool _dead;
         private bool _graphReady;
+
+        private readonly Dictionary<Transform, Vector3> _bindScales = new();
+        private bool _warnedScaleDrift;
 
         private float _actionTime;
         private float _actionLength;
@@ -93,10 +109,24 @@ namespace FlameOfHistory.AI
 
         private void Awake()
         {
-            ResolveAnimator();
+            // Автопоиск Animator УДАЛЁН по требованию: только инспектор.
+            // Пусто — значит анимаций нет, в консоль предупреждение.
+            if (animator == null && verbose && !_warnedNoAnimator)
+            {
+                _warnedNoAnimator = true;
+                Debug.LogWarning($"[EnemyAnimator] {name}: Animator не назначен в инспекторе — " +
+                    "анимаций не будет. Перетащи Animator модели вручную.", this);
+            }
+            StripForeignController();
             WarnIfControllerConflicts();
             if (animator != null && disableRootMotion)
                 animator.applyRootMotion = false;
+            // БАГФИКС «враг уменьшается на бегу»: старые сцены сохранены без поля lockScales —
+            // Unity десериализует его как false и замок молча выключен. Включаем принудительно:
+            // анимация не имеет права менять размер костей ни при каких клипах.
+            lockScales = true;
+            // Чистый бинд ДО первого кадра графа (граф ещё не играл — масштабы не искажены).
+            CacheBindScales();
             if (runAnchorSpeed <= walkAnchorSpeed) runAnchorSpeed = walkAnchorSpeed + 0.5f;
             if (sprintAnchorSpeed <= runAnchorSpeed) sprintAnchorSpeed = runAnchorSpeed + 0.5f;
         }
@@ -106,13 +136,27 @@ namespace FlameOfHistory.AI
             if (!Application.isPlaying) return;
             if (animator == null)
             {
-                ResolveAnimator();
-                if (animator == null) return;
-                if (disableRootMotion) animator.applyRootMotion = false;
+                if (verbose && !_warnedNoAnimator)
+                {
+                    _warnedNoAnimator = true;
+                    Debug.LogWarning($"[EnemyAnimator] {name}: Animator не назначен в инспекторе — " +
+                        "анимаций не будет. Перетащи Animator модели вручную (автопоиск отключён).", this);
+                }
+                return;
             }
+            if (disableRootMotion) animator.applyRootMotion = false;
+            StripForeignController();
             WarnIfControllerConflicts();
+            // См. Awake: замок всегда включён (старые сцены иначе грузят false).
+            lockScales = true;
             if (HasLocomotion || deathClip != null)
                 BuildGraph();
+            else if (verbose && !_warnedNoClips)
+            {
+                _warnedNoClips = true;
+                Debug.LogWarning($"[EnemyAnimator] {name}: ни одного клипа не задано — граф не построен, " +
+                    "анимаций не будет.", this);
+            }
         }
 
         private void OnDisable()
@@ -134,10 +178,19 @@ namespace FlameOfHistory.AI
                 BuildGraph();
         }
 
-        /// <summary>Вызывается из EnemyAI каждый кадр: текущая скорость м/с.</summary>
-        public void SetLocomotion(float speed)
+        /// <summary>Вызывается из EnemyAI каждый кадр: текущая скорость м/с + есть ли приказ двигаться.
+        /// ДВИЖЕНИЕ = АНИМАЦИЯ: если isMoving=true, idle запрещён — играет slowest locomotion
+        /// даже когда замеренная скорость на этом кадре 0 (разгон/доворот/первый кадр).</summary>
+        public void SetLocomotion(float speed, bool isMoving)
         {
             _speed = Mathf.Max(0f, speed);
+            _moveIntent = isMoving;
+        }
+
+        /// <summary>Совместимость: без флага приказа — приказ выводится из порога idle.</summary>
+        public void SetLocomotion(float speed)
+        {
+            SetLocomotion(speed, speed > idleMaxSpeed);
         }
 
         /// <summary>Вызывается из EnemyAI при смене состояния (пока только запоминается).</summary>
@@ -197,9 +250,11 @@ namespace FlameOfHistory.AI
             float dt = Time.deltaTime;
             if (dt <= 0f) return;
 
-            ComputeTargets(_speed, _targets);
+            bool forceMove = _moveIntent && !_dead;
+            ComputeTargets(_speed, forceMove, _targets);
 
-            bool standingWithoutIdle = _speed <= idleMaxSpeed && idleClip == null;
+            bool standingWithoutIdle = freezeInPlaceWithoutIdle && !forceMove &&
+                _speed <= idleMaxSpeed && idleClip == null;
             int slowest = SlowestAvailableIndex();
 
             float k = Mathf.Min(1f, blendResponsiveness * dt);
@@ -215,6 +270,63 @@ namespace FlameOfHistory.AI
             }
 
             UpdateAction(dt);
+
+            // ЗАМОК МАСШТАБА: граф отработал выше, теперь вернуть костям родной размер
+            // до рендера. Без этого Scale-кривые клипов (100 vs 1) сжимают модель на бегу.
+            if (lockScales) RestoreBindScales();
+        }
+
+        private void CacheBindScales()
+        {
+            if (animator == null) return;
+            // СЛИЯНИЕ, а не перезапись. Старый код при изменении иерархии (оружие в руке,
+            // сокет) делал полный рекэш ТЕКУЩИХ — уже искажённых анимацией — масштабов и тем
+            // самым узаконивал «уменьшенного» врага как норму. Теперь: известные кости хранят
+            // ЧИСТЫЙ бинд с Awake (до первого кадра графа), новым трансформантам (оружие —
+            // оно не анимируется, его текущий масштаб и есть правильный) — добавляем как есть.
+            // Поэтому повторные вызовы безопасны в любой момент.
+            foreach (Transform t in animator.GetComponentsInChildren<Transform>(true))
+            {
+                if (t == null || _bindScales.ContainsKey(t)) continue;
+                _bindScales[t] = t.localScale;
+            }
+            // Чистим уничтоженные, чтобы словарь не рос бесконечно.
+            if (_bindScales.Count > 0)
+            {
+                List<Transform> dead = null;
+                foreach (var kv in _bindScales)
+                {
+                    if (kv.Key != null) continue;
+                    if (dead == null) dead = new List<Transform>();
+                    dead.Add(kv.Key);
+                }
+                if (dead != null)
+                    foreach (Transform d in dead) _bindScales.Remove(d);
+            }
+        }
+
+        private void RestoreBindScales()
+        {
+            if (_bindScales.Count == 0) return;
+            foreach (var kv in _bindScales)
+            {
+                Transform t = kv.Key;
+                if (t == null) continue;
+                Vector3 b = kv.Value;
+                Vector3 cur = t.localScale;
+                if (cur.x != b.x || cur.y != b.y || cur.z != b.z)
+                {
+                    if (verbose && !_warnedScaleDrift)
+                    {
+                        _warnedScaleDrift = true;
+                        Debug.LogWarning($"[EnemyAnimator] {name}: клип пытался изменить масштаб " +
+                            $"кости «{t.name}» {cur} -> возвращён {b} (LockScales). " +
+                            "Размер модели больше не прыгает. Причина в Scale-кривых клипов " +
+                            "(в .anim это m_ScaleCurves: 100 vs 1) — почисти их в исходниках.", this);
+                    }
+                    t.localScale = b;
+                }
+            }
         }
 
         private void UpdateAction(float dt)
@@ -298,12 +410,48 @@ namespace FlameOfHistory.AI
             return -1;
         }
 
-        private void ComputeTargets(float speed, float[] outW)
+        private void ComputeTargets(float speed, bool forceMove, float[] outW)
         {
             outW[0] = outW[1] = outW[2] = outW[3] = 0f;
 
             float[] anchors = { 0f, walkAnchorSpeed, runAnchorSpeed, sprintAnchorSpeed };
             AnimationClip[] clips = { idleClip, walkClip, runClip, sprintClip };
+
+            // ДВИЖЕНИЕ = АНИМАЦИЯ: есть приказ двигаться и есть чем (walk/run/sprint) —
+            // idle запрещён, вес уходит на locomotion даже при скорости ~0.
+            if (forceMove && (walkClip != null || runClip != null || sprintClip != null))
+            {
+                int mFirst = -1, mLast = -1;
+                for (int i = 1; i < 4; i++)
+                    if (clips[i] != null) { if (mFirst < 0) mFirst = i; mLast = i; }
+                if (mFirst < 0) { outW[0] = 1f; return; }
+
+                float eff = Mathf.Max(speed, anchors[mFirst]);
+                if (eff <= anchors[mFirst]) { outW[mFirst] = 1f; return; }
+                if (eff >= anchors[mLast]) { outW[mLast] = 1f; return; }
+
+                int mLo = mFirst;
+                for (int i = mFirst; i < mLast; i++)
+                {
+                    if (clips[i] == null) continue;
+                    int next = -1;
+                    for (int j = i + 1; j <= mLast; j++)
+                        if (clips[j] != null) { next = j; break; }
+                    if (next < 0) break;
+                    if (eff >= anchors[i] && eff <= anchors[next]) { mLo = i; break; }
+                }
+
+                int mHi = -1;
+                for (int j = mLo + 1; j <= mLast; j++)
+                    if (clips[j] != null) { mHi = j; break; }
+                if (mHi < 0) { outW[mLo] = 1f; return; }
+
+                float mSpan = Mathf.Max(0.001f, anchors[mHi] - anchors[mLo]);
+                float mT = Mathf.Clamp01((eff - anchors[mLo]) / mSpan);
+                outW[mLo] = 1f - mT;
+                outW[mHi] = mT;
+                return;
+            }
 
             int first = -1, last = -1;
             for (int i = 0; i < 4; i++)
@@ -346,6 +494,25 @@ namespace FlameOfHistory.AI
             DestroyGraph();
             if (animator == null) return;
 
+            // БАГФИКС патруля («ходьба не всегда проигрывается»): в walkClip лежит ТОТ ЖЕ
+            // ассет, что в idleClip (статика без шагов) — на патруле враг скользит статуей,
+            // а ноги видно только на скорости бега. Лечим в рантайме: повышаем run/sprint
+            // до walk. Сцену не правим (её перезаписывает открытый редактор), чиним тут —
+            // переживает любые перезаписи сцены.
+            if (walkClip != null && walkClip == idleClip)
+            {
+                AnimationClip promo = runClip != null && runClip != idleClip ? runClip
+                    : sprintClip != null && sprintClip != idleClip ? sprintClip : null;
+                if (promo != null)
+                {
+                    if (verbose)
+                        Debug.LogWarning($"[EnemyAnimator] {name}: walkClip совпадает с idleClip " +
+                            $"«{walkClip.name}» (статика!) — патруль скользил бы без шагов. " +
+                            $"Подменён на «{promo.name}». Поправь клип в инспекторе, чтобы убрать варнинг.", this);
+                    walkClip = promo;
+                }
+            }
+
             _graph = PlayableGraph.Create("EnemyAnimator_" + name);
             _graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
 
@@ -376,10 +543,11 @@ namespace FlameOfHistory.AI
             var output = AnimationPlayableOutput.Create(_graph, "EnemyOutput", animator);
             output.SetSourcePlayable(_layerMixer);
 
-            ComputeTargets(0f, _targets);
+            ComputeTargets(0f, false, _targets);
             for (int i = 0; i < 4; i++) _weights[i] = _targets[i];
 
             _graph.Play();
+            CacheBindScales();
             _graphReady = true;
         }
 
@@ -390,6 +558,8 @@ namespace FlameOfHistory.AI
             _actionPlayable = new AnimationClipPlayable();
             _actionWeight = 0f;
             _actionTargetWeight = 0f;
+            // Бинд-скейлы НЕ чистим: они захвачены чистыми в Awake (до графа) и переживают
+            // пересборку — иначе Rebuild посреди погони узаконил бы искажение.
         }
 
         /// <summary>
@@ -408,24 +578,21 @@ namespace FlameOfHistory.AI
                 "Убери Controller (поставь None), клипы уже заданы в полях ниже.", this);
         }
 
-        private void ResolveAnimator()
+        /// <summary>
+        /// Чужие анимации (AnimatorController) — главная причина эффекта
+        /// «скрипт сам берёт какие-то анимации»: контроллер играет свой Default State
+        /// поверх/вместо графа. По требованию «только инспектор» — отцепляем его,
+        /// остаются только клипы из полей ниже.
+        /// </summary>
+        private void StripForeignController()
         {
-            if (animator != null) return;
-            animator = GetComponent<Animator>();
-            if (animator != null) return;
-
-            var weapon = GetComponentInChildren<HitscanWeapon>(true);
-            Transform weaponRoot = weapon != null ? weapon.transform : null;
-
-            foreach (Animator cand in GetComponentsInChildren<Animator>(true))
-            {
-                if (cand == null) continue;
-                if (weaponRoot != null &&
-                    (cand.transform == weaponRoot || cand.transform.IsChildOf(weaponRoot)))
-                    continue;
-                animator = cand;
-                return;
-            }
+            if (animator == null) return;
+            if (animator.runtimeAnimatorController == null) return;
+            if (verbose)
+                Debug.LogWarning($"[EnemyAnimator] {name}: внешний Controller " +
+                    $"«{animator.runtimeAnimatorController.name}» отключён — " +
+                    "играют только клипы из инспектора EnemyAnimator.", this);
+            animator.runtimeAnimatorController = null;
         }
 
         private void OnValidate()

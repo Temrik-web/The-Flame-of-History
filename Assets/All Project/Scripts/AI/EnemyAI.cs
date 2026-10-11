@@ -122,6 +122,10 @@ namespace FlameOfHistory.AI
         [SerializeField, Min(1f)] private float movingSpreadMultiplier = 2.2f;
         [SerializeField, Min(1f)] private float suppressedSpreadMultiplier = 3f;
         [SerializeField, Range(0f, 1f)] private float leadAccuracy = 0.6f;
+        [Tooltip("Не стрелять, пока корпус не довернулся на цель (допуск, град, только " +
+                  "рыскание). Иначе очередь уходит визуально вбок от неразвёрнутого ствола. " +
+                  "Огонь только когда развернулся на игрока.")]
+        [SerializeField, Range(0f, 45f)] private float maxFireAngle = 8f;
 
         [Header("Suppression")]
         [Tooltip("Подавление теперь только мажет (разброс), двигаться врага " +
@@ -134,6 +138,8 @@ namespace FlameOfHistory.AI
         [Header("Death")]
         [Tooltip("Через сколько секунд убрать труп. 0 — оставить навсегда.")]
         [SerializeField, Min(0f)] private float corpseLifetime = 0f;
+        [Tooltip("Опустить тело вниз при смерти, м. Разовый сдвиг.")]
+        [SerializeField, Min(0f)] private float corpseSinkY = 0.1f;
 
         [Header("Debug")]
         [Tooltip("Писать в консоль смену состояний, захват и потерю цели. " +
@@ -263,7 +269,9 @@ namespace FlameOfHistory.AI
             if (voice == null) voice = GetComponent<EnemyVoice>();
             if (loadout == null) loadout = GetComponent<EnemyLoadout>();
             if (enemyAnimator == null) enemyAnimator = GetComponent<EnemyAnimator>();
-            ResolveAnimator();
+            // Автопоиск Animator УДАЛЁН: только инспектор.
+            // Пустое поле animator — значит legacy-анимаций нет, и это нормально,
+            // если назначен EnemyAnimator с клипами.
             CacheAnimatorParams();
 
             // ДЫРА: включённый Root Motion у модели дрался бы с NavMeshAgent/EnemyMotor
@@ -336,27 +344,10 @@ namespace FlameOfHistory.AI
             CacheAnimatorParams();
         }
 
-        /// <summary>
-        /// ДЫРА: старый код брал ПЕРВЫЙ Animator в детях — им мог оказаться Animator
-        /// оружия. Теперь сначала свой компонент, потом дети вне поддерева оружия.
-        /// </summary>
-        private void ResolveAnimator()
-        {
-            if (animator != null) return;
-            animator = GetComponent<Animator>();
-            if (animator != null) return;
-
-            Transform weaponRoot = weapon != null ? weapon.transform : null;
-            foreach (Animator cand in GetComponentsInChildren<Animator>(true))
-            {
-                if (cand == null) continue;
-                if (weaponRoot != null &&
-                    (cand.transform == weaponRoot || cand.transform.IsChildOf(weaponRoot)))
-                    continue;
-                animator = cand;
-                return;
-            }
-        }
+        // ResolveAnimator УДАЛЁН по требованию «только через инспектор».
+        // Раньше скрипт сам подбирал первый Animator в детях (иногда это был
+        // Animator оружия или модели с чужим Controller) — отсюда эффект
+        // «берёт сам какие-то анимации». Теперь: не перетащил в инспектор — не играет.
 
         private void CacheAnimatorParams()
         {
@@ -1099,6 +1090,11 @@ namespace FlameOfHistory.AI
 
             if (distance > weapon.Range) return;
 
+            // Не стрелять в доводке: огонь только когда развернулся на игрока.
+            // Серия не сгорает — при доводке очередь продолжится с того же места.
+            if (_target != null && distance > 0.5f && !IsFacingTarget(maxFireAngle))
+                return;
+
             if (weapon.AmmunitionInMagazine <= 0) { weapon.BeginReload(); return; }
 
             if (_shotsRemaining <= 0)
@@ -1121,10 +1117,22 @@ namespace FlameOfHistory.AI
             }
         }
 
+        /// <summary>Корпус довернулся на цель в пределах допуска (только рыскание, без тангажа).</summary>
+        private bool IsFacingTarget(float toleranceDeg)
+        {
+            if (_target == null) return false;
+            Vector3 toTarget = _target.position - transform.position;
+            toTarget.y = 0f;
+            if (toTarget.sqrMagnitude < 0.0001f) return true;
+            Vector3 fwd = transform.forward;
+            fwd.y = 0f;
+            if (fwd.sqrMagnitude < 0.0001f) return true;
+            return Vector3.Angle(fwd, toTarget) <= Mathf.Max(0f, toleranceDeg);
+        }
+
         private float EngageDamageScale()
         {
-            if (pacingDamageStages == null || pacingDamageStages.Length == 0) return 1f;
-            int index = Mathf.Min(_engageHits, pacingDamageStages.Length - 1);
+            if (pacingDamageStages == null || pacingDamageStages.Length == 0) return 1f;            int index = Mathf.Min(_engageHits, pacingDamageStages.Length - 1);
             return Mathf.Max(0.05f, pacingDamageStages[index]);
         }
 
@@ -1428,6 +1436,14 @@ namespace FlameOfHistory.AI
 
             _motor.Disable();
 
+            // Разовый сдвиг трупа вниз при смерти.
+            if (corpseSinkY > 0f)
+            {
+                Vector3 p = transform.position;
+                p.y -= corpseSinkY;
+                transform.position = p;
+            }
+
             foreach (Collider c in GetComponentsInChildren<Collider>(true))
                 if (c != null) c.enabled = false;
 
@@ -1444,13 +1460,13 @@ namespace FlameOfHistory.AI
             // но только если параметры реально существуют (иначе был спам ошибок).
             if (enemyAnimator != null)
             {
-                enemyAnimator.SetLocomotion(speed);
+                enemyAnimator.SetLocomotion(speed, _motor.WantsToMove);
                 return;
             }
             if (animator == null) return;
 
             SafeSetFloat(SpeedHash, speed, 0.15f, Time.deltaTime);
-            if (HasAnimParam(IsMovingHash)) animator.SetBool(IsMovingHash, speed > 0.2f);
+            if (HasAnimParam(IsMovingHash)) animator.SetBool(IsMovingHash, speed > 0.2f || _motor.WantsToMove);
         }
 
         private void UpdateVoiceFootsteps()
