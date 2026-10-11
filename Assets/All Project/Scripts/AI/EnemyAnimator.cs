@@ -48,18 +48,21 @@ namespace FlameOfHistory.AI
                  "(чтобы не было лунной походки на месте). Для теста «run везде» ВЫКЛЮЧИ — " +
                  "тогда run будет играться даже стоя.")]
         [SerializeField] private bool freezeInPlaceWithoutIdle = true;
-        [Tooltip("ЗАМОК МАСШТАБА. Принудительно включается в Awake/OnEnable и больше не " +
-                  "выключается кодом: Scale-кривые клипов (в .anim это m_ScaleCurves: 100 vs 1) при " +
-                  "бленде погони/боя сжимали модель — отсюда баг «враг уменьшается на бегу, а на " +
-                  "стрельбе нормальный». Источник уже вырезан из .anim, замок — страховка от " +
-                  "реимпорта и чужих клипов. Галку можно снять в рантайме только для диагностики.")]
+        [Tooltip("ЗАМОК МАСШТАБА. Принудительно включается в Awake/OnEnable: после оценки графа " +
+                 "возвращает костям сохранённый bind-масштаб, если клип или смешивание клипов его " +
+                 "изменили. Это страховка для клипов с несовпадающими Scale-кривыми. " +
+                 "Галку можно снять только для диагностики.")]
         [SerializeField] private bool lockScales = true;
 
         [Header("Экшен-клипы (необязательно — можно оставить пустыми)")]
         [SerializeField] private AnimationClip shootClip;
         [SerializeField] private AnimationClip reloadClip;
         [SerializeField] private AnimationClip hitClip;
-        [SerializeField] private AnimationClip deathClip;
+
+        [Tooltip("Клипы смерти. При смерти случайно выбирается один из непустых клипов.")]
+        [SerializeField] private AnimationClip[] deathClips;
+
+        [SerializeField, HideInInspector] private AnimationClip deathClip;
         [Tooltip("Скорость появления/затухания экшен-слоя.")]
         [SerializeField, Min(1f)] private float actionFadeSpeed = 8f;
         [Tooltip("Не чаще этого проигрывать анимацию выстрела (выстрелов в секунду больше).")]
@@ -149,7 +152,7 @@ namespace FlameOfHistory.AI
             WarnIfControllerConflicts();
             // См. Awake: замок всегда включён (старые сцены иначе грузят false).
             lockScales = true;
-            if (HasLocomotion || deathClip != null)
+            if (HasLocomotion || HasDeathAnimation)
                 BuildGraph();
             else if (verbose && !_warnedNoClips)
             {
@@ -174,7 +177,7 @@ namespace FlameOfHistory.AI
         {
             if (!Application.isPlaying) return;
             DestroyGraph();
-            if (animator != null && (HasLocomotion || deathClip != null))
+            if (animator != null && (HasLocomotion || HasDeathAnimation))
                 BuildGraph();
         }
 
@@ -225,9 +228,10 @@ namespace FlameOfHistory.AI
         {
             if (_dead) return;
             _dead = true;
-            if (deathClip != null)
+            AnimationClip selectedDeathClip = SelectDeathClip();
+            if (selectedDeathClip != null)
             {
-                StartAction(deathClip, holdAtEnd: true);
+                StartAction(selectedDeathClip, holdAtEnd: true);
                 return;
             }
             if (tipOverOnDeathWithoutClip && !_tippedOver)
@@ -271,20 +275,15 @@ namespace FlameOfHistory.AI
 
             UpdateAction(dt);
 
-            // ЗАМОК МАСШТАБА: граф отработал выше, теперь вернуть костям родной размер
-            // до рендера. Без этого Scale-кривые клипов (100 vs 1) сжимают модель на бегу.
+            // ЗАМОК МАСШТАБА: после оценки графа вернуть костям сохранённый bind-масштаб
+            // до рендера, если клип или смешивание клипов его изменили.
             if (lockScales) RestoreBindScales();
         }
 
         private void CacheBindScales()
         {
             if (animator == null) return;
-            // СЛИЯНИЕ, а не перезапись. Старый код при изменении иерархии (оружие в руке,
-            // сокет) делал полный рекэш ТЕКУЩИХ — уже искажённых анимацией — масштабов и тем
-            // самым узаконивал «уменьшенного» врага как норму. Теперь: известные кости хранят
-            // ЧИСТЫЙ бинд с Awake (до первого кадра графа), новым трансформантам (оружие —
-            // оно не анимируется, его текущий масштаб и есть правильный) — добавляем как есть.
-            // Поэтому повторные вызовы безопасны в любой момент.
+
             foreach (Transform t in animator.GetComponentsInChildren<Transform>(true))
             {
                 if (t == null || _bindScales.ContainsKey(t)) continue;
@@ -319,10 +318,9 @@ namespace FlameOfHistory.AI
                     if (verbose && !_warnedScaleDrift)
                     {
                         _warnedScaleDrift = true;
-                        Debug.LogWarning($"[EnemyAnimator] {name}: клип пытался изменить масштаб " +
+                        Debug.LogWarning($"[EnemyAnimator] {name}: клип пытался изменить bind-масштаб " +
                             $"кости «{t.name}» {cur} -> возвращён {b} (LockScales). " +
-                            "Размер модели больше не прыгает. Причина в Scale-кривых клипов " +
-                            "(в .anim это m_ScaleCurves: 100 vs 1) — почисти их в исходниках.", this);
+                            "Проверь Scale-кривые и соответствие рига в используемых клипах.", this);
                     }
                     t.localScale = b;
                 }
@@ -408,6 +406,41 @@ namespace FlameOfHistory.AI
             if (sprintClip != null) return 3;
             if (idleClip != null) return 0;
             return -1;
+        }
+
+        private bool HasDeathAnimation
+        {
+            get
+            {
+                if (deathClip != null) return true;
+                if (deathClips == null) return false;
+                for (int i = 0; i < deathClips.Length; i++)
+                    if (deathClips[i] != null) return true;
+                return false;
+            }
+        }
+
+        private AnimationClip SelectDeathClip()
+        {
+            if (deathClips != null)
+            {
+                int validClipCount = 0;
+                for (int i = 0; i < deathClips.Length; i++)
+                    if (deathClips[i] != null) validClipCount++;
+
+                if (validClipCount > 0)
+                {
+                    int selectedIndex = Random.Range(0, validClipCount);
+                    for (int i = 0; i < deathClips.Length; i++)
+                    {
+                        AnimationClip clip = deathClips[i];
+                        if (clip == null) continue;
+                        if (selectedIndex-- == 0) return clip;
+                    }
+                }
+            }
+
+            return deathClip;
         }
 
         private void ComputeTargets(float speed, bool forceMove, float[] outW)
