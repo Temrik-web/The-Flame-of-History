@@ -138,8 +138,6 @@ namespace FlameOfHistory.AI
         [Header("Death")]
         [Tooltip("Через сколько секунд убрать труп. 0 — оставить навсегда.")]
         [SerializeField, Min(0f)] private float corpseLifetime = 0f;
-        [Tooltip("Опустить тело вниз при смерти, м. Разовый сдвиг.")]
-        [SerializeField, Min(0f)] private float corpseSinkY = 0.1f;
 
         [Header("Debug")]
         [Tooltip("Писать в консоль смену состояний, захват и потерю цели. " +
@@ -1378,6 +1376,7 @@ namespace FlameOfHistory.AI
             if (!damage.IsSuppression)
             {
                 if (voice != null) voice.PlayPain();
+                if (voice != null) voice.PlayImpact();
                 // ДЫРА: Hit-триггер на КАЖДЫЙ урон спамил и рвал стрельбу.
                 // Основной путь — EnemyAnimator со своим кулдауном, legacy троттлим тут.
                 if (enemyAnimator != null) enemyAnimator.PlayHit();
@@ -1435,14 +1434,6 @@ namespace FlameOfHistory.AI
             }
 
             _motor.Disable();
-
-            // Разовый сдвиг трупа вниз при смерти.
-            if (corpseSinkY > 0f)
-            {
-                Vector3 p = transform.position;
-                p.y -= corpseSinkY;
-                transform.position = p;
-            }
 
             foreach (Collider c in GetComponentsInChildren<Collider>(true))
                 if (c != null) c.enabled = false;

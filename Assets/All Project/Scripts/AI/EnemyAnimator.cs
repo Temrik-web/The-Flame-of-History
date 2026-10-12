@@ -104,6 +104,7 @@ namespace FlameOfHistory.AI
         private float _nextShootTime;
         private float _nextHitTime;
         private bool _tippedOver;
+        private AnimationClip _deathClipInUse;
         private bool _warnedNoAnimator;
         private bool _warnedNoClips;
         private bool _warnedController;
@@ -228,10 +229,12 @@ namespace FlameOfHistory.AI
         {
             if (_dead) return;
             _dead = true;
-            AnimationClip selectedDeathClip = SelectDeathClip();
-            if (selectedDeathClip != null)
+            // Запоминаем ВЫБРАННЫЙ клип: если экшен позже потеряется (пересборка графа),
+            // долежим ТОТ ЖЕ клип, а не кинем рандом заново (иначе труп дёргается).
+            _deathClipInUse = SelectDeathClip();
+            if (_deathClipInUse != null)
             {
-                StartAction(selectedDeathClip, holdAtEnd: true);
+                StartAction(_deathClipInUse, holdAtEnd: true);
                 return;
             }
             if (tipOverOnDeathWithoutClip && !_tippedOver)
@@ -274,6 +277,11 @@ namespace FlameOfHistory.AI
             }
 
             UpdateAction(dt);
+
+            // БАГФИКС «встаёт после смерти»: если экшен смерти потерян (пересборка графа,
+            // вкл/выкл объекта), локомоция с нулевыми весами показывает bind-стойку.
+            // Самолечение каждый кадр: долежать ТОТ ЖЕ клип сразу в конце, без переигрывания.
+            if (_dead) HoldDeathPose();
 
             // ЗАМОК МАСШТАБА: после оценки графа вернуть костям сохранённый bind-масштаб
             // до рендера, если клип или смешивание клипов его изменили.
@@ -364,6 +372,29 @@ namespace FlameOfHistory.AI
                 _actionWeight, _actionTargetWeight, actionFadeSpeed * dt);
             _layerMixer.SetInputWeight(1, _actionWeight);
             _layerMixer.SetInputWeight(0, _dead ? 0f : 1f - _actionWeight);
+        }
+
+        /// <summary>
+        /// Самолечение позы трупа: враг мёртв, а экшена смерти нет (потерян при пересборке
+        /// графа) — долежать запомненный клип СРАЗУ В КОНЦЕ, без переигрывания падения.
+        /// Иначе локомоция с нулевыми весами показывает bind-стойку: труп «встаёт»,
+        /// стоит и потом пропадает по corpseLifetime.
+        /// </summary>
+        private void HoldDeathPose()
+        {
+            if (!_dead || !_graphReady || !_graph.IsValid()) return;
+            if (_actionPlayable.IsValid()) return;
+            if (_deathClipInUse == null) _deathClipInUse = SelectDeathClip();
+            if (_deathClipInUse == null) return; // tip-over: поворот уже на трансформе
+            StartAction(_deathClipInUse, holdAtEnd: true);
+            if (!_actionPlayable.IsValid()) return;
+            _actionTime = _actionLength;
+            _actionPlayable.SetTime(_actionLength);
+            _actionPlayable.Pause();
+            _actionWeight = 1f;
+            _actionTargetWeight = 1f;
+            _layerMixer.SetInputWeight(0, 0f);
+            _layerMixer.SetInputWeight(1, 1f);
         }
 
         private void StartAction(AnimationClip clip, bool holdAtEnd)
@@ -582,6 +613,8 @@ namespace FlameOfHistory.AI
             _graph.Play();
             CacheBindScales();
             _graphReady = true;
+            // Если пересобрались уже мёртвым — сразу долежать труп, не ждать кадра.
+            if (_dead) HoldDeathPose();
         }
 
         private void DestroyGraph()

@@ -8,10 +8,22 @@ public sealed class HitscanWeapon : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Transform muzzle;
+    [Tooltip("Вспышка выстрела (ParticleSystem у дула). Играет каждый выстрел. " +
+              "Нет готовой — кнопка «Создать вспышку выстрела» ниже сделает её сама.")]
     [SerializeField] private ParticleSystem muzzleFlash;
+    [Tooltip("Сколько частиц выпускать за выстрел (Emit — держит любой темп стрельбы).")]
+    [SerializeField, Min(1)] private int muzzleFlashCount = 18;
+    [Tooltip("Свет вспышки (Point Light у дула, intensity 0, выкл). Мигнёт каждый выстрел.")]
+    [SerializeField] private Light muzzleLight;
+    [Tooltip("Пиковая яркость света вспышки.")]
+    [SerializeField, Min(0f)] private float muzzleFlashLightIntensity = 6f;
+    [Tooltip("Сколько гаснет свет вспышки, сек.")]
+    [SerializeField, Min(0.01f)] private float muzzleFlashDuration = 0.07f;
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip shotSound;
     [SerializeField] private AudioClip reloadSound;
+    [Tooltip("Предупредить в консоли, если нет звука выстрела или вспышки.")]
+    [SerializeField] private bool warnAboutMissingAudio = true;
 
     [Header("Impact")]
     [Tooltip("Префаб эффекта попадания (пыль/искры). Необязателен.")]
@@ -63,13 +75,32 @@ public sealed class HitscanWeapon : MonoBehaviour
     private int _reserve;
     private float _nextShotTime;
     private Coroutine _reloadRoutine;
+    private Coroutine _flashRoutine;
     private GameObject _ownerRoot;
     private Team _ownerTeam = Team.Axis;
     private static Material _tracerMaterial;
 
     private float ShotInterval => 60f / roundsPerMinute;
 
-    private void Awake()  => ResetAmmo();
+    private void Awake()
+    {
+        ResetAmmo();
+        // Прайминг частиц: при rate 0 система тихо работает, Emit добавляет вспышку.
+        if (muzzleFlash != null && !muzzleFlash.isPlaying) muzzleFlash.Play();
+        if (muzzleLight != null)
+        {
+            muzzleLight.enabled = false;
+            muzzleLight.intensity = 0f;
+        }
+        if (warnAboutMissingAudio)
+        {
+            if (shotSound == null)
+                Debug.LogWarning($"[HitscanWeapon] {name}: нет звука выстрела (Shot Sound).", this);
+            if (muzzleFlash == null && muzzleLight == null)
+                Debug.Log($"[HitscanWeapon] {name}: нет вспышки выстрела. " +
+                    "Кнопка «Создать вспышку выстрела» в инспекторе сделает её за секунду.", this);
+        }
+    }
 
     public void SetMuzzle(Transform muzzleTransform)
     {
@@ -126,6 +157,8 @@ public sealed class HitscanWeapon : MonoBehaviour
         if (audioSource != null && shotSound != null)
             audioSource.PlayOneShot(shotSound);
 
+        PlayMuzzleFx();
+
         NoiseSystem.Emit(MuzzlePosition, shotNoiseRadius, owner, 1f);
 
         Vector3 endPoint = origin + direction * range;
@@ -164,6 +197,98 @@ public sealed class HitscanWeapon : MonoBehaviour
         if (impactEffect == null) return;
         GameObject fx = Instantiate(impactEffect, point, Quaternion.LookRotation(normal));
         Destroy(fx, impactEffectLifetime);
+    }
+
+    /// <summary>Вспышка выстрела: частицы + мигающий свет. Пустых ссылок не боится.</summary>
+    private void PlayMuzzleFx()
+    {
+        if (muzzleFlash != null)
+            muzzleFlash.Emit(Mathf.Max(1, muzzleFlashCount));
+        if (muzzleLight != null)
+        {
+            if (_flashRoutine != null) StopCoroutine(_flashRoutine);
+            _flashRoutine = StartCoroutine(MuzzleLightRoutine());
+        }
+    }
+
+    private IEnumerator MuzzleLightRoutine()
+    {
+        muzzleLight.enabled = true;
+        float duration = Mathf.Max(0.01f, muzzleFlashDuration);
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            muzzleLight.intensity = muzzleFlashLightIntensity * Mathf.Clamp01(1f - t / duration);
+            yield return null;
+        }
+        muzzleLight.intensity = 0f;
+        muzzleLight.enabled = false;
+        _flashRoutine = null;
+    }
+
+    /// <summary>
+    /// Быстрая настройка: создаёт у дула вспышку (частицы) и свет без единого ассета.
+    /// Выдели оружие → шестерёнка компонента → «Создать вспышку выстрела».
+    /// </summary>
+    [ContextMenu("Создать вспышку выстрела (частицы + свет)")]
+    private void CreateDefaultMuzzleFlash()
+    {
+        Transform host = muzzle != null ? muzzle : transform;
+
+        var fxObject = new GameObject("MuzzleFlashFX");
+        fxObject.transform.SetParent(host, false);
+        fxObject.transform.localPosition = Vector3.zero;
+        fxObject.transform.localRotation = Quaternion.identity;
+
+        ParticleSystem flash = fxObject.GetComponent<ParticleSystem>();
+        if (flash == null) flash = fxObject.AddComponent<ParticleSystem>();
+
+        ParticleSystem.MainModule main = flash.main;
+        main.duration = 0.15f;
+        main.loop = false;
+        main.playOnAwake = false;
+        main.startLifetime = 0.09f;
+        main.startSpeed = 7f;
+        main.startSize = 0.32f;
+        main.startColor = new Color(1f, 0.62f, 0.18f);
+        main.maxParticles = 64;
+        main.simulationSpace = ParticleSystemSimulationSpace.Local;
+
+        ParticleSystem.EmissionModule emission = flash.emission;
+        emission.enabled = true;
+        emission.rateOverTime = 0f;
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 24) });
+
+        ParticleSystem.ShapeModule shape = flash.shape;
+        shape.enabled = true;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 0.06f;
+
+        var lightObject = new GameObject("MuzzleFlashLight");
+        lightObject.transform.SetParent(host, false);
+        lightObject.transform.localPosition = Vector3.zero;
+
+        Light flashLight = lightObject.GetComponent<Light>();
+        if (flashLight == null) flashLight = lightObject.AddComponent<Light>();
+        flashLight.type = LightType.Point;
+        flashLight.color = new Color(1f, 0.55f, 0.22f);
+        flashLight.intensity = 0f;
+        flashLight.range = 9f;
+        flashLight.shadows = LightShadows.None;
+        flashLight.enabled = false;
+
+        muzzleFlash = flash;
+        muzzleLight = flashLight;
+        if (muzzle == null) muzzle = host;
+
+#if UNITY_EDITOR
+        UnityEditor.Undo.RegisterCreatedObjectUndo(fxObject, "Create muzzle flash");
+        UnityEditor.Undo.RegisterCreatedObjectUndo(lightObject, "Create muzzle light");
+        UnityEditor.EditorUtility.SetDirty(this);
+#endif
+        Debug.Log($"[HitscanWeapon] {name}: вспышка и свет созданы у «{host.name}». " +
+            "Силу/длительность крути полями Muzzle Flash ниже.", this);
     }
 
     private void SpawnTracer(Vector3 from, Vector3 to)

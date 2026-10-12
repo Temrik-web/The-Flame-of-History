@@ -11,6 +11,11 @@ namespace FlameOfHistory.AI
         [Tooltip("Источник для звуков тела (шаги, экипировка). Пусто — создастся сам.")]
         [SerializeField] private AudioSource bodySource;
 
+        [Header("Быстрая настройка")]
+        [Tooltip("Разово предупредить в консоли, каких важных звуков нет (смерть, боль, шаги, удары). " +
+                  "Звуки задаются на каждом враге отдельно, в массивах ниже.")]
+        [SerializeField] private bool warnAboutMissingAudio = true;
+
         [Header("Реплики: обнаружение и бой")]
         [Tooltip("«Вижу его!», «Контакт!» — при переходе в бой.")]
         [SerializeField] private AudioClip[] spottedLines;
@@ -30,6 +35,9 @@ namespace FlameOfHistory.AI
         [Header("Реплики: урон и смерть")]
         [SerializeField] private AudioClip[] painLines;
         [SerializeField] private AudioClip[] deathLines;
+        [Tooltip("Глухие удары попаданий по телу (без голоса). Играют при каждом попадании.")]
+        [SerializeField] private AudioClip[] hitImpactClips;
+        [SerializeField, Range(0f, 1f)] private float hitImpactVolume = 0.9f;
 
         [Header("Шаги")]
         [SerializeField] private AudioClip[] footstepClips;
@@ -64,12 +72,29 @@ namespace FlameOfHistory.AI
         private float _nextVoiceTime;
         private float _nextChatterTime;
         private float _nextPainTime;
+        private float _nextImpactTime;
         private float _footstepAccumulator;
 
         private void Awake()
         {
             voiceSource = EnsureSource(voiceSource, "VoiceSource");
             bodySource = EnsureSource(bodySource, "BodySource");
+            WarnAboutMissingAudio();
+        }
+
+        private static bool IsEmpty(AudioClip[] clips) => clips == null || clips.Length == 0;
+
+        private void WarnAboutMissingAudio()
+        {
+            if (!warnAboutMissingAudio) return;
+            string missing = "";
+            if (IsEmpty(deathLines)) missing += "смерть, ";
+            if (IsEmpty(painLines)) missing += "боль, ";
+            if (IsEmpty(footstepClips)) missing += "шаги, ";
+            if (IsEmpty(hitImpactClips)) missing += "удары, ";
+            if (missing.Length > 0)
+                Debug.LogWarning($"[EnemyVoice] {name}: нет звуков: {missing.TrimEnd(',', ' ')}. " +
+                    "Назначь клипы прямо тут или подложи общий Voice Bank.", this);
         }
 
         private AudioSource EnsureSource(AudioSource existing, string childName)
@@ -147,6 +172,17 @@ namespace FlameOfHistory.AI
             PlayDetached(clip, voiceVolume);
 
             if (shoutsMakeNoise) EmitShoutNoise(0.9f);
+        }
+
+        /// <summary>Глухой удар попадания (без голоса и кулдауна реплик).</summary>
+        public void PlayImpact()
+        {
+            if (Time.time < _nextImpactTime) return;
+            _nextImpactTime = Time.time + 0.05f;
+            AudioClip clip = PickClip(hitImpactClips);
+            if (clip == null || bodySource == null) return;
+            bodySource.pitch = Random.Range(pitchRange.x, pitchRange.y);
+            bodySource.PlayOneShot(clip, hitImpactVolume);
         }
 
         public void UpdateFootsteps(float speed, bool grounded)
