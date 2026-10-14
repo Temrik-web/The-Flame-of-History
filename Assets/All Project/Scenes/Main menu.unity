@@ -585,8 +585,8 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1395402252}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 4.756}
-  m_AnchorMin: {x: 0, y: 0.2028797}
-  m_AnchorMax: {x: 0, y: 0.2028797}
+  m_AnchorMin: {x: 1, y: 0}
+  m_AnchorMax: {x: 1, y: 0}
   m_AnchoredPosition: {x: 369.99344, y: 61.00002}
   m_SizeDelta: {x: 254.0874, y: 54.8391}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -3333,16 +3333,15 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1395402252
-Transform:
+--- !u!224 &1395402252
+RectTransform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1395402251}
-  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -133.2204, y: -499.73126, z: 23.302435}
+  m_LocalPosition: {x: 0, y: 0, z: 23}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3352,6 +3351,11 @@ Transform:
   - {fileID: 2100000002}
   m_Father: {fileID: 1685832711}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0}
+  m_AnchorMax: {x: 0.5, y: 0}
+  m_AnchoredPosition: {x: -144, y: 3}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1461637531
 GameObject:
   m_ObjectHideFlags: 0
@@ -3513,7 +3517,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.28100002, y: 0.27}
   m_AnchorMax: {x: 0.28100002, y: 0.27}
-  m_AnchoredPosition: {x: 19.131836, y: -6.4395447}
+  m_AnchoredPosition: {x: 19.131836, y: -6.439575}
   m_SizeDelta: {x: 160, y: 20}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1517728508
@@ -3820,10 +3824,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UiScaleMode: 0
+  m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
+  m_ReferenceResolution: {x: 1920, y: 1080}
   m_ScreenMatchMode: 0
   m_MatchWidthOrHeight: 0
   m_PhysicalUnit: 3
@@ -4147,15 +4151,15 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1750167941}
   m_LocalRotation: {x: 0.4815627, y: -0.0016685248, z: 0.011639997, w: 0.87633276}
-  m_LocalPosition: {x: 0, y: 0, z: -0}
+  m_LocalPosition: {x: 0, y: 0, z: 22}
   m_LocalScale: {x: 10.072434, y: 10.072434, z: 10.072434}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1685832711}
   m_LocalEulerAnglesHint: {x: 57.571, y: 0.885, z: 2.008}
-  m_AnchorMin: {x: 0.6468636, y: 0.823}
-  m_AnchorMax: {x: 0.6468636, y: 0.823}
-  m_AnchoredPosition: {x: -254, y: -387}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 5, y: -77}
   m_SizeDelta: {x: 19.770996, y: 13.382599}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1750167943
@@ -4229,8 +4233,8 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1395402252}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: -2.727}
-  m_AnchorMin: {x: 0, y: 0.3658797}
-  m_AnchorMax: {x: 0, y: 0.3658797}
+  m_AnchorMin: {x: 1, y: 0}
+  m_AnchorMax: {x: 1, y: 0}
   m_AnchoredPosition: {x: 136.99342, y: 56.00002}
   m_SizeDelta: {x: 254.0874, y: 54.8391}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -4511,8 +4515,8 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1395402252}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 3.475}
-  m_AnchorMin: {x: 0, y: 0.51500005}
-  m_AnchorMax: {x: 0, y: 0.51500005}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: -104, y: 54}
   m_SizeDelta: {x: 254.0874, y: 54.8391}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -4704,8 +4708,8 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1395402252}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0.51500005}
-  m_AnchorMax: {x: 0, y: 0.51500005}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: -578.4796, y: 421.9813}
   m_SizeDelta: {x: 254.0874, y: 54.8391}
   m_Pivot: {x: 0.5, y: 0.5}
