@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections.Generic;
 
 namespace FlameOfHistory.AI
 {
@@ -134,6 +135,10 @@ namespace FlameOfHistory.AI
         private static bool s_fallbackNoticeShown;
         private static bool s_fallbackDisabledNoticeShown;
         private readonly Collider[] _obstacleCheckBuffer = new Collider[8];
+        private readonly RaycastHit[] _walkabilityHits = new RaycastHit[32];
+        private readonly RaycastHit[] _groundHits = new RaycastHit[32];
+        private static readonly IComparer<RaycastHit> HitDistanceComparer =
+            Comparer<RaycastHit>.Create((a, b) => a.distance.CompareTo(b.distance));
         private static readonly float[] RearAvoidanceAngles = { 135f, -135f, 180f };
 
         private bool AgentUsable => _agent != null && _agent.enabled && _agent.isOnNavMesh;
@@ -752,11 +757,19 @@ namespace FlameOfHistory.AI
         {
             Vector3 origin = new(position.x, footY + stepHeight + bodyRadius, position.z);
 
-            var hits = Physics.SphereCastAll(origin, bodyRadius, direction,
-                lookAheadDistance, obstacleMask, QueryTriggerInteraction.Ignore);
-
-            foreach (RaycastHit hit in hits)
+            int hitCount = Physics.SphereCastNonAlloc(origin, bodyRadius, direction,
+                _walkabilityHits, lookAheadDistance, obstacleMask, QueryTriggerInteraction.Ignore);
+            RaycastHit[] hits = _walkabilityHits;
+            if (hitCount == _walkabilityHits.Length)
             {
+                hits = Physics.SphereCastAll(origin, bodyRadius, direction,
+                    lookAheadDistance, obstacleMask, QueryTriggerInteraction.Ignore);
+                hitCount = hits.Length;
+            }
+
+            for (int i = 0; i < hitCount; i++)
+            {
+                RaycastHit hit = hits[i];
                 if (hit.collider.transform.root == transform.root) continue;
                 if (hit.collider.bounds.max.y - footY <= stepHeight) continue;
                 return false;
@@ -781,12 +794,20 @@ namespace FlameOfHistory.AI
                 return true;
             }
 
-            var hits = Physics.RaycastAll(from, Vector3.down, distance, groundMask,
-                QueryTriggerInteraction.Ignore);
-            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-
-            foreach (var candidate in hits)
+            int hitCount = Physics.RaycastNonAlloc(from, Vector3.down, _groundHits,
+                distance, groundMask, QueryTriggerInteraction.Ignore);
+            RaycastHit[] hits = _groundHits;
+            if (hitCount == _groundHits.Length)
             {
+                hits = Physics.RaycastAll(from, Vector3.down, distance, groundMask,
+                    QueryTriggerInteraction.Ignore);
+                hitCount = hits.Length;
+            }
+            System.Array.Sort(hits, 0, hitCount, HitDistanceComparer);
+
+            for (int i = 0; i < hitCount; i++)
+            {
+                RaycastHit candidate = hits[i];
                 if (candidate.collider.transform.root == transform.root) continue;
                 if (Vector3.Angle(candidate.normal, Vector3.up) > maximumSlope) continue;
 

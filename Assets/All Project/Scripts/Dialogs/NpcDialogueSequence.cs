@@ -192,8 +192,8 @@ public class NpcDialogueSequence : MonoBehaviour
 
         float dist = Vector3.Distance(transform.position, cachedPlayer.transform.position);
         bool inRange = dist <= interactDistance;
-        bool visible = !requireLineOfSight || DialogueManager.HasLineOfSight(
-            transform.position + Vector3.up * 1.6f, cachedPlayer, gameObject, losBlockMask);
+        bool visible = inRange && (!requireLineOfSight || DialogueManager.HasLineOfSight(
+            transform.position + Vector3.up * 1.6f, cachedPlayer, gameObject, losBlockMask));
 
         if (cachedManager.interactHint != null)
         {

@@ -102,6 +102,13 @@ public class InventorySystem : MonoBehaviour
     public List<Slot> slots = new List<Slot>();
     private bool isOpen;
     private Pickup currentTarget;
+    // Physics queries run every frame while the inventory is closed. Reuse their
+    // storage, but fall back to the unbounded queries in unusually crowded areas.
+    private readonly RaycastHit[] pickupHits = new RaycastHit[64];
+    private readonly Collider[] nearbyColliders = new Collider[64];
+    private readonly RaycastHit[] lineOfSightHits = new RaycastHit[64];
+    private static readonly IComparer<RaycastHit> HitDistanceComparer =
+        Comparer<RaycastHit>.Create((a, b) => a.distance.CompareTo(b.distance));
     private float lastSortTime = -1f;
     private Coroutine dropAllRoutine;
     /// <summary>Разброс броска по рысканью для массового сброса (0 — ровно вперёд).</summary>
@@ -362,16 +369,35 @@ public class InventorySystem : MonoBehaviour
         Pickup best = null;
         float bestScore = float.MaxValue;
         float radius = Mathf.Max(0.01f, pickupCastRadius);
-        RaycastHit[] hits = Physics.SphereCastAll(origin, radius, dir, pickupRange,
-                                                  pickupMask, QueryTriggerInteraction.Collide);
+        int hitCount = Physics.SphereCastNonAlloc(origin, radius, dir, pickupHits,
+            pickupRange, pickupMask, QueryTriggerInteraction.Collide);
+        if (hitCount == pickupHits.Length)
+        {
+            RaycastHit[] allHits = Physics.SphereCastAll(origin, radius, dir, pickupRange,
+                pickupMask, QueryTriggerInteraction.Collide);
+            foreach (RaycastHit hit in allHits)
+                Consider(hit.collider, cam, ref best, ref bestScore);
+        }
+        else
+        {
+            for (int i = 0; i < hitCount; i++)
+                Consider(pickupHits[i].collider, cam, ref best, ref bestScore);
+        }
 
-        foreach (RaycastHit hit in hits)
-            Consider(hit.collider, cam, ref best, ref bestScore);
-        Collider[] near = Physics.OverlapSphere(origin, nearPickupRadius, pickupMask,
-                                                QueryTriggerInteraction.Collide);
-
-        foreach (Collider col in near)
-            Consider(col, cam, ref best, ref bestScore);
+        int nearbyCount = Physics.OverlapSphereNonAlloc(origin, nearPickupRadius,
+            nearbyColliders, pickupMask, QueryTriggerInteraction.Collide);
+        if (nearbyCount == nearbyColliders.Length)
+        {
+            Collider[] allNearby = Physics.OverlapSphere(origin, nearPickupRadius,
+                pickupMask, QueryTriggerInteraction.Collide);
+            foreach (Collider col in allNearby)
+                Consider(col, cam, ref best, ref bestScore);
+        }
+        else
+        {
+            for (int i = 0; i < nearbyCount; i++)
+                Consider(nearbyColliders[i], cam, ref best, ref bestScore);
+        }
 
         SetTarget(best);
     }
@@ -414,14 +440,22 @@ public class InventorySystem : MonoBehaviour
 
         if (distance < 0.05f) return true;
 
-        RaycastHit[] hits = Physics.RaycastAll(eye, dir.normalized, distance,
-                                              occlusionMask, QueryTriggerInteraction.Ignore);
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        int hitCount = Physics.RaycastNonAlloc(eye, dir.normalized, lineOfSightHits,
+            distance, occlusionMask, QueryTriggerInteraction.Ignore);
+        RaycastHit[] hits = lineOfSightHits;
+        if (hitCount == lineOfSightHits.Length)
+        {
+            hits = Physics.RaycastAll(eye, dir.normalized, distance,
+                occlusionMask, QueryTriggerInteraction.Ignore);
+            hitCount = hits.Length;
+        }
+        System.Array.Sort(hits, 0, hitCount, HitDistanceComparer);
 
         Transform pickupRoot = pickup.transform;
 
-        foreach (RaycastHit hit in hits)
+        for (int i = 0; i < hitCount; i++)
         {
+            RaycastHit hit = hits[i];
             if (hit.collider == null) continue;
             if (hit.collider == target) return true;
             if (hit.collider.transform.IsChildOf(pickupRoot)) return true;

@@ -123,8 +123,8 @@ public class DialogueTrigger : MonoBehaviour
 
         float dist = Vector3.Distance(transform.position, cachedPlayer.transform.position);
         playerInRange = dist <= interactDistance;
-        bool visible = !requireLineOfSight || DialogueManager.HasLineOfSight(
-            transform.position + Vector3.up * 1.6f, cachedPlayer, gameObject, losBlockMask);
+        bool visible = playerInRange && (!requireLineOfSight || DialogueManager.HasLineOfSight(
+            transform.position + Vector3.up * 1.6f, cachedPlayer, gameObject, losBlockMask));
 
         if (cachedManager.interactHint != null)
         {

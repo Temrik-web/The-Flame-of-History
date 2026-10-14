@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
@@ -7,6 +8,9 @@ using UnityEngine.EventSystems;
 public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance { get; private set; }
+    private static readonly RaycastHit[] LineOfSightHits = new RaycastHit[64];
+    private static readonly IComparer<RaycastHit> HitDistanceComparer =
+        Comparer<RaycastHit>.Create((a, b) => a.distance.CompareTo(b.distance));
 
     [Header("UI элементы")]
     public GameObject dialoguePanel;
@@ -483,11 +487,19 @@ public class DialogueManager : MonoBehaviour
         if (dist <= 0.05f) return true;
         dir /= dist;
 
-        RaycastHit[] hits = Physics.RaycastAll(
-            new Ray(from, dir), dist, blockMask.value, QueryTriggerInteraction.Ignore);
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-        foreach (var h in hits)
+        Ray ray = new Ray(from, dir);
+        int hitCount = Physics.RaycastNonAlloc(
+            ray, LineOfSightHits, dist, blockMask.value, QueryTriggerInteraction.Ignore);
+        RaycastHit[] hits = LineOfSightHits;
+        if (hitCount == LineOfSightHits.Length)
         {
+            hits = Physics.RaycastAll(ray, dist, blockMask.value, QueryTriggerInteraction.Ignore);
+            hitCount = hits.Length;
+        }
+        System.Array.Sort(hits, 0, hitCount, HitDistanceComparer);
+        for (int i = 0; i < hitCount; i++)
+        {
+            RaycastHit h = hits[i];
             if (h.collider == null) continue;
             GameObject go = h.collider.gameObject;
             if (IsSelfOrChild(go, selfGO)) continue;
